@@ -5,7 +5,7 @@ from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
-from telnetlib3.telopt import DO, DONT, GMCP, IAC, MSDP, NAWS, SB, SE, TTYPE, WILL, ZMP
+from telnetlib3.telopt import DO, GMCP, IAC, MSDP, NAWS, SB, SE, TTYPE, WILL, ZMP
 
 from bastproxy.libs.net.protocols import EVENT_RAISE_API, PROTOCOLS
 from bastproxy.libs.net.telopt import BUILTIN_OPTIONS, frame, telopt_event_specs
@@ -301,15 +301,16 @@ def test_register_sends_nothing_when_the_mud_never_offered() -> None:
     assert writer.iacs == []
 
 
-def test_unregister_sends_dont_and_raises_disabled(isolated: FakeApi) -> None:
+def test_unregister_keeps_the_mud_option_and_raises_disabled(isolated: FakeApi) -> None:
     _call(REGISTER, 102, OWNER)
     writer = FakeWriter()
     PROTOCOLS.mud_connected(writer)
     PROTOCOLS.telopt.on_enabled(writer, 102, True)
     isolated.raised.clear()
     assert _call(UNREGISTER, 102, OWNER)
-    assert writer.iacs == [(DONT, bytes([102]))]
+    assert writer.iacs == []
     assert [e for e, _ in isolated.raised] == ["ev_libs.net.mud_telopt_102_disabled"]
+    assert writer.remote_option.enabled(b"\x66")
 
 
 def test_enabled_event_is_raised_once(isolated: FakeApi) -> None:
@@ -443,3 +444,59 @@ def test_send_declines_are_logged_with_reason(
     ):
         assert reason in text
     assert "payload-bytes-xyz" not in text
+
+
+# reload keeps the MUD option (#586) -------------------------------------------
+
+
+def _enabled_then_unregistered(isolated: FakeApi) -> FakeWriter:
+    _call(REGISTER, 102, OWNER)
+    writer = FakeWriter()
+    writer.peer_offered = {bytes([102])}
+    PROTOCOLS.mud_connected(writer)
+    PROTOCOLS.telopt.on_enabled(writer, 102, True)
+    assert _call(UNREGISTER, 102, OWNER)
+    isolated.raised.clear()
+    writer.iacs.clear()
+    return writer
+
+
+def test_reregister_raises_enabled_at_once_without_do(isolated: FakeApi) -> None:
+    writer = _enabled_then_unregistered(isolated)
+    assert _call(REGISTER, 102, OWNER)
+    assert [e for e, _ in isolated.raised] == [ENABLED_102]
+    assert writer.iacs == []
+    info = _call(GET, 102)
+    assert info is not None
+    assert info["mud_enabled"] is True
+    assert _call(SEND, 102, b"\x05\x01") is True
+
+
+def test_reregister_by_another_owner_raises_enabled_at_once(isolated: FakeApi) -> None:
+    writer = _enabled_then_unregistered(isolated)
+    assert _call(REGISTER, 102, OTHER)
+    assert [e for e, _ in isolated.raised] == [ENABLED_102]
+    assert writer.iacs == []
+
+
+def test_register_update_does_not_raise_enabled_twice(isolated: FakeApi) -> None:
+    _call(REGISTER, 102, OWNER)
+    writer = FakeWriter()
+    PROTOCOLS.mud_connected(writer)
+    PROTOCOLS.telopt.on_enabled(writer, 102, True)
+    assert _call(REGISTER, 102, OWNER, forward=False)
+    assert [e for e, _ in isolated.raised] == [ENABLED_102]
+
+
+def test_register_for_clients_only_does_not_raise_enabled(isolated: FakeApi) -> None:
+    PROTOCOLS.mud_connected(FakeWriter())
+    assert _call(REGISTER, 102, OWNER, mud=False)
+    assert isolated.raised == []
+
+
+def test_reregister_asks_with_do_when_the_mud_turned_it_off(isolated: FakeApi) -> None:
+    writer = _enabled_then_unregistered(isolated)
+    writer.remote_option[bytes([102])] = False
+    assert _call(REGISTER, 102, OWNER)
+    assert writer.iacs == [(DO, bytes([102]))]
+    assert isolated.raised == []

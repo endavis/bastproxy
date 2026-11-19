@@ -1,6 +1,7 @@
 """Tests for the telnet negotiation records made on the MUD and client links (#83)."""
 
 import asyncio
+import collections
 import logging
 from collections.abc import Iterator
 from typing import Any
@@ -302,3 +303,39 @@ def test_handle_dont_without_a_callback_is_a_noop() -> None:
     writer = _writer()
     assert writer.dont_callback is None
     writer.handle_dont(TTYPE)
+
+
+# unowned option subnegotiations (#586) ----------------------------------------
+
+
+def test_unowned_aardwolf_sb_is_dropped_before_telnetlib3(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    writer = _writer()
+    writer.remote_option[b"\x66"] = True
+    spy = MagicMock()
+    monkeypatch.setattr(writer, "_handle_sb_aardwolf", spy, raising=False)
+    with caplog.at_level(logging.DEBUG, logger="bastproxy.libs.net.negotiation"):
+        writer.handle_subnegotiation(collections.deque([b"\x66", b"\x05", b"\x01"]))
+    spy.assert_not_called()
+    assert writer.aardwolf_data == []
+    assert any("is not owned by a plugin" in r.getMessage() for r in caplog.records)
+    assert [r.command for r in _records()] == ["SB"]
+
+
+def test_unowned_unknown_option_sb_is_dropped_without_error(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    writer = _writer()
+    with caplog.at_level(logging.DEBUG, logger="bastproxy.libs.net.negotiation"):
+        writer.handle_subnegotiation(collections.deque([bytes([150]), b"\x01"]))
+    assert any("is not owned by a plugin" in r.getMessage() for r in caplog.records)
+
+
+def test_builtin_option_sb_still_reaches_telnetlib3(monkeypatch: pytest.MonkeyPatch) -> None:
+    writer = _writer()
+    writer.remote_option[GMCP] = True
+    spy = MagicMock()
+    monkeypatch.setattr(writer, "_handle_sb_gmcp", spy, raising=False)
+    writer.handle_subnegotiation(collections.deque([GMCP, b"x"]))
+    spy.assert_called_once()
