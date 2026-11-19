@@ -131,7 +131,7 @@ class RegisterPluginHook:
         self.priority = priority
 ```
 
-The valid hook names are `__init__`, `after_load`, `save` and `uninitialize`, held in
+The valid hook names are `__init__`, `after_load`, `character_active`, `save` and `uninitialize`, held in
 `VALID_HOOK_NAMES` in the same module. Any other name raises `ValueError` when the decorator is
 applied (see [Available Hooks](#available-hooks)).
 
@@ -460,11 +460,26 @@ Plugin hooks allow plugins to register functions to be called at specific lifecy
    - Use for: Persisting data to disk
    - `plugin.state.save` then raises `ev_<plugin_id>_savestate` and `ev_plugin_save`
 
-4. **`uninitialize`**: Called before plugin is unloaded
+4. **`character_active`**: Called each time the character becomes active
+   - Runs from `_eventcb_baseplugin_after_character_is_active`, so it runs when
+     `ev_libs.api_character_active` is raised, at load when the MUD is connected and the character
+     is already active, and again after a disconnect and a new login (once per login)
+   - Hooks in one plugin run in priority order; the order across plugins follows
+     `is_character_active_priority`
+   - Use for: Requesting state that needs a logged-in character
+
+   ```python
+   @RegisterPluginHook("character_active", priority=50)
+   def _phook_request_state(self):
+       self.api("plugins.core.commands:command.run")("score")
+   ```
+
+5. **`uninitialize`**: Called before plugin is unloaded
    - Use for: Cleanup, closing connections, saving state
    - Graceful shutdown
 
-The valid hook names are exactly `__init__`, `after_load`, `save` and `uninitialize`
+The valid hook names are exactly `__init__`, `after_load`, `character_active`, `save` and
+`uninitialize`
 (`VALID_HOOK_NAMES`). Any other name raises `ValueError` when the decorator runs, at import, so the
 plugin fails to load; the message lists the valid names. `initialize` was renamed to `after_load`
 (#423) and gets a message saying so. `Plugin._process_plugin_hook` rejects unknown names too.

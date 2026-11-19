@@ -16,7 +16,13 @@ SRC = Path(__file__).resolve().parents[2] / "src" / "bastproxy"
 
 
 def test_valid_hook_names_contents() -> None:
-    assert VALID_HOOK_NAMES == ("__init__", "after_load", "save", "uninitialize")
+    assert VALID_HOOK_NAMES == (
+        "__init__",
+        "after_load",
+        "character_active",
+        "save",
+        "uninitialize",
+    )
 
 
 @pytest.mark.parametrize("name", VALID_HOOK_NAMES)

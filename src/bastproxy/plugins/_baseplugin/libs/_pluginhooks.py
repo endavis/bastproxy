@@ -16,7 +16,13 @@ from typing import Any
 
 # Project
 
-VALID_HOOK_NAMES: tuple[str, ...] = ("__init__", "after_load", "save", "uninitialize")
+VALID_HOOK_NAMES: tuple[str, ...] = (
+    "__init__",
+    "after_load",
+    "character_active",
+    "save",
+    "uninitialize",
+)
 
 
 def validate_hook_name(hook_name: str) -> None:
@@ -39,6 +45,8 @@ class RegisterPluginHook:
         """'__init__' - invoked for __init__ at the end of baseplugin.__init__.
 
         'after_load' - invoked when the initialize method is ran
+        'character_active' - invoked each time the character becomes active, and at load
+        when the MUD is connected and the character is already active
         'save' - invoked when saving the plugin
         'uninitialize' - invoked when the unitialize method is ran.
 

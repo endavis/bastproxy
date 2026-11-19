@@ -232,8 +232,8 @@ create them.
 
 `RegisterPluginHook(hook_name, priority=50)` marks a `_phook_*` method to run at a point in the
 plugin's life. The set is fixed: `VALID_HOOK_NAMES` in
-`src/bastproxy/plugins/_baseplugin/libs/_pluginhooks.py` is `__init__`, `after_load`, `save` and
-`uninitialize`. Any other name raises `ValueError`, so a plugin cannot create a new lifecycle
+`src/bastproxy/plugins/_baseplugin/libs/_pluginhooks.py` is `__init__`, `after_load`,
+`character_active`, `save` and `uninitialize`. Any other name raises `ValueError`, so a plugin cannot create a new lifecycle
 hook. From `src/bastproxy/plugins/test/triggers/plugin/_triggerex.py`:
 
 ```python
@@ -251,6 +251,19 @@ The `__init__` hook runs at the end of the base class's constructor, which is wh
     def _phook_init_plugin(self) -> None:
         """Initialize the instance."""
         self.can_reload_f = False
+```
+
+The `character_active` hook runs each time the character becomes active (`ev_libs.api_character_active`),
+and at load when the MUD is connected and the character is already active. It runs again after a
+disconnect and a new login, once per login. Hooks in one plugin run in priority order; the order
+across plugins follows `is_character_active_priority`. Use it instead of overriding
+`_eventcb_baseplugin_after_character_is_active`:
+
+```python
+    @RegisterPluginHook("character_active", priority=50)
+    def _phook_request_state(self) -> None:
+        """Ask the MUD for the current state."""
+        self.api("plugins.core.commands:command.run")("score")
 ```
 
 The base class registers its own hooks at fixed priorities, which decides the order against yours;
