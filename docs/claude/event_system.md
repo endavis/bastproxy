@@ -135,7 +135,7 @@ def _eventcb_handle_data(self):
     # Process the event data
 ```
 
-The decorator marks the function with event registration metadata. The events plugin registers the decorated `_eventcb_*` methods of every loaded plugin once, when the post-startup event is raised, and afterwards on `ev_plugin_loaded` for each plugin that loads (the `ev_plugin_loaded` callback returns without registering while the proxy is still starting up).
+The decorator marks the function with event registration metadata. The events plugin registers the decorated `_eventcb_*` methods of every loaded plugin once, when the post-startup event is raised, and afterwards on `ev_plugin_loaded` for each plugin that loads. Before the post-startup event the `ev_plugin_loaded` callback returns without registering, since that event covers the plugins loaded so far; once it has run, plugins loaded later in startup (the `pluginstoload` plugins) register on `ev_plugin_loaded` even though the proxy is still starting up. Registering a function again replaces its earlier registration, so a repeated `ev_plugin_loaded` does not duplicate it.
 
 A callback can also be registered at runtime, with the priority under the keyword `prio`:
 
@@ -364,7 +364,7 @@ self.api("plugins.core.events:event.unregister")(
 ## Integration Points
 
 ### Plugin System
-- At startup the events plugin registers the `@RegisterToEvent` decorated `_eventcb_*` methods of all loaded plugins when the post-startup event is raised; after startup it does the same for each plugin on `ev_plugin_loaded`
+- At startup the events plugin registers the `@RegisterToEvent` decorated `_eventcb_*` methods of all loaded plugins when the post-startup event is raised; after that point (including plugins loaded later in startup) it does the same for each plugin on `ev_plugin_loaded`
 - The `EventsPlugin` listens to `ev_plugin_loaded` and `ev_plugin_unloaded` to manage registrations
 - When a plugin unloads, all its event registrations are removed (`event.unregister.for.owner`); the `Event` objects stay
 

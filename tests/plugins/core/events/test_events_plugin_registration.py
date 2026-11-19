@@ -306,3 +306,12 @@ def test_plugin_unloaded_without_record_does_nothing(stub: _Stub) -> None:
     stub.current_record = None
     EventsPlugin._eventcb_plugin_unloaded(stub)
     assert stub.events["ev_test282_a"].count() == 1
+
+
+def test_reraised_plugin_loaded_registers_handler_once(stub: _Stub) -> None:
+    """Registering a plugin's handlers twice (ev_plugin_loaded re-raise) leaves one (#585)."""
+    stub.instances[OWNER_ID] = _Owner()
+    stub._register_events_for_plugin(OWNER_ID)
+    stub._register_events_for_plugin(OWNER_ID)
+    assert _names(stub.events["ev_plugins.test282.owner_first"]) == [(10, "_eventcb_first")]
+    assert _names(stub.events["ev_test282_b"]) == [(20, "_eventcb_two")]

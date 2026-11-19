@@ -42,6 +42,9 @@ class EventsPlugin(BasePlugin):
         self.all_event_stack = SimpleQueue(300)
 
         self.events: dict[str, Event] = {}
+        # set once the post-startup registration has run; plugins loaded after
+        # that, even while api.startup is still true, register on ev_plugin_loaded
+        self._startup_registration_done = False
 
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
@@ -101,6 +104,7 @@ class EventsPlugin(BasePlugin):
     def _eventcb_post_startup_plugins_loaded(self) -> None:
         """Register all events in all plugins."""
         self._register_all_plugin_events()
+        self._startup_registration_done = True
         self.api("plugins.core.events:event.raise")(f"ev_{self.plugin_id}_all_events_registered")
 
     def _register_all_plugin_events(self) -> None:
@@ -148,7 +152,7 @@ class EventsPlugin(BasePlugin):
     @RegisterToEvent(event_name="ev_plugin_loaded", priority=1)
     def _eventcb_plugin_initialized(self) -> None:
         """A plugin was loaded, so register all events."""
-        if self.api.startup or not (
+        if (self.api.startup and not self._startup_registration_done) or not (
             event_record := self.api("plugins.core.events:event.current.record.get")()
         ):
             return
