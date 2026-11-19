@@ -490,11 +490,9 @@ class ProxyPlugin(BasePlugin):
     def _command_restart(self) -> CommandResult:
         """Restart the proxy."""
         args = self.api("plugins.core.commands:command.current.args.get")()
-        listen_port = self.api("plugins.core.settings:setting.get")(self.plugin_id, "listenport")
         self.api(f"{self.plugin_id}:proxy.restart")(args["seconds"])
-        return CommandResult(
-            True, [f"Restarting bastproxy on port: {listen_port} in {args['seconds']} seconds"]
-        )
+        # the proxy.restart API already tells the clients, so no message here
+        return CommandResult(True)
 
     @RegisterToEvent(event_name="ev_plugins.core.clients_client_logged_in")
     def _eventcb_client_logged_in(self) -> None:
