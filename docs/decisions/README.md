@@ -161,3 +161,4 @@ The Issue contains the full discussion; the ADR summarizes the outcome.
 | [0010](0010-on-prompt-triggers-defer-their-events-to-the-next-prompt.md) | On-prompt triggers defer their events to the next prompt | Accepted |
 | [0011](0011-plugins-wait-for-mud-output-through-per-waiter-queues-on-the-triggers-plugin.md) | Plugins wait for MUD output through per-waiter queues on the triggers plugin | Accepted |
 | [0012](0012-plugins-own-telnet-options-the-core-does-not-handle-through-a-generic-hook.md) | Plugins own telnet options the core does not handle through a generic hook | Accepted |
+| [0013](0013-plugins-are-discovered-from-installed-packages-through-the-bastproxyplugins-entry-point-group.md) | Plugins are discovered from installed packages through the bastproxy.plugins entry-point group | Accepted |

@@ -99,8 +99,8 @@ plugins/<package>/<plugin>/
 ```
 
 Bundled plugins live under `src/bastproxy/plugins/`. Your own plugins go in
-`$BASTPROXY_HOME/plugins/<package>/<plugin>`; see
-[user plugins](claude/plugin_system.md#user-plugins) and
+`$BASTPROXY_HOME/plugins/<package>/<plugin>`, or ship them as an installed package; see
+[packaging plugins](#packaging-plugins), [user plugins](claude/plugin_system.md#user-plugins) and
 [the directory layout](claude/plugin_system.md#directory-layout).
 
 The metadata is in the plugin's `__init__.py`. From `src/bastproxy/plugins/core/watch/__init__.py`:
@@ -181,6 +181,47 @@ Three habits keep a reload clean:
 Data that depends on another plugin's state is rebuilt when that plugin reloads. The commands
 plugin does this: its `ev_plugin_loaded` callback collects the `_command_*` methods of each new
 plugin again.
+
+## Packaging plugins
+
+A plugin package can live in its own repository and be installed next to bastproxy. The package
+holds one folder per plugin, each laid out as in [Writing a plugin](#writing-a-plugin):
+
+```text
+bastproxy-aardwolf/
+    pyproject.toml
+    src/bastproxy_aardwolf/
+        __init__.py          # optional PACKAGE_DESCRIPTION
+        connect/             # a plugin: PLUGIN_NAME in __init__.py, plugin/ subpackage
+```
+
+Register the package in the `bastproxy.plugins` entry-point group:
+
+```toml
+[project.entry-points."bastproxy.plugins"]
+aardwolf = "bastproxy_aardwolf"
+```
+
+The entry name sets the plugin IDs: the plugin above is `plugins.aardwolf.connect`, whatever the
+module is called. The name must be a valid identifier.
+
+- **Same environment.** bastproxy reads entry points from its own environment, so the package
+  must be installed there.
+- **Developing.** Make bastproxy a dependency of the plugin repo and run it from there, so one
+  `.venv` holds both. In the plugin repo's `pyproject.toml`:
+
+  ```toml
+  [tool.uv.sources]
+  bastproxy = { path = "../bastproxy", editable = true }
+  ```
+
+  Then `uv run bastproxy` starts bastproxy with the plugin discovered.
+- **Symlinks are not the same.** A symlink from `$BASTPROXY_HOME/plugins` runs the code in
+  bastproxy's environment, without the package's own dependencies.
+- **Overriding.** A copy in `$BASTPROXY_HOME/plugins` with the same plugin ID wins over the
+  installed one, and a warning is logged. A bundled package name is never overridden.
+
+See [Installed Plugin Packages](claude/plugin_system.md#installed-plugin-packages).
 
 ## Hooks and events
 

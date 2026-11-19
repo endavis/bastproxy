@@ -39,6 +39,7 @@ The loader's user search path was `BASTPROXY_HOME/data/plugins` with import pref
 
 - Issue #110: The user-plugin search path can never load a plugin
 - Issue #95: Import plugins under their real package name only
+- Issue #579: Discover plugins from installed packages through entry points
 
 ## Related Documentation
 

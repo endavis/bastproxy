@@ -247,11 +247,44 @@ $BASTPROXY_HOME/plugins/
 
 See [ADR-0002](../decisions/0002-user-plugins-load-from-bastproxy-homeplugins-under-the-userplugins-import-root.md).
 
+## Installed Plugin Packages
+
+A package installed in the same Python environment as bastproxy can supply plugins by
+registering an entry point in the `bastproxy.plugins` group. Its `pyproject.toml` has:
+
+```toml
+[project.entry-points."bastproxy.plugins"]
+aardwolf = "bastproxy_aardwolf"
+```
+
+The entry name (`aardwolf`) must be a valid Python identifier. The value names an importable
+regular package whose subfolders are the plugins, one level below it.
+
+- **Import location vs ID:** the plugin in `bastproxy_aardwolf/connect` imports as
+  `bastproxy_aardwolf.connect`, but its plugin ID is `plugins.aardwolf.connect`. The entry
+  name, not the module name, sets the package part of the ID. The same plugin placed in the
+  user folder as `$BASTPROXY_HOME/plugins/aardwolf/connect` gets the same ID.
+- **Precedence:** bundled, then user, then installed. Collisions are decided per plugin ID.
+  - Installed against bundled (same package or ID): the installed plugin is skipped and an
+    error is logged. The bundled plugin is kept.
+  - Installed against user (same ID): the user copy wins and a warning names the ID, the
+    user import location and the skipped installed one. Installed plugins the user folder
+    does not provide are still loaded.
+  - Installed against installed (same ID): the first entry name in sort order wins and an
+    error names both.
+- **Broken entries:** an entry whose name is not an identifier, whose import fails, or whose
+  target is not a regular package is logged as an error and skipped. Startup continues.
+- **Same environment:** entry points are read from the environment bastproxy runs in, so the
+  plugin package has to be installed there.
+
+See [ADR-0013](../decisions/0013-plugins-are-discovered-from-installed-packages-through-the-bastproxyplugins-entry-point-group.md).
+
 ## Plugin Lifecycle
 
 ### 1. Discovery
 
-The plugin loader scans two search paths, bundled plugins first:
+The plugin loader scans these search paths, bundled plugins first, then user, then one per
+installed package (see [Installed Plugin Packages](#installed-plugin-packages)):
 
 ```python
 # In PluginLoader
@@ -260,6 +293,7 @@ self.plugin_search_paths = [
      "id_prefix": "plugins.", "source": "bundled"},
     {"path": self.base_plugin_dir, "import_prefix": "userplugins.",
      "id_prefix": "plugins.", "source": "user"},
+    # then one per entry point: "source": "installed"
 ]
 ```
 
