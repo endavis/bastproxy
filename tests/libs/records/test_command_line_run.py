@@ -7,7 +7,9 @@ import pytest
 
 from bastproxy.libs.records.rtypes.muddata import ProcessDataToMud
 from bastproxy.libs.records.rtypes.networkdata import NetworkData, NetworkDataLine
+from bastproxy.plugins.core.commands.plugin import _commands as commands_module
 from bastproxy.plugins.core.commands.plugin._commands import CommandsPlugin
+from bastproxy.plugins.core.events.libs.data._event import EventDataRecord
 
 from .conftest import FakeConnection, StandIns
 
@@ -155,3 +157,38 @@ def test_execute_inside_a_running_command(plugin_stand_ins: StandIns) -> None:
     assert [line for line, _ in dispatched] == ["#bp.a.outer", "#bp.a.inner"]
     assert any("look" in line for line in _sent(connection))
     assert history == ["#bp.a.outer"]
+
+
+def test_execute_runs_when_the_current_event_record_has_no_client_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An event whose record lacks `client_id` (e.g. a plugin load) must not raise (#581)."""
+    record = EventDataRecord(
+        owner_id="test581", event_name="ev_plugin_loaded", data={"plugin_id": "plugins.test.x"}
+    )
+    assert "client_id" not in record
+    received: list[dict[str, Any]] = []
+    monkeypatch.setattr(
+        commands_module,
+        "execute_line",
+        lambda line, **kwargs: received.append({"line": line, **kwargs}),
+    )
+
+    def api(name: str) -> Any:
+        if name == "plugins.core.events:event.current.record.get":
+            return lambda: record
+        if name == "libs.api:caller.owner.get":
+            return lambda: "plugins.test.caller"
+        raise AssertionError(name)
+
+    stub = MagicMock()
+    stub.api = api
+    CommandsPlugin._api_command_line_run(stub, "#bp.a.list")
+    assert received == [
+        {
+            "line": "#bp.a.list",
+            "owner_id": "plugins.test.caller",
+            "client_id": None,
+            "show_in_history": False,
+        }
+    ]
