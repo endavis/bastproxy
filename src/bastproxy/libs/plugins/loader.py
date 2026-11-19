@@ -30,6 +30,12 @@ Usage:
     - Load, unload, and reload plugins using provided methods.
     - Access plugin information and state through provided methods.
 
+Plugin sources, searched in this order (bundled wins any collision):
+    - bundled: the plugins shipped in ``bastproxy.plugins``.
+    - user: ``$BASTPROXY_HOME/plugins`` under the ``userplugins`` import root.
+    - installed: packages registered in the ``bastproxy.plugins`` entry-point
+      group of the running environment.
+
 Classes:
     - `PluginLoader`: Represents a class that manages the loading and unloading of
         plugins.
@@ -42,9 +48,10 @@ import logging
 import sys
 import traceback
 import weakref
-from collections.abc import KeysView
+from collections.abc import Iterable, KeysView
 from dataclasses import dataclass
 from functools import partial
+from importlib.metadata import EntryPoint, entry_points
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -63,6 +70,8 @@ logger = get_logger(__name__)
 
 USER_PLUGIN_IMPORT_ROOT = "userplugins"
 PLUGIN_ID_PREFIX = "plugins."
+ENTRY_POINT_GROUP = "bastproxy.plugins"
+INSTALLED_SOURCE = "installed"
 API_OWNER = "libs.plugins.loader"
 # public event name third-party plugins may subscribe to; keep byte-identical
 POST_STARTUP_EVENT = "ev_bastproxy.libs.plugins.loader_post_startup_plugins_loaded"
@@ -78,6 +87,62 @@ def plugin_module_names(package_import_location: str) -> list[str]:
         for name in list(sys.modules)
         if name == package_import_location or name.startswith(f"{package_import_location}.")
     ]
+
+
+def installed_plugin_search_paths(
+    eps: Iterable[EntryPoint] | None = None,
+) -> list[dict[str, Path | str]]:
+    """Return one plugin search path per usable ``bastproxy.plugins`` entry point.
+
+    The entry name sets the package part of the plugin IDs, and the entry value
+    names the importable package that holds the plugin folders. An entry that is
+    not an identifier, fails to import, or is not a regular package is logged as
+    an error and skipped.
+
+    Args:
+        eps: The entry points to use. Defaults to the installed
+            ``bastproxy.plugins`` group.
+
+    Returns:
+        The search path dicts, sorted by entry name.
+
+    """
+    if eps is None:
+        eps = entry_points(group=ENTRY_POINT_GROUP)
+    paths: list[dict[str, Path | str]] = []
+    for ep in sorted(eps, key=lambda e: e.name):
+        if not ep.name.isidentifier():
+            logger.error(
+                "Installed plugin entry point %r not loaded: the name is not a valid identifier",
+                ep.name,
+            )
+            continue
+        try:
+            module = ep.load()
+        except Exception:
+            logger.exception(
+                "Installed plugin entry point %r (%s) not loaded: import failed",
+                ep.name,
+                ep.value,
+            )
+            continue
+        module_file = getattr(module, "__file__", None)
+        if not isinstance(module, ModuleType) or not hasattr(module, "__path__") or not module_file:
+            logger.error(
+                "Installed plugin entry point %r (%s) not loaded: it is not a regular package",
+                ep.name,
+                ep.value,
+            )
+            continue
+        paths.append(
+            {
+                "path": Path(module_file).parent,
+                "import_prefix": f"{module.__name__}.",
+                "id_prefix": f"{PLUGIN_ID_PREFIX}{ep.name}.",
+                "source": INSTALLED_SOURCE,
+            }
+        )
+    return paths
 
 
 def reloadable_plugin_module_names(package_import_location: str) -> list[str]:
@@ -150,6 +215,7 @@ class PluginLoader:
                 "source": "user",
             }
         )
+        self.plugin_search_paths.extend(installed_plugin_search_paths())
 
         self.api("libs.api:api.add.for.object")(API_OWNER, self)
 
@@ -515,8 +581,10 @@ class PluginLoader:
         """Search every plugin search path and return the plugins and import errors.
 
         Plugin IDs are rewritten from the import location with the search path's
-        ``id_prefix``. A user plugin whose package matches a bundled package is
-        refused with an error log and the bundled plugin is kept.
+        ``id_prefix``. A user or installed plugin whose package matches a bundled package is
+        refused with an error log and the bundled plugin is kept. A user plugin
+        overrides an installed plugin with the same ID (warning); between
+        installed plugins the first entry name wins (error).
 
         Returns:
             A `DiscoveryResult` with the discovered plugins, the packages found and
@@ -525,13 +593,14 @@ class PluginLoader:
         """
         result = imputils.DiscoveryResult()
         bundled_packages: set[str] = set()
-        seen_ids: set[str] = set()
+        seen: dict[str, dict[str, Any]] = {}
 
         for search in self.plugin_search_paths:
             search_path = Path(search["path"])
             import_prefix = str(search["import_prefix"])
             id_prefix = str(search["id_prefix"])
-            is_user = search.get("source") == "user"
+            source = str(search.get("source"))
+            is_user = source == "user"
 
             if is_user:
                 search_path.mkdir(parents=True, exist_ok=True)
@@ -547,15 +616,33 @@ class PluginLoader:
                 )
                 p["plugin_id"] = plugin_id
                 package = plugin_id.package
-                if is_user and (package in bundled_packages or plugin_id in seen_ids):
-                    logger.error(
-                        "User plugin %s not loaded: %s collides with a bundled plugin or package",
-                        p["package_import_location"],
-                        plugin_id,
-                    )
+                winner = seen.get(plugin_id)
+                if source != "bundled" and (package in bundled_packages or winner is not None):
+                    if winner is not None and winner["source"] == "user" and source == "installed":
+                        logger.warning(
+                            "Installed plugin %s not loaded: user plugin %s overrides %s",
+                            p["package_import_location"],
+                            winner["package_import_location"],
+                            plugin_id,
+                        )
+                    elif winner is not None and winner["source"] == "installed":
+                        logger.error(
+                            "Installed plugin %s not loaded: %s is already provided by %s",
+                            p["package_import_location"],
+                            plugin_id,
+                            winner["package_import_location"],
+                        )
+                    else:
+                        logger.error(
+                            "%s plugin %s not loaded: %s collides with a bundled plugin or package",
+                            source.capitalize(),
+                            p["package_import_location"],
+                            plugin_id,
+                        )
                     continue
-                seen_ids.add(plugin_id)
-                if not is_user:
+                p["source"] = source
+                seen[plugin_id] = p
+                if source == "bundled":
                     bundled_packages.add(package)
                 result.plugins.append(p)
 

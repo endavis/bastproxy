@@ -164,6 +164,7 @@ nav:
       - ADR-0010 On-prompt triggers: decisions/0010-on-prompt-triggers-defer-their-events-to-the-next-prompt.md
       - ADR-0011 Plugins wait for MUD output through per-waiter queues on the triggers plugin: decisions/0011-plugins-wait-for-mud-output-through-per-waiter-queues-on-the-triggers-plugin.md
       - ADR-0012 Plugins own telnet options the core does not handle through a generic hook: decisions/0012-plugins-own-telnet-options-the-core-does-not-handle-through-a-generic-hook.md
+      - ADR-0013 Plugins are discovered from installed packages through the bastproxy.plugins entry-point group: decisions/0013-plugins-are-discovered-from-installed-packages-through-the-bastproxyplugins-entry-point-group.md
       - ADR-9001 uv: decisions/9001-use-uv-for-package-management.md
       - ADR-9002 doit: decisions/9002-use-doit-for-task-automation.md
       - ADR-9003 ruff: decisions/9003-use-ruff-for-linting-and-formatting.md
