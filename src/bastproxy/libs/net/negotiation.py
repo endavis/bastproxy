@@ -43,6 +43,7 @@ from telnetlib3.telopt import (
 # Project
 from bastproxy.libs.logger import get_logger
 from bastproxy.libs.net import oob
+from bastproxy.libs.net.telopt import BUILTIN_OPTIONS
 from bastproxy.libs.records.enums import Direction
 from bastproxy.libs.records.rtypes.telnet import TelnetNegotiation
 
@@ -179,6 +180,7 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
     oob_option_callback: Callable[[bytes, bool], None] | None = None
 
     # Answers for options a plugin claimed with ``telopt.register`` (#566); ``None`` claims none.
+    # An SB for an unowned option outside BUILTIN_OPTIONS is dropped, not passed on (#586).
     telopt_hooks: TeloptHooks | None = None
 
     # Called as ``(option)`` after a received ``DONT`` is handled; ``None`` means nobody listens.
@@ -318,7 +320,11 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
             self._telopt_enabled(opt, False)
 
     def handle_subnegotiation(self, buf: collections.deque[bytes]) -> None:
-        """Record a received SB from a copy of the payload, then let telnetlib3 consume it."""
+        """Record a received SB from a copy of the payload, then dispatch it.
+
+        A claimed option goes to its plugin. An option outside ``BUILTIN_OPTIONS`` that no plugin
+        owns is dropped with a debug log. Everything else goes to telnetlib3.
+        """
         try:
             items = list(buf)
             if items:
@@ -331,6 +337,13 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
             logger.exception("Could not record a telnet subnegotiation")
         if buf and self._telopt_claims(buf[0]):
             self._handle_telopt_sb(buf)
+            return
+        if buf and len(buf[0]) == 1 and buf[0][0] not in BUILTIN_OPTIONS:
+            # no plugin owns it and the core never handles it: telnetlib3 must not see it (#586)
+            logger.debug(
+                "Dropped a subnegotiation: %s is not owned by a plugin", name_option(buf[0])
+            )
+            buf.clear()
             return
         super().handle_subnegotiation(buf)
 

@@ -6,6 +6,7 @@ from the MUD and ``SB 102 7 1`` turns spellup tags on from a client. Every wait 
 """
 
 import asyncio
+import logging
 from collections.abc import AsyncIterator, Callable, Iterator
 from contextlib import AsyncExitStack, asynccontextmanager
 from typing import Any
@@ -13,7 +14,7 @@ from unittest.mock import MagicMock
 
 import pytest
 from telnetlib3 import open_connection
-from telnetlib3.telopt import DO, DONT, IAC, SB, WILL, WONT
+from telnetlib3.telopt import DO, DONT, IAC, SB, SE, WILL, WONT
 
 from bastproxy.libs.net import mud as mud_mod
 from bastproxy.libs.net.mud import MudConnection, MudTelnetClient
@@ -227,14 +228,53 @@ async def test_registering_after_an_early_will_asks_with_do(isolated: FakeApi) -
         assert len(_events(isolated, MUD_EVENT + "_enabled")) == 1
 
 
-async def test_unregistering_while_enabled_sends_dont(isolated: FakeApi) -> None:
+async def test_unregistering_while_enabled_keeps_the_mud_option(isolated: FakeApi) -> None:
     PROTOCOLS.telopt.register(102, OWNER)
     async with mud_link() as (mud, _push, _writer):
         await mud.wait_for(lambda: IAC + DO + A102 in mud.received)
         await wait_until(lambda: bool(_events(isolated, MUD_EVENT + "_enabled")))
         assert PROTOCOLS.telopt.unregister(102, OWNER)
-        await mud.wait_for(lambda: IAC + DONT + A102 in mud.received)
+        await settle()
+        assert IAC + DONT + A102 not in mud.received
         assert len(_events(isolated, MUD_EVENT + "_disabled")) == 1
+
+
+async def test_reload_on_one_connection_keeps_the_option_usable(isolated: FakeApi) -> None:
+    PROTOCOLS.telopt.register(102, OWNER)
+    async with mud_link() as (mud, _push, _writer):
+        await mud.wait_for(lambda: IAC + DO + A102 in mud.received)
+        await wait_until(lambda: bool(_events(isolated, MUD_EVENT + "_enabled")))
+        assert PROTOCOLS.telopt.unregister(102, OWNER)
+        await wait_until(lambda: len(_events(isolated, MUD_EVENT + "_disabled")) == 1)
+        await settle()
+        assert IAC + DONT + A102 not in mud.received
+        assert PROTOCOLS.telopt.register(102, OWNER)
+        await wait_until(lambda: len(_events(isolated, MUD_EVENT + "_enabled")) == 2)
+        assert mud.received.count(IAC + DO + A102) == 1
+        info = PROTOCOLS.telopt.get(102)
+        assert info is not None
+        assert info["mud_enabled"]
+        assert PROTOCOLS.telopt.send(102, bytes([5, 1])) is True
+        sent = IAC + SB + A102 + bytes([5, 1]) + IAC + SE
+        await mud.wait_for(lambda: sent in mud.received)
+
+
+async def test_a_subnegotiation_for_an_unowned_enabled_option_is_dropped(
+    isolated: FakeApi, caplog: pytest.LogCaptureFixture
+) -> None:
+    PROTOCOLS.telopt.register(102, OWNER)
+    async with mud_link() as (mud, push, writer):
+        await mud.wait_for(lambda: IAC + DO + A102 in mud.received)
+        await wait_until(lambda: bool(_events(isolated, MUD_EVENT + "_enabled")))
+        assert PROTOCOLS.telopt.unregister(102, OWNER)
+        isolated.raised.clear()
+        with caplog.at_level(logging.DEBUG, logger="bastproxy.libs.net.negotiation"):
+            push(sb_frame(A102, bytes([100, 3])))
+            await settle()
+        assert _events(isolated, MUD_EVENT) == []
+        assert _telopt_records("received") == []
+        assert writer.aardwolf_data == []
+        assert any("is not owned by a plugin" in r.getMessage() for r in caplog.records)
 
 
 async def test_a_mud_disconnect_raises_disabled(isolated: FakeApi) -> None:

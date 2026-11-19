@@ -22,6 +22,10 @@ The events are named by option number: ``ev_libs.net.mud_telopt_<n>``,
 ``ev_libs.net.mud_telopt_<n>_enabled`` is raised once per MUD connection, and only after the MUD
 writer is registered (``mud_connected``), so a handler can call ``send`` and reach the MUD. An
 option the MUD enabled during negotiation is raised when the writer is registered.
+
+Unregistering an option leaves it on with the MUD: no ``DONT`` is sent, because a MUD may answer
+neither ``DONT`` nor ``DO`` (#586). Registering an option that is still on raises ``_enabled`` at
+once, without a new ``DO``.
 """
 
 # Standard Library
@@ -32,7 +36,7 @@ from typing import Any
 
 # 3rd Party
 from telnetlib3 import telopt as _t
-from telnetlib3.telopt import DO, DONT, IAC, SB, SE, WILL, WONT
+from telnetlib3.telopt import DO, IAC, SB, SE, WILL, WONT
 
 # Project
 from bastproxy.libs.logger import get_logger
@@ -289,13 +293,19 @@ class TeloptManager:
         """Remember the MUD writer, raise ``_enabled`` for options already on, ask for the rest."""
         self._mud_writer = writer
         for opt, reg in list(self._regs.items()):
-            if not reg.mud or opt in self._mud_enabled:
-                continue
-            if writer.remote_option.enabled(bytes([opt])):
-                self._mud_enabled.add(opt)
-                self._raise_args(mud_enabled_event(opt), {"option": opt}, str(opt))
+            if reg.mud:
+                self._enable_if_on(opt)
         for opt in list(self._regs):
             self._request_from_mud(opt)
+
+    def _enable_if_on(self, opt: int) -> None:
+        """Raise ``_enabled`` once when the MUD already has ``opt`` on."""
+        writer = self._mud_writer
+        if writer is None or opt in self._mud_enabled:
+            return
+        if writer.remote_option.enabled(bytes([opt])):
+            self._mud_enabled.add(opt)
+            self._raise_args(mud_enabled_event(opt), {"option": opt}, str(opt))
 
     def mud_disconnected(self) -> None:
         """Forget the MUD writer; options that were enabled are disabled."""
@@ -363,6 +373,7 @@ class TeloptManager:
         self._regs[option] = Registration(owner, mud, client, forward)
         self._add_events(option)
         if mud:
+            self._enable_if_on(option)
             self._request_from_mud(option)
         if client:
             self._offer_to_clients(option)
@@ -391,9 +402,6 @@ class TeloptManager:
             return False
         del self._regs[option]
         key = bytes([option])
-        writer = self._mud_writer
-        if writer is not None and not writer.is_closing() and writer.remote_option.enabled(key):
-            writer.iac(DONT, key)
         if option in self._mud_enabled:
             self._mud_enabled.discard(option)
             self._raise_args(mud_disabled_event(option), {"option": option}, str(option))

@@ -495,6 +495,11 @@ def _eventcb_data(self) -> None:
   client_id=None)` to logged-in clients that agreed. Both return `False` when nothing was sent, and log the reason at debug level.
 - The MUD's subnegotiations are forwarded to clients that agreed. Turn that off with
   `telopt.forward.set(option, False)`. A client's subnegotiations are never sent to the MUD.
+- A reload keeps the MUD option on: unloading sends no `DONT`, and registering again raises
+  `_enabled` at once. A plugin that registers in its `after_load` hook does not have its
+  `@RegisterToEvent` handlers attached yet, so it misses that raise: after registering, check
+  `telopt.get(option)["mud_enabled"]` and run the enabled handling itself. A plugin that turned on
+  MUD-side features turns them off itself when it unloads for good.
 - `telopt.unregister(option)`, `telopt.unregister.for.owner(owner_id)` and `telopt.get(option)`
   complete the set.
 
