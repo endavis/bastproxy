@@ -421,6 +421,7 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
                 "ev_libs.api_character_active",
                 self._eventcb_baseplugin_after_character_is_active,
             )
+        self._process_plugin_hook("character_active")
 
     @RegisterPluginHook("uninitialize", priority=100)
     def _phook_base_unitialize_hook(self) -> None:
