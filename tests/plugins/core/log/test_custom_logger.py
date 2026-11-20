@@ -25,6 +25,7 @@ from bastproxy.plugins.core.log.libs._custom_logger import (
     CustomColorFormatter,
     CustomConsoleHandler,
     CustomRotatingFileHandler,
+    TypeCountHandler,
     type_counts,
 )
 
@@ -72,6 +73,8 @@ class _Rig:
         self.file.formatter = logging.Formatter(FMT)
         self.client = CustomClientHandler()
         self.client.formatter = CustomColorFormatter(FMT)
+        self.counter = TypeCountHandler()
+        logging.getLogger().addHandler(self.counter)
         for handler in (self.file, self.console, self.client):
             handler.api = self.stub  # type: ignore[assignment]
             handler.addFilter(RenderFilter())
@@ -79,7 +82,7 @@ class _Rig:
             logging.getLogger().addHandler(handler)
 
     def close(self) -> None:
-        for handler in (self.file, self.console, self.client):
+        for handler in (self.file, self.console, self.client, self.counter):
             logging.getLogger().removeHandler(handler)
         self.file.close()
 
@@ -196,16 +199,31 @@ def test_console_output_keeps_the_level_colour_wrap(rig: _Rig) -> None:
     assert ANSI.search(rig.stream.getvalue())
 
 
-def test_type_counts_increment_per_source(rig: _Rig) -> None:
+def test_type_counts_increment_once_per_source(rig: _Rig) -> None:
+    for name in ("t247.n1", "t247.n2"):
+        type_counts.pop(name, None)
+    rig.allowed["console"] = {"t247.n1"}
     rig.allowed["file"] = {"t247.n1"}
-    type_counts.pop("t247.n1", None)
-    type_counts.pop("t247.n2", None)
+    rig.allowed["client"] = {"t247.n1"}
     log_to(["t247.n1", "t247.n2"], logging.INFO, "counted")
-    # the file handler and the (silent) client handler: the client skips counting
-    # without its api, the console handler counts too
-    assert type_counts["t247.n1"]["info"] >= 1
-    assert type_counts["t247.n2"]["info"] >= 1
-    assert type_counts["t247.n1"]["info"] == type_counts["t247.n2"]["info"]
+    assert type_counts["t247.n1"]["info"] == 1
+    assert type_counts["t247.n2"]["info"] == 1
+
+
+def test_type_counts_ignore_quiet_mode_and_startup(rig: _Rig) -> None:
+    type_counts.pop("t247.n3", None)
+    rig.stub.quiet_mode = True
+    rig.stub.startup = True
+    get_logger("t247.n3").info("counted")
+    assert type_counts["t247.n3"]["info"] == 1
+
+
+def test_only_the_count_handler_counts(rig: _Rig) -> None:
+    type_counts.pop("t247.n4", None)
+    rig.allowed["console"] = rig.allowed["file"] = rig.allowed["client"] = {"t247.n4"}
+    rig.counter.setLevel(logging.CRITICAL + 1)
+    get_logger("t247.n4").info("not counted")
+    assert "t247.n4" not in type_counts
 
 
 def test_render_filter_runs_once_across_three_handlers(rig: _Rig) -> None:

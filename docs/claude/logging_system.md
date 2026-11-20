@@ -44,7 +44,7 @@ The root logger is at DEBUG and has three handlers (console, file, client) in `s
 ## Routing in the handlers
 
 - **One emission per handler.** For a record from `log_to`, each handler takes the first name in `log_sources` that it allows and emits a copy of the record under that name. The client handler falls back to the first source for ERROR and above.
-- **Counts.** `update_type_counts` runs once per source in each handler, so `#bp.core.log.types` counts per source. Debug messages for names that are not at debug are no longer counted, because they never reach a handler.
+- **Counts.** `TypeCountHandler` in `src/bastproxy/plugins/core/log/libs/_custom_logger.py` is a fourth root handler that calls `update_type_counts` once per source of each record, so `#bp.core.log.types` counts each record once per source. The console, file and client handlers do not count, so quiet mode, startup and their routing do not change the counts. Debug messages for names that are not at debug are no longer counted, because they never reach a handler.
 - **`record_id`.** `RecordContextFilter` sets `record.record_id` to the UUID of the active record in `RMANAGER` (or `None`). It stores the UUID string, never the record, so a log record keeps no record alive.
 - **Rendering.** `RenderFilter` runs once per record on each handler: it formats the message with its arguments, splits it into lines and drops `\r`.
 

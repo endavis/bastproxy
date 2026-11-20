@@ -141,6 +141,22 @@ def _emit_as(record: logging.LogRecord, name: str) -> logging.LogRecord:
     return new_record
 
 
+class TypeCountHandler(logging.Handler):
+    """Count each record once per source, whatever the other handlers do.
+
+    It is the only place that counts, so quiet mode, startup and the other
+    handlers' routing do not change the counts.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setLevel(logging.DEBUG)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        for name in _record_names(record):
+            update_type_counts(name, record.levelno)
+
+
 class CustomConsoleHandler(logging.StreamHandler):
     def __init__(self, stream: TextIO = sys.stdout) -> None:
         super().__init__(stream=stream)
@@ -152,8 +168,6 @@ class CustomConsoleHandler(logging.StreamHandler):
         if self.api.quiet_mode:
             return
 
-        for name in _record_names(record):
-            update_type_counts(name, record.levelno)
         try:
             allowed_name = _first_allowed(
                 record, self.api, "plugins.core.log:logger.console.is.enabled"
@@ -222,8 +236,6 @@ class CustomRotatingFileHandler(PrivateFileMixin, logging.handlers.TimedRotating
         self.setLevel(logging.DEBUG)
 
     def emit(self, record: logging.LogRecord) -> None:
-        for name in _record_names(record):
-            update_type_counts(name, record.levelno)
         try:
             allowed_name = _first_allowed(
                 record, self.api, "plugins.core.log:logger.file.is.enabled"
@@ -248,9 +260,6 @@ class CustomClientHandler(logging.Handler):
             return
 
         names = _record_names(record)
-        for name in names:
-            update_type_counts(name, record.levelno)
-
         check = self.api("plugins.core.log:logger.client.is.enabled")
         shown = next((n for n in names if check(n, record.levelno)), None)
         if shown is None and record.levelno >= logging.ERROR:
@@ -322,6 +331,7 @@ def setup_loggers(log_level: int) -> None:
     logging.getLogger().addHandler(console_handler)
     logging.getLogger().addHandler(client_handler)
     logging.getLogger().addHandler(RECORD_LOG_BUFFER)
+    logging.getLogger().addHandler(TypeCountHandler())
 
     if API.LOG_IN_UTC_TZ:
         logging.Formatter.formatTime = format_time_rfc3339_utc  # type: ignore[method-assign,assignment]  # module-level override of the stdlib formatter
