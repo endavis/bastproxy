@@ -33,6 +33,7 @@ except ImportError:
 import logging
 
 from bastproxy.libs.api import AddAPI
+from bastproxy.libs.commandsplit import build_command_split_regex
 from bastproxy.libs.context import get_output_client
 from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.net.mud import (
@@ -52,7 +53,7 @@ from bastproxy.libs.records import (
 from bastproxy.libs.textwidth import display_width
 from bastproxy.libs.validators import (
     int_range,
-    non_empty,
+    single_punctuation,
     validate_ipv4_host,
     validate_ipv6_host,
     validate_port,
@@ -228,7 +229,7 @@ class ProxyPlugin(BasePlugin):
             "|",
             str,
             "the seperator for sending multiple commands",
-            validator=non_empty(label="command separator"),
+            validator=single_punctuation(label="command separator"),
         )
 
         self.api("plugins.core.events:event.add")(
@@ -628,11 +629,7 @@ class ProxyPlugin(BasePlugin):
         if event_record := self.api("plugins.core.events:event.current.record.get")():
             newsep = event_record["newvalue"]
 
-            self.api.__class__.command_split_regex = r"(?<=[^{}]){}(?=[^{}])".format(
-                "\\" + newsep,
-                "\\" + newsep,
-                "\\" + newsep,
-            )
+            self.api.__class__.command_split_regex = build_command_split_regex(newsep)
 
     @RegisterToEvent(event_name="ev_{plugin_id}_var_mudwindowsize_modified")
     def _eventcb_mudwindowsize_change(self) -> None:

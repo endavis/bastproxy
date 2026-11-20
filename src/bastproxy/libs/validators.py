@@ -49,6 +49,17 @@ def non_empty(*, label: str = "value") -> Callable[[Any], str]:
     return validator
 
 
+def single_punctuation(*, label: str = "value") -> Callable[[Any], str]:
+    """Build a validator for exactly one character that is not a letter, digit or whitespace."""
+
+    def validator(value: Any) -> str:
+        if not isinstance(value, str) or len(value) != 1 or value.isalnum() or value.isspace():
+            return f"the {label} must be exactly one character that is not a letter, digit or space"
+        return ""
+
+    return validator
+
+
 validate_port = int_range(1, MAX_PORT, label="port")
 
 

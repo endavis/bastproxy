@@ -46,3 +46,11 @@ def test_settings_plugin_reexports_same_objects() -> None:
         "validate_port_or_unset",
     ):
         assert getattr(settings_plugin, name) is getattr(validators, name)
+
+
+def test_single_punctuation() -> None:
+    check = validators.single_punctuation(label="command separator")
+    for good in ("|", ";", "~", "^", "]", "\\", ".", "*", "$", "-"):
+        assert check(good) == "", good
+    for bad in ("", "||", "s", "d", "5", " ", "\t", "é", "ab", None, 1):
+        assert "command separator" in check(bad), bad
