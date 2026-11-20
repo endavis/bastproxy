@@ -10,8 +10,9 @@ import contextlib
 import datetime
 import logging
 import sqlite3
+import warnings
 import zipfile
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,12 @@ from typing import Any
 from bastproxy.libs.api import API, AddAPI
 from bastproxy.libs.logger import log_to
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
+
+
+def _is_plain_backup_name(name: str | int) -> bool:
+    """Return True when name can be used inside a backup file name."""
+    text = str(name)
+    return bool(text) and text not in {".", ".."} and not any(c in text for c in "/\\\0")
 
 
 def dict_factory(cursor: sqlite3.Cursor, row: tuple[Any, ...]) -> dict[str, Any]:
@@ -109,9 +116,11 @@ class Sqldb:
         "{database_name}.select",
         description="execute a select statement against the database",
     )
-    def _api_select(self, sql_statement: str) -> list[dict[str, Any]]:
-        """Run a select sql_statement against the db."""
-        return self.select(sql_statement)
+    def _api_select(
+        self, sql_statement: str, params: Sequence[Any] | Mapping[str, Any] = ()
+    ) -> list[dict[str, Any]]:
+        """Run a select sql_statement against the db, binding params."""
+        return self.select(sql_statement, params)
 
     @AddAPI(
         "{database_name}.modify",
@@ -200,7 +209,15 @@ class Sqldb:
 
     def fixsql(self, temp_string: Any, like: bool = False) -> str:
         # pylint: disable=no-self-use
-        """Fix quotes in a item that will be passed into a sql statement."""
+        """Fix quotes in a item that will be passed into a sql statement.
+
+        Deprecated: bind values with ``?`` parameters through ``select`` instead.
+        """
+        warnings.warn(
+            "Sqldb.fixsql is deprecated; bind values as parameters instead",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         if temp_string is None:
             return "NULL"
 
@@ -244,7 +261,7 @@ class Sqldb:
                         return CommandResult(True, [f"Table {args['table']} does not exist"])
                     cursor = self._conn().cursor()
                     try:
-                        cursor.execute(f"PRAGMA table_info({args['table']})")
+                        cursor.execute("SELECT * FROM pragma_table_info(?)", (args["table"],))
                         desc = cursor.fetchall()
                     finally:
                         cursor.close()
@@ -341,6 +358,8 @@ class Sqldb:
             name = datetime.datetime.now(datetime.UTC).strftime("%a-%b-%d-%Y-%H-%M-%Z")
 
         backup_file_name = self.backup_template % name + ".zip"
+        if not _is_plain_backup_name(name):
+            return CommandResult(True, [f"{name!r} is not a plain backup name"])
         try:
             backed_up = self.backupdb(name)
         except sqlite3.Error as exc:
@@ -513,7 +532,8 @@ class Sqldb:
             return any(
                 row["name"] == tablename
                 for row in cursor.execute(
-                    f'SELECT * FROM sqlite_master WHERE name = "{tablename}" AND type = "table";'
+                    "SELECT * FROM sqlite_master WHERE name = ? AND type = 'table';",
+                    (tablename,),
                 )
             )
         finally:
@@ -529,8 +549,9 @@ class Sqldb:
 
     def setversion(self, version: int) -> None:
         """Set the version of the database."""
+        version = int(version)
         with self._transaction() as connection:
-            connection.execute(f"PRAGMA user_version={int(version)};")
+            connection.execute(f"PRAGMA user_version={version};")
 
     def updateversion(self, old_version: int, new_version: int) -> None:
         """Update a database from old_version to new_version.
@@ -591,8 +612,12 @@ class Sqldb:
             new_version,
         )
 
-    def select(self, sql_statement: str) -> list[dict[str, Any]]:
+    def select(
+        self, sql_statement: str, params: Sequence[Any] | Mapping[str, Any] = ()
+    ) -> list[dict[str, Any]]:
         """Run a select statement against the database, returns a list.
+
+        Values go in params and are bound to the ``?`` or ``:name`` placeholders.
 
         Raises:
             sqlite3.Error: The statement failed. It is logged first.
@@ -602,7 +627,7 @@ class Sqldb:
             with self._transaction() as connection:
                 cursor = connection.cursor()
                 try:
-                    return list(cursor.execute(sql_statement))
+                    return list(cursor.execute(sql_statement, params))
                 finally:
                     cursor.close()
         except sqlite3.Error:
@@ -695,48 +720,78 @@ class Sqldb:
             raise
         return result
 
-    def getlast(
-        self, table_name: str, num: int, where: str = ""
-    ) -> list[dict[str, Any]] | dict[str, Any]:
-        """Get the last num items from a table."""
+    def _keyfield_or_none(self, table_name: str, caller: str) -> str | None:
+        """Return the key field of a registered table, logging when there is none."""
         if table_name not in self.tables:
             log_to(
                 [self.plugin_id, "plugins.core.sqldb"],
                 logging.ERROR,
-                "getlast - table %s does not exist in getlast",
+                "%s - table %s does not exist in %s",
+                caller,
+                table_name,
+                caller,
+            )
+            return None
+        keyfield = self.tables[table_name].keyfield
+        if not keyfield:
+            log_to(
+                [self.plugin_id, "plugins.core.sqldb"],
+                logging.ERROR,
+                "%s - table %s has no key field",
+                caller,
                 table_name,
             )
+        return keyfield
+
+    def getlast(
+        self, table_name: str, num: int, where: str | Mapping[str, Any] = ""
+    ) -> list[dict[str, Any]] | dict[str, Any]:
+        """Get the last num items from a table.
+
+        where is a mapping of column to value, joined with AND; None matches NULL.
+        A string where is deprecated because it is pasted into the statement.
+        """
+        column_id_name = self._keyfield_or_none(table_name, "getlast")
+        if not column_id_name:
             return {}
 
-        column_id_name = self.tables[table_name].keyfield
-        sql_string = ""
-        if where:
-            sql_string = (
-                f"SELECT * FROM {table_name} WHERE {where} "
-                f"ORDER by {column_id_name} desc limit {num}"
+        params: list[Any] = []
+        where_sql = ""
+        if isinstance(where, Mapping):
+            if where:
+                conditions: list[str] = []
+                for column, value in where.items():
+                    if column not in self.tables[table_name].columns_by_keys:
+                        msg = f"{column} is not a column of table {table_name}"
+                        raise ValueError(msg)
+                    if value is None:
+                        conditions.append(f"{column} IS NULL")
+                    else:
+                        conditions.append(f"{column} = ?")
+                        params.append(value)
+                where_sql = " WHERE " + " AND ".join(conditions)
+        elif where:
+            warnings.warn(
+                "a string where in Sqldb.getlast is deprecated; pass a mapping instead",
+                DeprecationWarning,
+                stacklevel=2,
             )
-        else:
-            sql_string = f"SELECT * FROM {table_name} ORDER by {column_id_name} desc limit {num}"
+            where_sql = f" WHERE {where}"
 
-        last_rows: list[dict[str, Any]] = self.select(sql_string)
+        params.append(int(num))
+        sql_string = f"SELECT * FROM {table_name}{where_sql} ORDER by {column_id_name} desc limit ?"
+        last_rows: list[dict[str, Any]] = self.select(sql_string, tuple(params))
         return last_rows
 
     def getrow(self, row_id: int, table_name: str) -> list[dict[str, Any]] | dict[str, Any]:
         """Get a row by id."""
-        if table_name not in self.tables:
-            log_to(
-                [self.plugin_id, "plugins.core.sqldb"],
-                logging.ERROR,
-                "getrow - table %s does not exist in getrow",
-                table_name,
-            )
+        column_id_name = self._keyfield_or_none(table_name, "getrow")
+        if not column_id_name:
             return {}
 
-        column_id_name = self.tables[table_name].keyfield
+        sql_string = f"SELECT * FROM {table_name} WHERE {column_id_name} = ?"
 
-        sql_string = f"SELECT * FROM {table_name} WHERE {column_id_name} = {row_id}"
-
-        row_result: list[dict[str, Any]] = self.select(sql_string)
+        row_result: list[dict[str, Any]] = self.select(sql_string, (row_id,))
         return row_result
 
     def getlastrowid(self, table_name: str) -> int:
@@ -750,6 +805,14 @@ class Sqldb:
     def backupdb(self, postname: str | int) -> bool:
         """Backup the database."""
         success = False
+        if not _is_plain_backup_name(postname):
+            log_to(
+                [self.plugin_id, "plugins.core.sqldb"],
+                logging.ERROR,
+                "backupdb - %r is not a plain backup name",
+                postname,
+            )
+            return success
         # self._command_dbvac()
         log_to(
             [self.plugin_id, "plugins.core.sqldb"],
