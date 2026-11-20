@@ -417,8 +417,11 @@ timeout_seconds = self.api("plugins.core.settings:setting.get")(
 
 ### PersistentDict
 - Settings values stored in PersistentDict per plugin
-- Automatic JSON serialization
-- Atomic writes for data safety
+- JSON only (pickle and the `mode` and `tformat` arguments were removed); the file is written with permissions 0600
+- Atomic writes for data safety: temporary file, fsync, then rename
+- Keys that look like integers are stored as integers (`"007"` becomes `7`, `True` becomes `1`); other keys, including `None`, are kept as is
+- Tuples are refused with a `TypeError` at any depth, because JSON would store them as lists; use lists
+- A file that cannot be loaded is moved aside to `<name>.corrupt-<timestamp>` and the dictionary starts empty
 
 ## Best Practices
 
