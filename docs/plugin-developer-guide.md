@@ -394,6 +394,61 @@ plugin (`src/bastproxy/plugins/core/commands/plugin/_commands.py`):
 Details: [command execution flow](claude/command_system.md#command-execution-flow) and
 [decorators](claude/command_system.md#command-decorators).
 
+## Storing data in SQLite
+
+A plugin gets a SQLite database from the sqldb plugin with one API call. Pass plain data: dicts for
+the tables and a dict for the migrations. The plugin does not subclass anything and does not call
+`postinit()`.
+
+```python
+from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
+
+STATS_SQL = """CREATE TABLE stats(
+    stat_id INTEGER NOT NULL PRIMARY KEY autoincrement,
+    name TEXT NOT NULL,
+    level INT default 1
+);"""
+
+
+class StatsPlugin(BasePlugin):
+    @RegisterPluginHook("after_load")
+    def _phook_stats_add_db(self) -> None:
+        self.statdb = self.api("plugins.core.sqldb:database.add")(
+            self.plugin_id,
+            "stats",
+            [{"name": "stats", "sql": STATS_SQL, "keyfield": "stat_id"}],
+        )
+```
+
+Add `PLUGIN_DEPENDENCIES = ["plugins.core.sqldb"]` to the plugin's `__init__.py`, so a reload of
+the sqldb plugin reloads yours and the database is added again.
+
+`database.add(owner_id, name, tables=(), *, version=1, migrations=None, directory=None)`:
+
+- `owner_id` is the plugin id. `name` matches `[a-z][a-z0-9_]*`.
+- Each table is a dict with `name` and `sql`, and optionally `keyfield`, `precreate` and
+  `postcreate`. The hooks take the database and run on a fresh database only. The `sql` is the
+  current schema, including columns that a migration adds to an older file.
+- `version` is the schema version. `migrations` maps each version from 2 up to `version` to a SQL
+  script string or to a callable taking the database. A step runs when an older file is opened,
+  after a backup into `archive/`. A fresh database is set to `version` without running steps.
+- `directory` defaults to the plugin's data directory, so two plugins can both name a database
+  `stats`.
+- A bad definition raises `ValueError` before any file is made. A failed migration closes the
+  database and raises `sqlite3.Error`.
+
+The call returns the database and registers, under the owner, the APIs `<owner>:<name>.select`,
+`.modify`, `.modify.many` and `.row.get`, and the `db*` commands (`dbselect`, `dbtables`,
+`dbmodify`, `dbvac`, `dbclose`, `dbremove`, `dbbackup`). When the plugin unloads, the sqldb plugin
+closes the database and the APIs and commands are removed. Never import the sqldb plugin's modules;
+use the API.
+
+Limitation: the `db*` command names are fixed, so a second database in one plugin replaces the
+first one's commands. Its APIs do not collide. Issue #603 tracks it.
+
+`plugins.core.sqldb:baseclass.get` and the subclass pattern still work but emit a
+`DeprecationWarning`. See [ADR-0014](decisions/0014-plugins-add-sqldb-databases-through-databaseadd-with-plain-data-definitions.md).
+
 ## Triggers
 
 A trigger matches a line from the MUD against a regex and raises an event. From

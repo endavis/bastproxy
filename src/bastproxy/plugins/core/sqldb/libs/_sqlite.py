@@ -8,7 +8,9 @@
 # Standard Library
 import contextlib
 import datetime
+import functools
 import logging
+import re
 import sqlite3
 import warnings
 import zipfile
@@ -878,3 +880,125 @@ class Sqldb:
             return success
 
         return success
+
+
+_DATABASE_NAME = re.compile(r"[a-z][a-z0-9_]*")
+_TABLE_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+_REQUIRED_TABLE_KEYS = frozenset({"name", "sql"})
+_TABLE_KEYS = _REQUIRED_TABLE_KEYS | {"keyfield", "precreate", "postcreate"}
+
+
+def _check_table(index: int, table: Any, seen: set[str]) -> None:
+    """Check one table definition, raising ValueError when it is not valid."""
+    where = f"table definition {index}"
+    if not isinstance(table, Mapping):
+        msg = f"{where} must be a dict, not {type(table).__name__}"
+        raise ValueError(msg)
+    if unknown := sorted(set(table) - _TABLE_KEYS, key=str):
+        msg = f"{where} has unknown keys {unknown}; allowed keys are {sorted(_TABLE_KEYS)}"
+        raise ValueError(msg)
+    if missing := sorted(_REQUIRED_TABLE_KEYS - set(table)):
+        msg = f"{where} is missing required keys {missing}"
+        raise ValueError(msg)
+    name = table["name"]
+    if not isinstance(name, str) or not _TABLE_NAME.fullmatch(name):
+        msg = f"{where} has an invalid table name {name!r}"
+        raise ValueError(msg)
+    if name in seen:
+        msg = f"table {name!r} is defined more than once"
+        raise ValueError(msg)
+    seen.add(name)
+    if not isinstance(table["sql"], str) or not table["sql"].strip():
+        msg = f"table {name!r} needs a non-empty 'sql' string"
+        raise ValueError(msg)
+    keyfield = table.get("keyfield")
+    if keyfield is not None and not isinstance(keyfield, str):
+        msg = f"table {name!r} keyfield must be a string or None"
+        raise ValueError(msg)
+    for hook in ("precreate", "postcreate"):
+        if table.get(hook) is not None and not callable(table[hook]):
+            msg = f"table {name!r} {hook} must be callable"
+            raise ValueError(msg)
+
+
+def _check_definition(
+    name: Any,
+    tables: Any,
+    version: Any,
+    migrations: Any,
+) -> None:
+    """Validate a database definition, raising ValueError before anything is created."""
+    if not isinstance(name, str) or not _DATABASE_NAME.fullmatch(name):
+        msg = f"database name {name!r} must match [a-z][a-z0-9_]*"
+        raise ValueError(msg)
+    if isinstance(tables, (str, bytes, Mapping)) or not isinstance(tables, Sequence):
+        msg = "tables must be a sequence of dicts"
+        raise ValueError(msg)
+    seen: set[str] = set()
+    for index, table in enumerate(tables):
+        _check_table(index, table, seen)
+    if isinstance(version, bool) or not isinstance(version, int) or version < 1:
+        msg = f"version must be an integer of 1 or more, not {version!r}"
+        raise ValueError(msg)
+    if not isinstance(migrations, Mapping):
+        msg = "migrations must be a dict of version to step"
+        raise ValueError(msg)
+    for key, step in migrations.items():
+        if isinstance(key, bool) or not isinstance(key, int):
+            msg = f"migration key {key!r} must be an integer version"
+            raise ValueError(msg)
+        if not isinstance(step, str) and not callable(step):
+            msg = f"migration {key} must be a SQL script string or a callable"
+            raise ValueError(msg)
+    expected = set(range(2, version + 1))
+    if gaps := sorted(expected - set(migrations)):
+        msg = f"migrations are missing version(s) {gaps} needed to reach version {version}"
+        raise ValueError(msg)
+    if extras := sorted(set(migrations) - expected):
+        msg = f"migrations for version(s) {extras} are outside 2..{version}"
+        raise ValueError(msg)
+
+
+def create_database(
+    owner_id: str,
+    name: str,
+    tables: Sequence[Mapping[str, Any]],
+    *,
+    version: int = 1,
+    migrations: Mapping[int, str | Callable[[Sqldb], Any]] | None = None,
+    directory: Path,
+) -> Sqldb:
+    """Build a ``Sqldb`` from plain data, create its tables and apply migrations.
+
+    Hooks and callable migrations receive the db. A SQL string migration runs through
+    ``modifyscript``. Nothing is created on disk when the definition is invalid, and a
+    failure while building closes the db before it is re-raised.
+
+    Raises:
+        ValueError: The definition is not valid.
+        sqlite3.Error: A table or a migration failed.
+
+    """
+    steps: Mapping[int, str | Callable[[Sqldb], Any]] = migrations or {}
+    _check_definition(name, tables, version, steps)
+    db = Sqldb(owner_id, dbname=name, dbdir=directory)
+    try:
+        for table in tables:
+            extra = {
+                hook: functools.partial(table[hook], db)
+                for hook in ("precreate", "postcreate")
+                if table.get(hook) is not None
+            }
+            db.addtable(table["name"], table["sql"], keyfield=table.get("keyfield"), **extra)
+        db.version = version
+        for target, step in steps.items():
+            db.version_functions[target] = (
+                functools.partial(db.modifyscript, step)
+                if isinstance(step, str)
+                else functools.partial(step, db)
+            )
+        db.postinit()
+    except Exception:
+        db.close()
+        raise
+    return db

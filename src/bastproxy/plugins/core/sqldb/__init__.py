@@ -7,39 +7,24 @@
 """this module is a sqlite3 interface.
 
 ## Using
-See the source for [aardwolf.statdb](/bastproxy/plugins/aardwolf/statdb.html)
-for an example of using sqldb
 
-### Wrap the class creation in a function
-
-```python
-    def dbcreate(sqldb, plugin, **kwargs):
-      \"\"\"
-      create the mydb class, this is needed because the Sqldb baseclass
-      can be reloaded since it is a plugin
-      \"\"\"
-      class mydb(sqldb):
-        \"\"\"
-        a class to manage a sqlite database
-        \"\"\"
-        def __init__(self, plugin, **kwargs):
-          \"\"\"
-          initialize the class
-          \"\"\"
-          sqldb.__init__(self, plugin, **kwargs)
-
-          # postinit will need to be run at the end of the subclass __init__
-          self.postinit()
-
-      return mydb(plugin, **kwargs)
-```
-
-### call the function in initialize
+Call `plugins.core.sqldb:database.add` from the owning plugin, with plain data. See the
+[plugin developer guide](/docs/plugin-developer-guide.md#storing-data-in-sqlite).
 
 ```python
-    mydb = dbcreate(self.api('plugins.core.sqldb:baseclass.get')(), self,
-                           dbname='mydb')
+    self.mydb = self.api('plugins.core.sqldb:database.add')(
+        self.plugin_id,
+        'mydb',
+        [{'name': 'things', 'sql': THINGS_SQL, 'keyfield': 'thing_id'}],
+        version=2,
+        migrations={2: 'ALTER TABLE things ADD COLUMN extra TEXT;'},
+    )
 ```
+
+The returned database has its tables created and its migrations applied. Its `{name}.*` APIs
+and `db*` commands are registered under the owner, and it is closed when the owner unloads.
+The `db*` command names are fixed, so a second database in one plugin replaces the first one's
+commands (issue #603). `baseclass.get` and subclassing `Sqldb` are deprecated.
 
 ## Behavior
 

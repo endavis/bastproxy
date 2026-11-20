@@ -117,31 +117,31 @@ def test_exception_lists_command_raise() -> None:
     assert _command_names(module.Plugin) == ["_command_raise"]
 
 
-def test_sqldb_initialize_creates_statdb(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """``_sqldb`` initialize builds its database from the base class and data dir."""
+def test_sqldb_hook_creates_statdb_through_factory(tmp_path: Path) -> None:
+    """``_sqldb``'s after_load hook builds ``statdb`` through ``database.add``."""
     from types import SimpleNamespace
 
     from bastproxy.libs.api import API
-    from bastproxy.plugins._baseplugin import BasePlugin
-    from bastproxy.plugins.core.sqldb.libs._sqlite import Sqldb
+    from bastproxy.plugins.core.sqldb.libs._sqlite import Sqldb, create_database
 
-    monkeypatch.setattr(BasePlugin, "initialize", lambda self: None)
     info = _info_for(_by_suffix("test._sqldb"))
     module = imputils.importmodule(info.plugin_class_import_location)["module"]
 
-    # A real API instance: ``api(name)`` returns an APIItem, which must be called
-    # to get the Sqldb class (as the sqldb plugin's ``_api_baseclass_get`` does).
-    real_api = API("plugins.test._sqldb")
-    real_api.add("plugins.core.sqldb", "baseclass.get", lambda: Sqldb, instance=True)
+    calls: list[tuple[Any, ...]] = []
 
-    fake = SimpleNamespace(
-        api=real_api,
-        plugin_id="plugins.test._sqldb",
-        plugin_info=SimpleNamespace(data_directory=tmp_path),
-    )
-    module.Plugin.initialize(fake)
+    def _create(owner_id: str, name: str, tables: Any) -> Sqldb:
+        calls.append((owner_id, name, tables))
+        return create_database(owner_id, name, tables, directory=tmp_path)
+
+    real_api = API("plugins.test._sqldb")
+    real_api.add("plugins.core.sqldb", "database.add", _create, instance=True)
+
+    fake = SimpleNamespace(api=real_api, plugin_id="plugins.test._sqldb")
+    module.Plugin._phook_sqldb_test_create_db(fake)
     assert isinstance(fake.statdb, Sqldb)
+    assert calls[0][:2] == ("plugins.test._sqldb", "stats")
     assert (tmp_path / "stats.sqlite").exists()
+    assert fake.statdb.checktableexists("stats")
 
 
 def test_every_test_plugin_has_plugin_subpackage() -> None:
