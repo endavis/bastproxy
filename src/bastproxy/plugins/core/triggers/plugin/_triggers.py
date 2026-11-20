@@ -973,7 +973,7 @@ class TriggersPlugin(BasePlugin):
 
         return CommandResult(True, message)
 
-    @RegisterToEvent(event_name="ev_plugin_{plugin_id}_stats")
+    @RegisterToEvent(event_name="ev_{plugin_id}_stats")
     def _eventcb_triggers_ev_plugins_stats(self) -> None:
         """Return stats for the plugin."""
         if event_record := self.api("plugins.core.events:event.current.record.get")():

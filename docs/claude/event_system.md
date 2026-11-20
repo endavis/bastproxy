@@ -438,7 +438,7 @@ The long history is in the records manager (`RMANAGER` keeps a `ProcessRaisedEve
 ### Core Events
 - `ev_plugin_loaded` - A plugin was loaded (payload: `plugin_id`)
 - `ev_plugin_unloaded` - A plugin was unloaded (payload: `plugin_id`)
-- `ev_plugin_{plugin_id}_stats` and `ev_plugin_stats` - Raised by `plugin.stats.get` (payload: `plugin_id`, `stats`); callbacks add sections to `stats`. The first is per plugin, the second is raised for every plugin
+- `ev_{plugin_id}_stats` and `ev_plugin_stats` - Raised by `plugin.stats.get` (payload: `plugin_id`, `stats`); callbacks add sections to `stats`. The first is per plugin, the second is raised for every plugin
 - `ev_plugin_save` - A plugin should save its state
 - `ev_plugin_reset` - A plugin should reset to defaults
 
