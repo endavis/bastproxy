@@ -315,7 +315,7 @@ class Sqldb:
             table.columns,
             table.columns_by_keys,
             table.default_column_values,
-        ) = self.getcolumnumnsfromsql(tablename)
+        ) = self.getcolumnsfromsql(tablename)
 
     def remove(self, table: str, rownumber: int | str) -> tuple[bool, str]:
         """Remove the row whose key field equals rownumber from a table."""
@@ -329,51 +329,54 @@ class Sqldb:
 
         return False, f"{table} is not a table"
 
-    def getcolumnumnsfromsql(
+    def getcolumnsfromsql(
         self, tablename: str
     ) -> tuple[list[str], dict[str, bool], dict[str, str | None]]:
-        """Build a list of columnumns from the create statement for the table."""
-        columnumns = []
-        columnumnsbykeys = {}
-        columnumn_defaults: dict[str, str | None] = {}
-        if self.tables[tablename]:
-            sql_statement_list = self.tables[tablename].createsql.splitlines()
-            for sql_line in sql_statement_list:
-                stripped_sql_line = sql_line.strip()
-                if (
-                    stripped_sql_line
-                    and stripped_sql_line[:2] != "--"
-                    and "CREATE" not in stripped_sql_line
-                    and ")" not in stripped_sql_line
-                ):
-                    sql_line_split_list = stripped_sql_line.split(" ")
-                    column = sql_line_split_list[0]
-                    columnumns.append(column)
-                    columnumnsbykeys[column] = True
-                    if "default" in sql_line_split_list or "Default" in sql_line_split_list:
-                        columnumn_defaults[column] = sql_line_split_list[-1].strip(",")
-                    else:
-                        columnumn_defaults[column] = None
+        """Build the column names and defaults from the create statement for the table.
 
-        return columnumns, columnumnsbykeys, columnumn_defaults
-
-    def checkdictforcolumnumns(self, tablename: str, temp_dict: dict[str, Any]) -> dict[str, Any]:
-        """Check that a dictionary has the correct columnumns and return.
-
-        a new dictionary.
+        The statement is run against an in-memory database and sqlite itself
+        reports the columns through ``PRAGMA table_info``.
         """
+        columns: list[str] = []
+        columnsbykeys: dict[str, bool] = {}
+        column_defaults: dict[str, str | None] = {}
+        if self.tables[tablename]:
+            connection = sqlite3.connect(":memory:")
+            try:
+                connection.executescript(self.tables[tablename].createsql)
+                rows = connection.execute(
+                    "SELECT name, dflt_value FROM pragma_table_info(?)", (tablename,)
+                ).fetchall()
+            except sqlite3.Error as exc:
+                msg = f"could not read the columns of table {tablename}: {exc}"
+                raise ValueError(msg) from exc
+            finally:
+                connection.close()
+            for name, default in rows:
+                columns.append(name)
+                columnsbykeys[name] = True
+                column_defaults[name] = default
+
+        return columns, columnsbykeys, column_defaults
+
+    getcolumnumnsfromsql = getcolumnsfromsql
+
+    def checkdictforcolumns(self, tablename: str, temp_dict: dict[str, Any]) -> dict[str, Any]:
+        """Check that a dictionary has the correct columns and return a new dictionary."""
         new_dict = {}
-        columnumns = self.tables[tablename].columns
-        columnumn_defaults = self.tables[tablename].default_column_values
-        for column in columnumns:
+        columns = self.tables[tablename].columns
+        column_defaults = self.tables[tablename].default_column_values
+        for column in columns:
             if column not in temp_dict:
-                new_dict[column] = columnumn_defaults[column]
+                new_dict[column] = column_defaults[column]
             else:
                 new_dict[column] = temp_dict[column]
         return new_dict
 
+    checkdictforcolumnumns = checkdictforcolumns
+
     def converttoinsert(self, tablename: str, keynull: bool = False, replace: bool = False) -> str:
-        """Create an insert statement based on the columnumns of a table."""
+        """Create an insert statement based on the columns of a table."""
         sql_string = ""
         if self.tables[tablename]:
             columns = self.tables[tablename].columns
@@ -387,14 +390,16 @@ class Sqldb:
                 sql_string = sql_string.replace(f":{self.tables[tablename].keyfield}", "NULL")
         return sql_string
 
-    def checkcolumnumnexists(self, table: str, columnumnname: str) -> bool:
-        """Check if a columnumn exists."""
-        return table in self.tables and columnumnname in self.tables[table].columns_by_keys
+    def checkcolumnexists(self, table: str, columnname: str) -> bool:
+        """Check if a column exists."""
+        return table in self.tables and columnname in self.tables[table].columns_by_keys
+
+    checkcolumnumnexists = checkcolumnexists
 
     def converttoupdate(
         self, tablename: str, wherekey: str = "", nokey: dict[str, Any] | None = None
     ) -> str:
-        """Create an update statement based on the columnumns of a table."""
+        """Create an update statement based on the columns of a table."""
         if nokey is None:
             nokey = {}
         sql_string = ""
