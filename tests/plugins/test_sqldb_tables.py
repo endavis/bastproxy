@@ -82,10 +82,7 @@ def test_keyfield_readers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
         seen.append(sql)
         return []
 
-    def fake_api(name: str) -> Any:
-        return record
-
-    monkeypatch.setattr(db, "api", fake_api)
+    monkeypatch.setattr(db, "select", record)
     db.getlast("things", 3)
     db.getrow(5, "things")
     db.getlastrowid("things")
