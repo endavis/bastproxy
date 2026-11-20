@@ -140,6 +140,7 @@ A noun naming the thing acted on belongs in the resource. That is why `plugin.ge
 - Issue #170: Rename the timers, triggers, watch and libs.timing APIs
 - Issue #171: Rename the sqldb and ssc dynamic APIs
 - Issue #172: Rename plugins.core.cmdq to plugins.core.mudcmds
+- Issue #597: `plugins.core.sqldb:database.add` follows this grammar (see ADR-0014)
 - Decision: https://github.com/endavis/bastproxy/issues/99#issuecomment-6608133811
 
 ## Related Documentation

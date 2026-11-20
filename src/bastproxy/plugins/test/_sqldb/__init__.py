@@ -11,3 +11,5 @@ PLUGIN_NAME = "Test SQLDB plugin"
 PLUGIN_PURPOSE = "Test sqldb plugin"
 PLUGIN_AUTHOR = "Bast"
 PLUGIN_VERSION = 1
+
+PLUGIN_DEPENDENCIES = ["plugins.core.sqldb"]
