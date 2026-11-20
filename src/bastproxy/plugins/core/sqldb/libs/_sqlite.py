@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: plugins/core/sqldb/_plugin.py
+# Filename: plugins/core/sqldb/libs/_sqlite.py
 #
 # File Description: a plugin to create a sqlite3 interface
 #
@@ -91,7 +91,6 @@ class SQLTable:
 
 
 class Sqldb:
-    # pylint: disable=too-many-public-methods
     """a class to manage sqlite3 databases."""
 
     def __init__(self, plugin_id: str, **kwargs: Any) -> None:
@@ -212,7 +211,6 @@ class Sqldb:
         )
 
     def fixsql(self, temp_string: Any, like: bool = False) -> str:
-        # pylint: disable=no-self-use
         """Fix quotes in a item that will be passed into a sql statement.
 
         Deprecated: bind values with ``?`` parameters through ``select`` instead.

@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: plugins/core/sqldb/_sqldb.py
+# Filename: plugins/core/sqldb/plugin/_sqldb.py
 #
 # File Description: a plugin to create a sqlite3 interface
 #
@@ -34,7 +34,6 @@ class SQLDBPlugin(BasePlugin):
 
     @AddAPI("baseclass.get", description="return the sql baseclass (deprecated)")
     def _api_baseclass_get(self) -> type[Sqldb]:
-        # pylint: disable=no-self-use
         """Return the sql baseclass.
 
         Deprecated: use ``plugins.core.sqldb:database.add`` instead.

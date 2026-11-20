@@ -204,6 +204,20 @@ The triggers system provides pattern matching on MUD output using regular expres
 - Event-driven responses
 - Content filtering
 
+### 11. [SQLite Database System](sqldb_system.md)
+
+The sqldb plugin gives plugins SQLite databases, declared as plain data.
+
+**Key Concepts:**
+- One `database.add` call per database
+- Schema migrations by version
+- Per-database APIs and `db*` maintenance commands
+- Closed and cleaned up when the owning plugin unloads
+
+**Primary Use Cases:**
+- Storing plugin history and statistics
+- Querying stored data from other plugins through the API
+
 ## System Integration
 
 ### How the Systems Work Together
@@ -282,7 +296,8 @@ bastproxy/
 │       ├── command_system.md
 │       ├── settings_system.md
 │       ├── timers_system.md
-│       └── triggers_system.md
+│       ├── triggers_system.md
+│       └── sqldb_system.md
 │
 └── data/                   # Runtime data
     ├── plugins/            # Plugin data

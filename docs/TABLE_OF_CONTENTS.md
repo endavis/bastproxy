@@ -110,6 +110,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Ruff Auto-Fix on Edit Hook](development/ai/ruff-fix-hook.md) - PostToolUse hook that runs ruff --fix on edited Python files
 - [Settings System](claude/settings_system.md) - Per-plugin settings, persistence and change events
 - [Slash Commands and Workflows](development/ai/slash-commands.md) - Reference for the slash commands and dual-agent workflow this project ships with
+- [SQLite Database System](claude/sqldb_system.md) - How plugins store data in SQLite through the sqldb plugin
 - [Template Tools Reference](template/tools-reference.md) - Complete reference for all template tools in tools/pyproject_template/
 - [Timers System](claude/timers_system.md) - Scheduling recurring and one-shot timers from plugins
 - [Tooling Roles and Architectural Boundaries](development/tooling-roles.md) - What each tool is for, who uses it, and where runtime code ends and dev tooling begins
@@ -153,6 +154,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Ruff Auto-Fix on Edit Hook](development/ai/ruff-fix-hook.md) - PostToolUse hook that runs ruff --fix on edited Python files
 - [Settings System](claude/settings_system.md) - Per-plugin settings, persistence and change events
 - [Slash Commands and Workflows](development/ai/slash-commands.md) - Reference for the slash commands and dual-agent workflow this project ships with
+- [SQLite Database System](claude/sqldb_system.md) - How plugins store data in SQLite through the sqldb plugin
 - [Timers System](claude/timers_system.md) - Scheduling recurring and one-shot timers from plugins
 - [Tooling Roles and Architectural Boundaries](development/tooling-roles.md) - What each tool is for, who uses it, and where runtime code ends and dev tooling begins
 - [Triggers System](claude/triggers_system.md) - Regex matching on MUD output that raises events for plugins to handle
@@ -254,6 +256,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Ruff Auto-Fix on Edit Hook](development/ai/ruff-fix-hook.md) - PostToolUse hook that runs ruff --fix on edited Python files
 - [Settings System](claude/settings_system.md) - Per-plugin settings, persistence and change events
 - [Slash Commands and Workflows](development/ai/slash-commands.md) - Reference for the slash commands and dual-agent workflow this project ships with
+- [SQLite Database System](claude/sqldb_system.md) - How plugins store data in SQLite through the sqldb plugin
 - [Template Management](template/manage.md) - Unified interface for creating projects, checking updates, and syncing
 - [Template Tools Reference](template/tools-reference.md) - Complete reference for all template tools in tools/pyproject_template/
 - [Timers System](claude/timers_system.md) - Scheduling recurring and one-shot timers from plugins
