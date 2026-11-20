@@ -217,7 +217,7 @@ class TimersPlugin(BasePlugin):
 
     # @RegisterPluginHook('stats')
     # def _phook_timer_stats(self, **kwargs):
-    @RegisterToEvent(event_name="ev_plugin_{plugin_id}_stats")
+    @RegisterToEvent(event_name="ev_{plugin_id}_stats")
     def _eventcb_timers_ev_plugins_stats(self) -> None:
         """Return stats for the plugin."""
         if event_record := self.api("plugins.core.events:event.current.record.get")():
