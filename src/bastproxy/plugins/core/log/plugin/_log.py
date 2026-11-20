@@ -239,7 +239,7 @@ class LogPlugin(BasePlugin):
             )
             return
 
-        if flag and logger_name not in self.handlers["client"]:
+        if flag and self.handlers["client"].get(logger_name) != level:
             self.handlers["client"][logger_name] = level
             log_to(
                 [self.plugin_id, logger_name],
@@ -294,7 +294,8 @@ class LogPlugin(BasePlugin):
                     logger_name, level=level, flag=remove
                 )
                 if logger_name in self.handlers["client"]:
-                    tmsg.append(f"setting {logger_name} to log to client at level {level}")
+                    stored = self.handlers["client"][logger_name]
+                    tmsg.append(f"setting {logger_name} to log to client at level {stored}")
                 else:
                     tmsg.append(f"no longer sending {logger_name} to client")
 
