@@ -316,3 +316,87 @@ class TestPersistentDict:
         pd.sync()
 
         assert filepath.stat().st_mode & 0o777 == pd.mode
+
+
+class TestCorruptRecovery:
+    """A file that cannot be loaded is moved aside, not raised (#608)."""
+
+    def test_corrupt_json_moved_aside(self, temp_data_dir: Path) -> None:
+        filepath = temp_data_dir / "test.json"
+        filepath.write_text("{not json", encoding="utf-8")
+        pd = PersistentDict("test_owner", filepath)
+        assert len(pd) == 0
+        assert not filepath.exists()
+        aside = list(temp_data_dir.glob("test.json.corrupt-*"))
+        assert len(aside) == 1
+        assert aside[0].read_text(encoding="utf-8") == "{not json"
+        pd["a"] = 1
+        pd.sync()
+        assert PersistentDict("test_owner", filepath)["a"] == 1
+        assert len(list(temp_data_dir.glob("test.json.corrupt-*"))) == 1
+
+    def test_empty_file_moved_aside(self, temp_data_dir: Path) -> None:
+        filepath = temp_data_dir / "test.json"
+        filepath.write_text("", encoding="utf-8")
+        pd = PersistentDict("test_owner", filepath)
+        assert len(pd) == 0
+        assert len(list(temp_data_dir.glob("test.json.corrupt-*"))) == 1
+
+    def test_corrupt_pickle_moved_aside(self, temp_data_dir: Path) -> None:
+        filepath = temp_data_dir / "test.pkl"
+        filepath.write_bytes(b"\x00garbage")
+        pd = PersistentDict("test_owner", filepath, tformat="pickle")
+        assert len(pd) == 0
+        assert len(list(temp_data_dir.glob("test.pkl.corrupt-*"))) == 1
+
+    def test_second_corrupt_file_gets_counter(self, temp_data_dir: Path) -> None:
+        filepath = temp_data_dir / "test.json"
+        for _ in range(2):
+            filepath.write_text("{bad", encoding="utf-8")
+            PersistentDict("test_owner", filepath)
+        assert len(list(temp_data_dir.glob("test.json.corrupt-*"))) == 2
+
+
+class TestSerializable:
+    """check_serializable and fsync before rename (#608)."""
+
+    def test_rejects_set_and_leaves_dict_unchanged(self, temp_data_dir: Path) -> None:
+        pd = PersistentDict("test_owner", temp_data_dir / "test.json")
+        pd["a"] = 1
+        with pytest.raises(TypeError, match=r"'k'.*set"):
+            pd.check_serializable("k", {1, 2})
+        assert dict(pd) == {"a": 1}
+
+    def test_accepts_plain_value(self, temp_data_dir: Path) -> None:
+        pd = PersistentDict("test_owner", temp_data_dir / "test.json")
+        pd.check_serializable("k", {"a": [1, "b"]})
+
+    def test_pickle_rejects_lambda(self, temp_data_dir: Path) -> None:
+        pd = PersistentDict("test_owner", temp_data_dir / "test.pkl", tformat="pickle")
+        with pytest.raises(TypeError):
+            pd.check_serializable("k", lambda: 1)
+
+    @pytest.mark.parametrize(("name", "fmt"), [("t.json", "json"), ("t.pkl", "pickle")])
+    def test_sync_fsyncs_before_rename(
+        self, temp_data_dir: Path, monkeypatch: pytest.MonkeyPatch, name: str, fmt: str
+    ) -> None:
+        import shutil
+
+        events: list[str] = []
+        real_fsync = os.fsync
+        real_move = shutil.move
+
+        def fake_fsync(fd: int) -> None:
+            events.append("fsync")
+            real_fsync(fd)
+
+        def fake_move(src: Path, dst: Path) -> object:
+            events.append("move")
+            return real_move(src, dst)
+
+        monkeypatch.setattr(os, "fsync", fake_fsync)
+        monkeypatch.setattr(shutil, "move", fake_move)
+        pd = PersistentDict("test_owner", temp_data_dir / name, tformat=fmt)
+        pd["a"] = 1
+        pd.sync()
+        assert events.index("fsync") < events.index("move")
