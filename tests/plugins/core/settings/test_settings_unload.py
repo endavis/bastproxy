@@ -14,7 +14,7 @@ def _stub(event_plugin: str = PID) -> MagicMock:
     stub.plugin_id = "plugins.core.settings"
     stub.settings_info = {OTHER: {"x": {}}}
     stub.settings_values = {OTHER: MagicMock()}
-    stub.settings_map = {"x": OTHER}
+    stub.settings_map = {"x": [OTHER]}
     stub.order = []
 
     def api(name: str) -> Any:
@@ -40,7 +40,7 @@ def test_unloaded_event_for_plugin_without_settings_is_a_noop() -> None:
 
     assert OTHER in stub.settings_info
     assert OTHER in stub.settings_values
-    assert stub.settings_map == {"x": OTHER}
+    assert stub.settings_map == {"x": [OTHER]}
 
 
 def test_unloaded_event_syncs_then_closes_and_removes_entries() -> None:
@@ -51,7 +51,7 @@ def test_unloaded_event_syncs_then_closes_and_removes_entries() -> None:
     calls.attach_mock(values.close, "close")
     stub.settings_info[PID] = {"a": {}}
     stub.settings_values[PID] = values
-    stub.settings_map["a"] = PID
+    stub.settings_map["a"] = [PID]
 
     SettingsPlugin._eventcb_settings_plugin_unloaded(stub)
 
@@ -60,7 +60,7 @@ def test_unloaded_event_syncs_then_closes_and_removes_entries() -> None:
     assert PID not in stub.settings_values
     assert "a" not in stub.settings_map
     assert OTHER in stub.settings_info
-    assert stub.settings_map == {"x": OTHER}
+    assert stub.settings_map == {"x": [OTHER]}
 
 
 def test_remove_plugin_settings_for_unknown_plugin_is_a_noop() -> None:

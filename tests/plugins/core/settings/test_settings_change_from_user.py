@@ -25,7 +25,7 @@ def _info(**kwargs: Any) -> SimpleNamespace:
 def _stub(info: Any = None, change_error: Exception | None = None) -> MagicMock:
     stub = MagicMock()
     stub.plugin_id = "plugins.core.settings"
-    stub.settings_map = {"foo": PID}
+    stub.settings_map = {"foo": [PID]}
     stub.format_setting_for_print.return_value = "5"
     change = MagicMock(side_effect=change_error)
     stub.change = change

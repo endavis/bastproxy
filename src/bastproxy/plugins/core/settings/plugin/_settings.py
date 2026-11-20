@@ -82,9 +82,9 @@ class SettingsPlugin(BasePlugin):
     @RegisterPluginHook("__init__")
     def _phook_init_plugin(self) -> None:
         """Initialize the instance through common __init__ method."""
-        # a map of setting names to plugins
-        # this is used to check for conflicts
-        self.settings_map: dict[str, str] = {}
+        # an index of visible setting names to the plugins that own them,
+        # in add order. Several plugins may use the same name.
+        self.settings_map: dict[str, list[str]] = {}
 
         # a dictionary of settings info
         # the key is the plugin_id and the value is a dictionary of settings info
@@ -155,14 +155,9 @@ class SettingsPlugin(BasePlugin):
         )
 
         if not setting_info.hidden:
-            if setting_name in self.settings_map:
-                get_logger(self.plugin_id).error(
-                    "setting %s already exists in %s", setting_name, self.settings_map[setting_name]
-                )
-
-                return
-
-            self.settings_map[setting_name] = plugin_id
+            owners = self.settings_map.setdefault(setting_name, [])
+            if plugin_id not in owners:
+                owners.append(plugin_id)
 
         if plugin_id not in self.settings_values:
             data_directory = self.api(f"{plugin_id}:data.directory.get")()
@@ -353,7 +348,11 @@ class SettingsPlugin(BasePlugin):
         log_to([self.plugin_id, plugin_id], logging.DEBUG, "Removing settings for %s", plugin_id)
         for i in self.settings_info.pop(plugin_id, {}):
             if i in self.settings_map:
-                del self.settings_map[i]
+                owners = self.settings_map[i]
+                if plugin_id in owners:
+                    owners.remove(plugin_id)
+                if not owners:
+                    del self.settings_map[i]
 
         if (values := self.settings_values.pop(plugin_id, None)) is not None:
             values.close()
@@ -407,16 +406,9 @@ class SettingsPlugin(BasePlugin):
     @AddAPI("setting.map.add", description="add a setting to the settings map")
     def _api_setting_map_add(self, plugin_id: str, setting_name: str) -> None:
         """Add a setting to the settings map."""
-        if setting_name in self.settings_map:
-            logger.error(
-                "setting %s.%s conflicts %s:%s",
-                plugin_id,
-                setting_name,
-                self.settings_map[setting_name],
-                setting_name,
-            )
-            return
-        self.settings_map[setting_name] = plugin_id
+        owners = self.settings_map.setdefault(setting_name, [])
+        if plugin_id not in owners:
+            owners.append(plugin_id)
 
     def format_setting_for_print(self, plugin_id: str, setting_name: str) -> str:
         """Format a setting for printing."""
@@ -590,10 +582,17 @@ class SettingsPlugin(BasePlugin):
         if not reset and value is None:
             return False, ["please specify a value, or --default to reset the setting"]
 
-        if setting_name not in self.settings_map:
+        if not self.settings_map.get(setting_name):
             return True, [f"plugin setting {setting_name} does not exist"]
 
-        plugin_id = plugin_id or self.settings_map[setting_name]
+        if not plugin_id:
+            owners = self.settings_map[setting_name]
+            if len(owners) > 1:
+                return True, [
+                    f"{setting_name} exists in several plugins: {', '.join(owners)}; "
+                    "use -p <plugin>"
+                ]
+            plugin_id = owners[0]
 
         if not (
             setting_info := self.api("plugins.core.settings:setting.info.get")(
