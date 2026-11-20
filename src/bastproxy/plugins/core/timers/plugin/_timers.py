@@ -65,7 +65,9 @@ class Timer(Callback):
         Parameters:
         name (str): Name of the timer event.
         func (func): Function to execute on the timer event.
-        seconds (int): Time interval in seconds.
+        seconds (float): Interval in seconds: an int or float, finite, at least 1
+            (not a bool). Timers fire on whole-second slots, so sub-second
+            intervals are not supported.
         plugin (obj): Plugin related to the timer event.
         **kwargs (Optional): Additional keyword arguments
             onetime (bool): True if the timer is one-time only. Defaults to False.
@@ -143,7 +145,7 @@ class Timer(Callback):
         """Return a string representation of the timer."""
         return (
             f"Timer {self.name:<10} : {self.owner_id:<15} : "
-            f"{self.seconds:05d} : {self.enabled:<6} : "
+            f"{self.seconds:05g} : {self.enabled:<6} : "
             f"{self.next_fire_datetime.strftime(self.api.time_format)}"
         )
 
@@ -364,13 +366,16 @@ class TimersPlugin(BasePlugin):
 
     @AddAPI("timer.add", description="add a timer")
     def _api_timer_add(
-        self, name: str, func: Callable | None, seconds: int, **kwargs: Any
+        self, name: str, func: Callable | None, seconds: float, **kwargs: Any
     ) -> Timer | None:
         """Add a timer.
 
         @Yname@w   = The timer name
         @Yfunc@w  = the function to call when firing the timer
-        @Yseconds@w   = the interval (in seconds) to fire the timer
+        @Yseconds@w   = the interval (in seconds) to fire the timer: a number
+                                        (int or float, not a bool), finite, at least 1.
+                                        Timers use whole-second slots, so
+                                        sub-second intervals are not supported
         @Yargs@w arguments:
           @Yunique@w    = True if no duplicates of this timer are allowed,
                                         False otherwise
@@ -392,12 +397,19 @@ class TimersPlugin(BasePlugin):
             )
             return None
 
-        if seconds <= 0:
+        if (
+            isinstance(seconds, bool)
+            or not isinstance(seconds, (int, float))
+            or not math.isfinite(seconds)
+            or seconds < 1
+        ):
             log_to(
                 [self.plugin_id, plugin_id],
                 logging.ERROR,
-                "_api_timer_add: timer %s has seconds <= 0, not adding",
+                "_api_timer_add: timer %s has invalid seconds %r (need a finite number >= 1), "
+                "not adding",
                 name,
+                seconds,
             )
             return None
         if not func:
