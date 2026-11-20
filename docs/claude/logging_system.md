@@ -72,7 +72,9 @@ Colours are applied when a record is output, not when it is logged:
 
 ## Testing a logger
 
-`#bp.core.log.test -l <logtype> -ll <level> "<message>"` logs a message and reports `Console`, `File` and `Client`. The flags come from the `is.enabled` APIs, quiet mode and startup, not from the handlers.
+`#bp.core.log.test -l <logtype> -ll <level> "<message>"` logs a message and reports `Console`, `File` and `Client`. The flags come from the `is.enabled` APIs, quiet mode and startup, not from the handlers. The `is.enabled` APIs return the `info` default for a name with no setting and store nothing, so the test command adds no setting.
+
+The `logger.type.clean` API (run at `proxy_shutdown` and by `#bp.core.log.clean`) removes the console and file entries whose level is `info`, the default. It never removes client entries or entries at another level, and log counts do not affect it.
 
 ## Migrating a plugin
 
