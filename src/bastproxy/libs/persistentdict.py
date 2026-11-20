@@ -1,7 +1,7 @@
 # Project: bastproxy
 # Filename: libs/persistentdict.py
 #
-# File Description: setup logging with some customizations
+# File Description: persistent dictionary stored as a JSON file
 #
 # By: Bast
 """Module for managing a persistent dictionary with delayed disk writes.
@@ -9,7 +9,7 @@
 This module provides the `PersistentDict` class, which allows for the creation of
 a dictionary that persists its data to disk. The dictionary operations are performed
 in memory for speed, and the data is written to disk only when explicitly requested.
-The module supports both JSON and pickle formats for serialization.
+The data is stored as JSON, in a file only the owner can read and write (0600).
 
 Key Components:
     - PersistentDict: A class that extends the built-in dict to provide persistence.
@@ -17,8 +17,9 @@ Key Components:
 
 Features:
     - Delayed disk writes for improved performance.
-    - Support for JSON and pickle serialization formats.
-    - Automatic conversion of input data to appropriate types.
+    - JSON serialization, written atomically with permissions 0600.
+    - Keys that look like integers are stored as integers (``"007"`` -> 7).
+    - Tuples are refused with a ``TypeError`` because JSON would turn them into lists.
     - Context manager support for automatic resource management.
 
 Usage:
@@ -38,48 +39,43 @@ import datetime
 import json
 import logging
 import os
-import pickle
 import shutil
 import stat
 from pathlib import Path
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, Self
+from typing import Any, Self
 
 # Third Party
 # Project
 from bastproxy.libs.api import API
 from bastproxy.libs.logger import log_to
 
-if TYPE_CHECKING:
-    pass
-
 
 def convert(tinput: Any) -> Any:
     """Convert input data to appropriate types.
 
     This function recursively converts input data to appropriate types based on
-    its content. It handles dictionaries, lists, strings, and bytes, converting
-    them as necessary.
+    its content. Dictionaries and lists are rebuilt with converted contents; every
+    other value, including bytes, is returned unchanged.
 
     Args:
-        tinput: The input data to convert. It can be a dictionary, list, string,
-            or bytes.
+        tinput: The input data to convert.
 
     Returns:
-        The converted data, with types adjusted as necessary.
+        The converted data.
 
     Raises:
-        None
+        TypeError: If a tuple is found at any depth, since JSON would store it
+            as a list and a reload would not give back what was saved.
 
     """
     if isinstance(tinput, dict):
         return {convert(key): convert(value) for key, value in tinput.items()}
     if isinstance(tinput, list):
         return [convert(element) for element in tinput]
-    if isinstance(tinput, str):
-        return tinput
-    if isinstance(tinput, bytes):
-        return str(tinput)
+    if isinstance(tinput, tuple):
+        msg = "tuples are not supported, use a list instead"
+        raise TypeError(msg)
 
     return tinput
 
@@ -88,8 +84,9 @@ def convert_keys_to_int(tdict: dict) -> dict[Any, Any]:
     """Convert dictionary keys to integers where possible.
 
     This function takes a dictionary and attempts to convert its keys to integers.
-    If a key cannot be converted to an integer, it is left unchanged. The function
-    is applied recursively to nested dictionaries.
+    If a key cannot be converted to an integer (``ValueError`` or ``TypeError``), it
+    is left unchanged. Existing files are stored with string keys, so this restores
+    integer keys on load. The function is applied recursively to nested dictionaries.
 
     Args:
         tdict: The dictionary whose keys are to be converted.
@@ -104,35 +101,28 @@ def convert_keys_to_int(tdict: dict) -> dict[Any, Any]:
     new = {}
     for i, ndata in tdict.items():
         nkey = i
-        with contextlib.suppress(ValueError):
+        with contextlib.suppress(ValueError, TypeError):
             nkey = int(i)
         converted_ndata = convert_keys_to_int(ndata) if isinstance(ndata, dict) else ndata
         new[nkey] = converted_ndata
     return new
 
 
-def check_serializable(key: Any, value: Any, tformat: str = "json") -> None:
-    """Check that a value can be written in the given format.
+def check_serializable(key: Any, value: Any) -> None:
+    """Check that a value can be written as JSON.
 
     Args:
         key: The key the value would be stored under, used in the message.
         value: The value to check.
-        tformat: The serialization format ('json' or 'pickle').
 
     Raises:
         TypeError: If the value cannot be serialized.
 
     """
     try:
-        if tformat == "pickle":
-            pickle.dumps(value, 2)
-        else:
-            json.dumps(convert(value), skipkeys=True)
-    except (TypeError, ValueError, pickle.PicklingError, AttributeError) as err:
-        msg = (
-            f"Value for key {key!r} of type {type(value).__name__} "
-            f"cannot be saved as {tformat}: {err}"
-        )
+        json.dumps(convert(value), skipkeys=True)
+    except (TypeError, ValueError) as err:
+        msg = f"Value for key {key!r} of type {type(value).__name__} cannot be saved as json: {err}"
         raise TypeError(msg) from err
 
 
@@ -144,9 +134,7 @@ class PersistentDict(dict):
 
     Write to disk is delayed until close or sync (similar to gdbm's fast mode).
 
-    Input file format is automatically discovered.
-    Output file format is selectable between pickle and json
-    All three serialization formats are backed by fast C implementations.
+    The file is JSON, written atomically with permissions 0600.
 
     """
 
@@ -155,23 +143,19 @@ class PersistentDict(dict):
         owner_id: str,
         file_name: "Path",
         flag: str = "c",
-        mode: str | None = None,
-        tformat: str = "json",
         *args: Any,
         **kwargs: Any,
     ) -> None:
         """Initialize the PersistentDict.
 
         This method initializes the PersistentDict with the given parameters,
-        setting up the owner ID, file name, file mode, and serialization format.
+        setting up the owner ID and file name.
         It also loads the existing data from the file if available.
 
         Args:
             owner_id: The ID of the owner of the dictionary.
             file_name: The name of the file where the dictionary data is stored.
             flag: The mode in which to open the file.
-            mode: The file mode to use when creating the file.
-            tformat: The serialization format to use ('json' or 'pickle').
             *args: Additional positional arguments to pass to the dict constructor.
             **kwargs: Additional keyword arguments to pass to the dict constructor.
 
@@ -179,9 +163,17 @@ class PersistentDict(dict):
             None
 
         Raises:
-            None
+            TypeError: If the removed ``tformat`` or ``mode`` argument is passed.
+                JSON is the only format and the file mode is always 0600.
 
         """
+        for removed in ("tformat", "mode"):
+            if removed in kwargs:
+                msg = (
+                    f"PersistentDict no longer accepts the {removed!r} argument: "
+                    "JSON is the only format and files are always 0600"
+                )
+                raise TypeError(msg)
         self.owner_id = owner_id
         self._dump_shallow_attrs = ["api"]
         self.api = API(owner_id=f"{self.owner_id}:libs.persistentdict:{file_name}")
@@ -189,15 +181,11 @@ class PersistentDict(dict):
         # r=readonly, c=create, or n=new
         self.flag = flag
 
-        # None or an octal triple like 0644
-        self.mode: int | None = (
-            stat.S_IWUSR | stat.S_IRUSR
-        )  # always set; the ``mode`` argument is unused
+        # the file is only readable and writable by its owner (0600)
+        self.mode: int = stat.S_IWUSR | stat.S_IRUSR
 
-        # json', or 'pickle'
-        self.format = tformat
         self.file_name = file_name
-        self.pload()
+        self.load()
         super().__init__(*args, **kwargs)
 
     def sync(self) -> None:
@@ -233,8 +221,7 @@ class PersistentDict(dict):
                 os.fsync(dir_fd)
             finally:
                 os.close(dir_fd)
-        if self.mode is not None:
-            Path(self.file_name).chmod(self.mode)
+        Path(self.file_name).chmod(self.mode)
 
     def close(self) -> None:
         """Close the dictionary and synchronize with the file on disk.
@@ -298,43 +285,12 @@ class PersistentDict(dict):
     def dump(self, file_object: "Path") -> None:
         """Dump the dictionary to a file.
 
-        This method serializes the in-memory dictionary and writes it to the specified
-        file object. The serialization format is determined by the `format` attribute,
-        which can be either 'json' or 'pickle'. The data is written to a temporary file
-        and then atomically moved to the target file to ensure data integrity.
+        This method serializes the in-memory dictionary as JSON and writes it to
+        the specified file, flushing and fsyncing before it returns. `sync` calls it
+        with a temporary file and atomically moves that onto the target file.
 
         Args:
-            file_object: The file object to which the dictionary data will be written.
-
-        Returns:
-            None
-
-        Raises:
-            NotImplementedError: If the specified format is not supported.
-
-        """
-        if self.format == "json":
-            with file_object.open(mode="w", encoding="utf-8") as f:
-                json.dump(self, f, separators=(",", ":"), skipkeys=True, indent=2)
-                f.flush()
-                os.fsync(f.fileno())
-        elif self.format == "pickle":
-            with file_object.open(mode="wb") as f:
-                pickle.dump(dict(self), f, 2)
-                f.flush()
-                os.fsync(f.fileno())
-        else:
-            msg = f"Unknown format: {self.format!r}"
-            raise NotImplementedError(msg)
-
-    def pload(self) -> None:
-        """Load the dictionary from the file on disk.
-
-        This method loads the dictionary data from the file on disk. It attempts to
-        read the data using the specified serialization format (either 'json' or
-        'pickle'). If the file does not exist or is not readable, the method does
-        nothing. If the file cannot be loaded it is moved aside (see `load`) and
-        the dictionary stays empty.
+            file_object: The file to which the dictionary data will be written.
 
         Returns:
             None
@@ -343,18 +299,18 @@ class PersistentDict(dict):
             None
 
         """
-        # try formats from most restrictive to least restrictive
-        if self.file_name.exists() and self.flag != "n" and os.access(self.file_name, os.R_OK):
-            self.load()
+        with file_object.open(mode="w", encoding="utf-8") as f:
+            json.dump(self, f, separators=(",", ":"), skipkeys=True, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
 
     def load(self) -> None:
         """Load the dictionary data from the file.
 
-        This method reads the dictionary data from the file on disk using the
-        specified serialization format (either 'json' or 'pickle'). It converts
-        the keys to integers where possible and updates the in-memory dictionary
-        with the loaded data. If the file does not exist or is not readable, the
-        method does nothing. If the file cannot be loaded, the error is logged,
+        This method reads the JSON file, converts the keys to integers where
+        possible and updates the in-memory dictionary with the loaded data. If the
+        file does not exist, is not readable, or the flag is ``"n"``, the method
+        does nothing. If the file cannot be loaded, the error is logged,
         the file is renamed to ``<name>.corrupt-<YYYYmmdd-HHMMSS>`` (a counter is
         added if that name exists), and the dictionary stays empty, so the next
         sync writes a fresh file and the bad one is kept for inspection.
@@ -366,17 +322,15 @@ class PersistentDict(dict):
             None
 
         """
-        tstuff = {}
-
-        if not self.file_name.exists():
+        if (
+            self.flag == "n"
+            or not self.file_name.exists()
+            or not os.access(self.file_name, os.R_OK)
+        ):
             return None
         try:
-            if self.format == "pickle":
-                with self.file_name.open(mode="rb") as tfile:
-                    tstuff = pickle.load(tfile)
-            elif self.format == "json":
-                with self.file_name.open("r", encoding="utf-8") as tfile:
-                    tstuff = json.load(tfile, object_hook=convert)
+            with self.file_name.open("r", encoding="utf-8") as tfile:
+                tstuff = json.load(tfile)
 
             nstuff = convert_keys_to_int(tstuff)
             return self.update(nstuff)
@@ -388,8 +342,7 @@ class PersistentDict(dict):
             log_to(
                 sources,
                 logging.ERROR,
-                "Error when loading %s from %s",
-                self.format,
+                "Error when loading json from %s",
                 self.file_name,
                 exc_info=True,
             )
@@ -420,7 +373,7 @@ class PersistentDict(dict):
         log_to(sources, logging.ERROR, "Moved corrupt file %s to %s", self.file_name, target)
 
     def check_serializable(self, key: Any, value: Any) -> None:
-        """Check that a value can be written in this dict's format.
+        """Check that a value can be written as JSON.
 
         The dictionary is not modified.
 
@@ -432,14 +385,15 @@ class PersistentDict(dict):
             TypeError: If the value cannot be serialized.
 
         """
-        check_serializable(key, value, self.format)
+        check_serializable(key, value)
 
     def __setitem__(self, key: Any, val: Any) -> None:
         """Set the value for a given key in the dictionary.
 
         This method overrides the default `__setitem__` behavior to ensure that
         keys and values are converted to appropriate types before being stored
-        in the dictionary. It attempts to convert the key to an integer and the
+        in the dictionary. It attempts to convert the key to an integer (a key
+        that cannot be converted, such as ``None``, is stored as is) and the
         value to a suitable type using the `convert` function.
 
         Args:
@@ -450,12 +404,12 @@ class PersistentDict(dict):
             None
 
         Raises:
-            None
+            TypeError: If the key or value contains a tuple.
 
         """
         try:
             key = int(key)
-        except ValueError:
+        except (ValueError, TypeError):
             key = convert(key)
         val = convert(val)
         super().__setitem__(key, val)
@@ -477,7 +431,7 @@ class PersistentDict(dict):
             None
 
         Raises:
-            None
+            TypeError: If a key or value contains a tuple.
 
         """
         for k, val in dict(*args, **kwargs).items():

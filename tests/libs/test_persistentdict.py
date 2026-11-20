@@ -16,7 +16,13 @@ from pathlib import Path
 
 import pytest
 
-from bastproxy.libs.persistentdict import PersistentDict
+from bastproxy.libs import persistentdict
+from bastproxy.libs.persistentdict import (
+    PersistentDict,
+    check_serializable,
+    convert,
+    convert_keys_to_int,
+)
 
 
 class TestPersistentDict:
@@ -342,13 +348,6 @@ class TestCorruptRecovery:
         assert len(pd) == 0
         assert len(list(temp_data_dir.glob("test.json.corrupt-*"))) == 1
 
-    def test_corrupt_pickle_moved_aside(self, temp_data_dir: Path) -> None:
-        filepath = temp_data_dir / "test.pkl"
-        filepath.write_bytes(b"\x00garbage")
-        pd = PersistentDict("test_owner", filepath, tformat="pickle")
-        assert len(pd) == 0
-        assert len(list(temp_data_dir.glob("test.pkl.corrupt-*"))) == 1
-
     def test_second_corrupt_file_gets_counter(self, temp_data_dir: Path) -> None:
         filepath = temp_data_dir / "test.json"
         for _ in range(2):
@@ -371,14 +370,8 @@ class TestSerializable:
         pd = PersistentDict("test_owner", temp_data_dir / "test.json")
         pd.check_serializable("k", {"a": [1, "b"]})
 
-    def test_pickle_rejects_lambda(self, temp_data_dir: Path) -> None:
-        pd = PersistentDict("test_owner", temp_data_dir / "test.pkl", tformat="pickle")
-        with pytest.raises(TypeError):
-            pd.check_serializable("k", lambda: 1)
-
-    @pytest.mark.parametrize(("name", "fmt"), [("t.json", "json"), ("t.pkl", "pickle")])
     def test_sync_fsyncs_before_rename(
-        self, temp_data_dir: Path, monkeypatch: pytest.MonkeyPatch, name: str, fmt: str
+        self, temp_data_dir: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         import shutil
 
@@ -396,7 +389,109 @@ class TestSerializable:
 
         monkeypatch.setattr(os, "fsync", fake_fsync)
         monkeypatch.setattr(shutil, "move", fake_move)
-        pd = PersistentDict("test_owner", temp_data_dir / name, tformat=fmt)
+        pd = PersistentDict("test_owner", temp_data_dir / "t.json")
         pd["a"] = 1
         pd.sync()
         assert events.index("fsync") < events.index("move")
+
+
+class TestKeyConversion:
+    """Keys that look like integers are stored as integers (#610)."""
+
+    def test_int_like_keys_become_ints(self, temp_data_dir: Path) -> None:
+        pd = PersistentDict("test_owner", temp_data_dir / "test.json")
+        pd["1_000"] = "a"
+        pd["007"] = "b"
+        pd[True] = "c"
+        pd["abc"] = "d"
+        assert pd[1000] == "a"
+        assert pd[7] == "b"
+        assert pd[1] == "c"
+        assert pd["abc"] == "d"
+
+    def test_none_key_is_stored_as_is(self, temp_data_dir: Path) -> None:
+        pd = PersistentDict("test_owner", temp_data_dir / "test.json")
+        pd[None] = 1
+        assert pd[None] == 1
+
+    def test_convert_keys_to_int_handles_none_and_nested(self) -> None:
+        assert convert_keys_to_int({None: 1, "2": {"3": "a"}}) == {None: 1, 2: {3: "a"}}
+
+
+class TestTuplesRefused:
+    """Tuples raise TypeError because JSON would store them as lists (#610)."""
+
+    def test_setitem_top_level(self, temp_data_dir: Path) -> None:
+        pd = PersistentDict("test_owner", temp_data_dir / "test.json")
+        with pytest.raises(TypeError, match="tuple"):
+            pd["a"] = (1, 2)
+        assert "a" not in pd
+
+    def test_setitem_nested(self, temp_data_dir: Path) -> None:
+        pd = PersistentDict("test_owner", temp_data_dir / "test.json")
+        with pytest.raises(TypeError):
+            pd["a"] = {"b": [1, (2, 3)]}
+
+    def test_tuple_key(self, temp_data_dir: Path) -> None:
+        pd = PersistentDict("test_owner", temp_data_dir / "test.json")
+        with pytest.raises(TypeError):
+            pd[(1, 2)] = 1
+
+    def test_update(self, temp_data_dir: Path) -> None:
+        pd = PersistentDict("test_owner", temp_data_dir / "test.json")
+        with pytest.raises(TypeError):
+            pd.update({"a": (1,)})
+
+    def test_check_serializable(self, temp_data_dir: Path) -> None:
+        pd = PersistentDict("test_owner", temp_data_dir / "test.json")
+        with pytest.raises(TypeError, match="tuple"):
+            pd.check_serializable("k", {"a": (1,)})
+        with pytest.raises(TypeError, match="tuple"):
+            check_serializable("k", (1,))
+
+
+class TestRemovedOptions:
+    """Pickle, `mode` and `tformat` are gone (#610)."""
+
+    @pytest.mark.parametrize(
+        ("name", "value"), [("tformat", "json"), ("tformat", "pickle"), ("mode", "0644")]
+    )
+    def test_removed_arguments_raise(self, temp_data_dir: Path, name: str, value: str) -> None:
+        path = temp_data_dir / "removed.json"
+        with pytest.raises(TypeError, match=name):
+            PersistentDict("test_owner", path, **{name: value})
+        assert not path.exists()
+
+    def test_no_pickle_or_pload(self) -> None:
+        assert not hasattr(persistentdict, "pickle")
+        assert not hasattr(PersistentDict, "pload")
+
+    def test_convert_leaves_bytes_alone(self) -> None:
+        assert convert(b"raw") == b"raw"
+
+
+class TestLoadExisting:
+    """Existing files load unchanged; flag "n" ignores them (#610)."""
+
+    def test_sample_files_load_unchanged(self, temp_data_dir: Path) -> None:
+        samples = {
+            "settings.json": '{"_version": 1, "name": "x", "flag": true, "items": [1, "a"]}',
+            "log.json": '{"1": {"level": "info"}, "2": {"level": "debug"}}',
+            "commands.json": '{"history": ["a", "b"]}',
+        }
+        for name, text in samples.items():
+            filepath = temp_data_dir / name
+            filepath.write_text(text, encoding="utf-8")
+            pd = PersistentDict("test_owner", filepath)
+            assert len(pd) > 0
+            assert filepath.exists()
+        log = PersistentDict("test_owner", temp_data_dir / "log.json")
+        assert log[1] == {"level": "info"}
+        assert list(temp_data_dir.glob("*.corrupt-*")) == []
+
+    def test_flag_n_ignores_existing_file(self, temp_data_dir: Path) -> None:
+        filepath = temp_data_dir / "test.json"
+        filepath.write_text('{"a": 1}', encoding="utf-8")
+        pd = PersistentDict("test_owner", filepath, "n")
+        assert len(pd) == 0
+        assert filepath.exists()

@@ -6,8 +6,8 @@
 # By: Bast
 """Performance benchmarks for the persistentdict conversion helpers.
 
-``convert`` and ``convert_keys_to_int`` run on every settings load, so their
-cost scales with the size of each plugin's saved data.
+``convert`` runs on every store and ``convert_keys_to_int`` on every load, so
+their cost scales with the size of each plugin's saved data.
 """
 
 from typing import Any
@@ -44,7 +44,6 @@ def test_bench_convert_keys_to_int_nested(benchmark: Any) -> None:
 def test_bench_convert_nested(benchmark: Any) -> None:
     """Benchmark convert() on a 10x10x10 nested dict with mixed values."""
     data: dict[str, Any] = _nested_data(10, 2)
-    data["bytes"] = b"raw"
     data["list"] = [b"a", "b", {"c": b"d"}]
     result = benchmark(convert, data)
-    assert result["bytes"] == "b'raw'"
+    assert result == data
