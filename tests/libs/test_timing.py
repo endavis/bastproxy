@@ -459,6 +459,15 @@ class TestTimedBlock:
         assert fake_api.calls[-1] == ("libs.timing:timing.finish", ("uid-1",))
         assert len(fake_api.calls) == 2
 
+    def test_duration_passes_keyword_arguments(self, fake_api: _FakeAPI) -> None:
+        @duration
+        def add(a: int, b: int = 0) -> int:
+            return a + b
+
+        assert add(1, b=2) == 3
+        assert fake_api.calls[0] == ("libs.timing:timing.start", ("add", (1,)))
+        assert fake_api.calls[-1] == ("libs.timing:timing.finish", ("uid-1",))
+
 
 class _OwnerProbe:
     """A caller that owns itself, to check whom TimedBlock attributes the timer to."""

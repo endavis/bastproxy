@@ -10,7 +10,6 @@ import asyncio
 import datetime
 import logging
 import math
-import sys
 import time
 from collections.abc import Callable
 from typing import Any, TypedDict
@@ -35,7 +34,7 @@ OverallTimerStats = TypedDict(
         "Enabled": int,
         "Disabled": int,
         "Fired": int,
-        "Memory Usage": int,
+        "Scheduled Slots": int,
     },
 )
 PluginTimerStats = TypedDict(
@@ -60,7 +59,7 @@ class Timer(Callback):
         enabled: bool = True,
         **kwargs: Any,
     ) -> None:
-        """Initialize the class. Time should be in military format in UTC, e.g.,"1430".
+        """Initialize the timer.
 
         Parameters:
         name (str): Name of the timer event.
@@ -68,10 +67,10 @@ class Timer(Callback):
         seconds (float): Interval in seconds: an int or float, finite, at least 1
             (not a bool). Timers fire on whole-second slots, so sub-second
             intervals are not supported.
-        plugin (obj): Plugin related to the timer event.
+        plugin_id (str): ID of the plugin that owns the timer event.
+        enabled (bool): True if the timer is enabled. Defaults to True.
         **kwargs (Optional): Additional keyword arguments
             onetime (bool): True if the timer is one-time only. Defaults to False.
-            enabled (bool): True if the timer is enabled. Defaults to True.
             time (str): Time of day as "HHMM" (UTC) when the timer should fire.
                 If not given, the timer fires according to the "seconds" value.
             log (bool): True if the timer should show up in the logs. Defaults to True.
@@ -232,12 +231,12 @@ class TimersPlugin(BasePlugin):
                     disabled = disabled + 1
 
             overall: OverallTimerStats = {
-                "showorder": ["Total", "Enabled", "Disabled", "Fired", "Memory Usage"],
+                "showorder": ["Total", "Enabled", "Disabled", "Fired", "Scheduled Slots"],
                 "Total": len(self.timer_lookup),
                 "Enabled": enabled,
                 "Disabled": disabled,
                 "Fired": self.overall_fire_count,
-                "Memory Usage": sys.getsizeof(self.timer_events),
+                "Scheduled Slots": len(self.timer_events),
             }
             event_record["stats"]["Overall Timer Stats"] = overall
 
@@ -401,7 +400,7 @@ class TimersPlugin(BasePlugin):
           @Yenabled@w   = True if enabled, False otherwise
           @Ytime@w      = The time of day (HHMM, UTC) to fire this timer, e.g. 1300 is 13:00 UTC.
 
-        returns an Event instance
+        returns the Timer that was added, or None if it was not added
         """
         plugin_id: str = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
 
@@ -468,7 +467,7 @@ class TimersPlugin(BasePlugin):
 
         @Yname@w   = the name of the plugin.
 
-        this function returns no values
+        this function returns None
         """
         log_to([self.plugin_id, name], logging.DEBUG, "removing timers for %s", name)
         timers_to_remove: list[str] = [
@@ -483,7 +482,7 @@ class TimersPlugin(BasePlugin):
 
         @Yname@w   = the name of the timer to remove.
 
-        this function returns no values
+        this function returns None
         """
         try:
             if timer := self.timer_lookup[name]:
@@ -507,7 +506,7 @@ class TimersPlugin(BasePlugin):
         @Yname@w   = the name of the timer to toggle
         @Yflag@w   = True to enable, False to disable.
 
-        this function returns no values
+        this function returns None
         """
         if name in self.timer_lookup:
             self.timer_lookup[name].enabled = flag

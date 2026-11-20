@@ -104,7 +104,7 @@ def duration(func: Callable[..., Any]) -> Callable[..., Any]:
     """
 
     @wraps(func)
-    def wrapper(*arg: Any) -> Any:
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         """Measure execution time.
 
         This function wraps the original function to measure its execution time.
@@ -112,7 +112,8 @@ def duration(func: Callable[..., Any]) -> Callable[..., Any]:
         even when the wrapped function raises.
 
         Args:
-            *arg: Positional arguments passed to the wrapped function.
+            *args: Positional arguments passed to the wrapped function.
+            **kwargs: Keyword arguments passed to the wrapped function.
 
         Returns:
             The result of the wrapped function.
@@ -121,8 +122,8 @@ def duration(func: Callable[..., Any]) -> Callable[..., Any]:
             None
 
         """
-        with TimedBlock(func.__name__, arg):
-            return func(*arg)
+        with TimedBlock(func.__name__, args):
+            return func(*args, **kwargs)
 
     return wrapper
 

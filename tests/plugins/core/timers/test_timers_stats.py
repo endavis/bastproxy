@@ -36,15 +36,16 @@ def _stub(record: dict[str, Any] | None) -> MagicMock:
 def test_overall_stats_counts_timers() -> None:
     record: dict[str, Any] = {"stats": {}}
 
-    TimersPlugin._eventcb_timers_ev_plugins_stats(_stub(record))
+    stub = _stub(record)
+    TimersPlugin._eventcb_timers_ev_plugins_stats(stub)
 
     stats = record["stats"]["Overall Timer Stats"]
     assert stats["Total"] == 3
     assert stats["Enabled"] == 2
     assert stats["Disabled"] == 1
     assert stats["Fired"] == 7
-    assert stats["Memory Usage"] > 0
-    assert stats["showorder"] == ["Total", "Enabled", "Disabled", "Fired", "Memory Usage"]
+    assert stats["Scheduled Slots"] == len(stub.timer_events)
+    assert stats["showorder"] == ["Total", "Enabled", "Disabled", "Fired", "Scheduled Slots"]
 
 
 def test_overall_stats_keys_match_typeddict() -> None:
