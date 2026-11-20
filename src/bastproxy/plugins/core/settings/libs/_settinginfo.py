@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: plugins/core/settings/libs/_settingsinfo.py
+# Filename: plugins/core/settings/libs/_settinginfo.py
 #
 # File Description: info class for settings
 #

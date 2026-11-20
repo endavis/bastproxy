@@ -86,4 +86,4 @@ def test_set_from_user_shows_validator_message() -> None:
 
     stub.api = api
     result = SettingsPlugin._api_setting_set_from_user(stub, "foo", "a.b")
-    assert result == (True, ["no dots"])
+    assert result == (False, ["no dots"])

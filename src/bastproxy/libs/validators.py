@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: plugins/core/settings/libs/_validators.py
+# Filename: libs/validators.py
 #
 # File Description: shared validators for setting values
 #

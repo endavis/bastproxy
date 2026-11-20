@@ -4,7 +4,7 @@
 # File Description: a plugin to manage all settings
 #
 # By: Bast
-"""This module handles commands and parsing input."""
+"""This module handles plugin settings."""
 
 # these 4 are required
 PLUGIN_NAME = "Settings"
@@ -22,8 +22,7 @@ __all__ = [
     "validate_port_or_unset",
 ]
 
-from .libs._settinginfo import SettingValidationError
-from .libs._validators import (
+from bastproxy.libs.validators import (
     int_range,
     non_empty,
     validate_ipv4_host,
@@ -31,3 +30,5 @@ from .libs._validators import (
     validate_port,
     validate_port_or_unset,
 )
+
+from .libs._settinginfo import SettingValidationError

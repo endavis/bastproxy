@@ -11,13 +11,13 @@ from typing import Any
 from bastproxy.libs.logger import get_record_logs
 from bastproxy.libs.records import RMANAGER
 from bastproxy.libs.records.managers.records import DEFAULT_MAX_CHANGES, DEFAULT_MAX_TREES
+from bastproxy.libs.validators import int_range
 
 # 3rd Party
 # Project
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
-from bastproxy.plugins.core.settings import int_range
 
 SHOW_LOG_SETTING = "showRecordLogs"
 RETAINED_TREES_SETTING = "retained_trees"

@@ -17,13 +17,13 @@ from bastproxy.libs.plugins import loader as plugin_loader
 from bastproxy.libs.queue import SimpleQueue
 from bastproxy.libs.records.events import RECORD_EVENTS
 from bastproxy.libs.scan import find_methods
+from bastproxy.libs.validators import int_range
 
 # 3rd Party
 # Project
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
-from bastproxy.plugins.core.settings import int_range
 
 from ..libs._utils import EventFunc
 from ._event import Event
