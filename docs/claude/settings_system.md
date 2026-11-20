@@ -32,14 +32,14 @@ The main plugin that manages all settings across the proxy:
 ```python
 class SettingsPlugin(BasePlugin):
     def __init__(self):
-        self.settings_map = {}        # Maps setting names to plugin_ids
+        self.settings_map = {}        # Maps setting names to the plugin_ids that own them (lists)
         self.settings_info = {}       # Maps plugin_id -> settings metadata
         self.settings_values = {}     # Maps plugin_id -> PersistentDict
 ```
 
 Features:
 - **Centralized registry**: All settings from all plugins
-- **Conflict detection**: Ensures setting names don't conflict across plugins
+- **Per-plugin names**: Several plugins may use the same setting name; values and info are stored per plugin
 - **Automatic persistence**: Settings automatically save to disk
 - **Event integration**: Raises events when settings change
 
@@ -222,7 +222,7 @@ Settings system listens to:
 - `plugins.core.settings:setting.add` - Register a new setting
 - `plugins.core.settings:setting.get` - Get a setting value
 - `plugins.core.settings:setting.set` - Change a setting value
-- `plugins.core.settings:setting.set.from.user` - Validate user input (a missing value, unknown, hidden or readonly setting) and change a setting, or reset it with `reset=True`, returning `(success, message lines)`; an empty string is a value, and a value together with `reset=True` is refused; shared by `pset` and the per-plugin `set`
+- `plugins.core.settings:setting.set.from.user` - Validate user input (a missing value, unknown, hidden or readonly setting; a name used by several plugins needs `plugin_id`) and change a setting, or reset it with `reset=True`, returning `(success, message lines)`; an empty string is a value, and a value together with `reset=True` is refused; shared by `pset` and the per-plugin `set`
 - `plugins.core.settings:setting.reset(plugin_id, setting=None)` - Reset one setting, or all settings of the plugin when `setting` is None, to defaults. Reset-all leaves hidden settings such as `_version` unchanged and raises `ev_<plugin>_var_<setting>_modified` for each visible setting whose value changed
 - `plugins.core.settings:setting.info.get` - Get metadata for a setting
 - `plugins.core.settings:setting.list` - Get all settings for a plugin
@@ -252,7 +252,7 @@ Change a setting value:
 - `name`: Setting name
 - `value`: New value; `""` stores an empty string unless the setting's validator refuses it
 - `--default`: Reset the setting to its default value (not with a value)
-- `-p plugin`: Plugin ID (optional, auto-detected from setting name)
+- `-p plugin`: Plugin ID (optional when only one plugin has the setting; required, or the command changes nothing and lists the owners, when several do)
 
 ### Per-Plugin Set Command
 Each plugin also gets a `set` command:
@@ -465,10 +465,11 @@ self.api("plugins.core.settings:setting.add")(
 
 ### Settings Map
 
-The settings map prevents conflicts:
-- Maps setting names (without plugin prefix) to plugin IDs
-- Ensures no two plugins have the same setting name
-- Used for quick lookup in commands
+The settings map is a name index, not a conflict check:
+- Maps setting names (without plugin prefix) to the list of plugin IDs that own them, in add order
+- Several plugins may use the same name; hidden settings are not indexed
+- `setting.remove.for.plugin` removes only that plugin and drops a name with no owners left
+- Used by `pset` to find the owner when `-p` is not given
 
 ### Auto-initialization
 

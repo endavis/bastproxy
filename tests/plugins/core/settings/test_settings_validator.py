@@ -74,7 +74,7 @@ def test_no_validator_behaves_as_before() -> None:
 def test_set_from_user_shows_validator_message() -> None:
     stub = MagicMock()
     stub.plugin_id = "plugins.core.settings"
-    stub.settings_map = {"foo": PID}
+    stub.settings_map = {"foo": [PID]}
     info = SettingInfo("foo", "d", "help", str, validator=_validator)
 
     def api(name: str) -> Any:
