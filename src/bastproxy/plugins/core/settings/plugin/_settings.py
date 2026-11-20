@@ -246,15 +246,26 @@ class SettingsPlugin(BasePlugin):
                          plugin when None. The default is not validated again,
                          it was converted when the setting was added.
 
+        Resetting all settings keeps hidden settings (such as the plugin's
+        _version) unchanged, raises the modified event for each visible setting
+        whose value changed, and drops stored keys that are no longer defined.
+
         Returns:
           with a setting, True if it was reset and False if the plugin or the
-          setting is unknown. Without one, None.
+          setting is unknown. Without one, None, also for an unknown plugin.
         """
         if setting is None:
-            self.settings_values[plugin_id].clear()
-            for i in self.settings_info[plugin_id]:
-                self.settings_values[plugin_id][i] = self.settings_info[plugin_id][i].default
-            self.settings_values[plugin_id].sync()
+            infos = self.settings_info.get(plugin_id)
+            values = self.settings_values.get(plugin_id)
+            if infos is None or values is None:
+                return None
+            for name, info in list(infos.items()):
+                if info.hidden:
+                    continue
+                _store_and_notify(self, plugin_id, name, info.default)
+            for stale in [key for key in values if key not in infos]:
+                del values[stale]
+            values.sync()
             return None
 
         if plugin_id not in self.settings_info or setting not in self.settings_info[plugin_id]:
@@ -315,7 +326,7 @@ class SettingsPlugin(BasePlugin):
         if plugin_id not in self.settings_info:
             self.settings_info[plugin_id] = {}
 
-        for i in self.settings_info[plugin_id]:
+        for i in self.settings_info.get(plugin_id, {}):
             if self.api("plugins.core.settings:setting.is.hidden")(plugin_id, i):
                 continue
             self.api("plugins.core.events:event.add")(
@@ -350,12 +361,13 @@ class SettingsPlugin(BasePlugin):
             self.plugin_id,
             plugin_id,
         )
-        self.settings_values[plugin_id].sync()
+        if plugin_id in self.settings_values:
+            self.settings_values[plugin_id].sync()
 
     @AddAPI("setting.list", description="get all settings for a plugin")
     def _api_setting_list(self, plugin_id: str) -> dict[str, SettingInfo]:
         """Get all settings info for a plugin."""
-        infos: dict[str, SettingInfo] = self.settings_info[plugin_id]
+        infos: dict[str, SettingInfo] = self.settings_info.get(plugin_id, {})
         return infos
 
     @AddAPI("setting.event.raise.all", description="raise an event for all settings")
@@ -368,7 +380,7 @@ class SettingsPlugin(BasePlugin):
             plugin_id,
         )
         old_value = "__init__"
-        for i in self.settings_info[plugin_id]:
+        for i in self.settings_info.get(plugin_id, {}):
             if self.api("plugins.core.settings:setting.is.hidden")(plugin_id, i):
                 continue
             event_name = f"ev_{plugin_id}_var_{i}_modified"
@@ -382,8 +394,8 @@ class SettingsPlugin(BasePlugin):
     @AddAPI("setting.is.hidden", description="check if a plugin setting is flagged hidden")
     def _api_setting_is_hidden(self, plugin_id: str, setting: str) -> bool:
         """Check if a plugin setting is hidden."""
-        hidden: bool = self.settings_info[plugin_id][setting].hidden
-        return hidden
+        info = self.settings_info.get(plugin_id, {}).get(setting)
+        return bool(info.hidden) if info is not None else False
 
     @AddAPI("setting.map.add", description="add a setting to the settings map")
     def _api_setting_map_add(self, plugin_id: str, setting_name: str) -> None:
@@ -437,7 +449,7 @@ class SettingsPlugin(BasePlugin):
     def _api_setting_list_formatted(self, plugin_id: str) -> list[str]:
         """Get all settings formatted."""
         tmsg = []
-        if not self.settings_info[plugin_id]:
+        if not self.settings_info.get(plugin_id):
             return [f"There are no settings defined in {plugin_id}"]
 
         for i in self.settings_info[plugin_id]:

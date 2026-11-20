@@ -13,20 +13,23 @@ def test_settings_reset_has_its_own_method_name() -> None:
     assert SettingsPlugin._api_setting_reset is not BasePlugin._api_plugin_reset
 
 
-def test_setting_reset_restores_defaults_and_syncs() -> None:
+def test_setting_reset_restores_defaults_and_syncs(monkeypatch) -> None:
+    from types import SimpleNamespace
     from unittest.mock import MagicMock
 
+    from bastproxy.plugins.core.settings.plugin import _settings
+
+    store = MagicMock(return_value=True)
+    monkeypatch.setattr(_settings, "_store_and_notify", store)
     stub = MagicMock()
-    info = MagicMock()
-    info.default = 5
-    stub.settings_info = {"p": {"x": info}}
+    stub.settings_info = {"p": {"x": SimpleNamespace(default=5, hidden=False)}}
     values = MagicMock()
     stub.settings_values = {"p": values}
 
     SettingsPlugin._api_setting_reset(stub, "p")
 
-    values.clear.assert_called_once_with()
-    values.__setitem__.assert_called_once_with("x", 5)
+    values.clear.assert_not_called()
+    store.assert_called_once_with(stub, "p", "x", 5)
     values.sync.assert_called_once_with()
 
 
