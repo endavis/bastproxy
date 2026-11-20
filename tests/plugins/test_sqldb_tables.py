@@ -76,10 +76,10 @@ def test_checktable_calls_hooks(tmp_path: Path) -> None:
 def test_keyfield_readers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     db = _db(tmp_path)
     db.addtable("things", SQL, keyfield="thing_id")
-    seen: list[str] = []
+    seen: list[tuple[str, tuple[Any, ...]]] = []
 
-    def record(sql: str) -> list[Any]:
-        seen.append(sql)
+    def record(sql: str, params: Any = ()) -> list[Any]:
+        seen.append((sql, tuple(params)))
         return []
 
     monkeypatch.setattr(db, "select", record)
@@ -87,8 +87,8 @@ def test_keyfield_readers(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> No
     db.getrow(5, "things")
     db.getlastrowid("things")
     assert seen == [
-        "SELECT * FROM things ORDER by thing_id desc limit 3",
-        "SELECT * FROM things WHERE thing_id = 5",
-        "SELECT MAX(thing_id) AS MAX FROM things",
+        ("SELECT * FROM things ORDER by thing_id desc limit ?", (3,)),
+        ("SELECT * FROM things WHERE thing_id = ?", (5,)),
+        ("SELECT MAX(thing_id) AS MAX FROM things", ()),
     ]
     assert db.remove("nope", 2)[0] is False
