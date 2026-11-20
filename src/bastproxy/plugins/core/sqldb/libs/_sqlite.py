@@ -9,10 +9,9 @@
 import contextlib
 import datetime
 import logging
-import shutil
 import sqlite3
 import zipfile
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -27,6 +26,43 @@ from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, 
 def dict_factory(cursor: sqlite3.Cursor, row: tuple[Any, ...]) -> dict[str, Any]:
     """Create a dictionary for a sql row."""
     return {column[0]: row[index] for index, column in enumerate(cursor.description)}
+
+
+def _sql_default_to_value(text: str | None) -> str | None:
+    """Turn the default text ``PRAGMA table_info`` reports into the value to store.
+
+    ``NULL`` and a missing default become ``None``. A quoted string literal loses its
+    quotes and its doubled inner quotes collapse. Anything else (numbers, expressions)
+    stays text.
+    """
+    if text is None or text.upper() == "NULL":
+        return None
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in "'\"":
+        quote = text[0]
+        return text[1:-1].replace(quote * 2, quote)
+    return text
+
+
+def _split_script(script: str) -> list[str]:
+    """Split a sql script into single statements.
+
+    Chunks split on ``;`` are joined until sqlite reports a complete statement, so a
+    trigger body or a quoted ``;`` stays in one statement.
+    """
+    statements: list[str] = []
+    buffer = ""
+    parts = script.split(";")
+    for index, chunk in enumerate(parts):
+        buffer += chunk
+        if index < len(parts) - 1:
+            buffer += ";"
+        if sqlite3.complete_statement(buffer):
+            if buffer.strip(" \t\r\n;"):
+                statements.append(buffer)
+            buffer = ""
+    if buffer.strip():
+        statements.append(buffer)
+    return statements
 
 
 @dataclass(slots=True)
@@ -61,11 +97,13 @@ class Sqldb:
         Path(self.database_data_directory).mkdir(parents=True, exist_ok=True)
 
         self.db_file = self.database_data_directory / f"{self.database_name}.sqlite"
-        self.turnonpragmas()
-        self.connections = 0
+        self._txn_depth = 0
         self.version = 1
         self.version_functions: dict[int, Callable[..., Any]] = {}
         self.tables: dict[str, SQLTable] = {}
+        register_api = "plugins.core.sqldb:database.register"
+        if self.api("libs.api:api.exists")(register_api):
+            self.api(register_api)(self)
 
     @AddAPI(
         "{database_name}.select",
@@ -97,54 +135,68 @@ class Sqldb:
         return self.getrow(row_id, table_name)
 
     def close(self) -> None:
-        """Close the database."""
-        import inspect
-
-        log_to(
-            ["plugins.core.sqldb", self.plugin_id],
-            logging.DEBUG,
-            "close: called by - %s",
-            inspect.stack()[1][3],
-        )
+        """Close the database. The next call that needs it opens it again."""
+        log_to(["plugins.core.sqldb", self.plugin_id], logging.DEBUG, "close: closing database")
         if self.db_connection:
-            with contextlib.suppress(Exception):
+            with contextlib.suppress(sqlite3.Error):
                 self.db_connection.close()
         self.db_connection = None
 
     def open(self) -> None:
-        """Open the database."""
-        import inspect
+        """Open the database. Does nothing if it is already open."""
+        self._conn()
 
-        function_name = inspect.stack()[1][3]
-        if function_name == "__getattribute__":
-            function_name = inspect.stack()[2][3]
+    def _connect(self) -> sqlite3.Connection:
+        """Open a new connection and keep it as the database connection."""
+        log_to(["plugins.core.sqldb", self.plugin_id], logging.DEBUG, "open: opening database")
+        connection = sqlite3.connect(
+            self.db_file,
+            detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES,
+            isolation_level=None,
+        )
+        connection.row_factory = dict_factory
+        connection.text_factory = str
+        self.db_connection = connection
+        return connection
+
+    def _conn(self) -> sqlite3.Connection:
+        """Return the open connection, opening the database if needed."""
+        connection = self.db_connection
+        if connection is None:
+            connection = self._connect()
+        return connection
+
+    @contextlib.contextmanager
+    def _transaction(self) -> Iterator[sqlite3.Connection]:
+        """Run a block atomically in a savepoint, so blocks nest.
+
+        The block's changes are kept when it ends and undone when it raises.
+        """
+        connection = self._conn()
+        name = f"sqldb_{self._txn_depth}"
+        self._txn_depth += 1
+        try:
+            connection.execute(f"SAVEPOINT {name}")
+            try:
+                yield connection
+            except BaseException:
+                connection.execute(f"ROLLBACK TO {name}")
+                connection.execute(f"RELEASE {name}")
+                raise
+            connection.execute(f"RELEASE {name}")
+        finally:
+            self._txn_depth -= 1
+
+    def _log_failure(self, method: str, sql: str) -> None:
+        """Log the exception being handled for a failed statement."""
         log_to(
-            ["plugins.core.sqldb", self.plugin_id],
-            logging.DEBUG,
-            "open: called by - %s",
-            function_name,
+            [self.plugin_id, "plugins.core.sqldb"],
+            logging.ERROR,
+            "%s - could not run sql statement : %s",
+            method,
+            sql,
+            exc_info=True,
         )
-        self.db_connection = sqlite3.connect(
-            self.db_file, detect_types=sqlite3.PARSE_DECLTYPES | sqlite3.PARSE_COLNAMES
-        )
-        self.db_connection.row_factory = dict_factory
-        # only return byte strings so is easier to send to a client or the mud
-        self.db_connection.text_factory = str
-
-    def __getattribute__(self, name: str) -> Any:
-        """Override getattribute to make sure the database is open."""
-        import inspect
-
-        bad_functions = ["open"]
-        attr = object.__getattribute__(self, name)
-        if (
-            inspect.ismethod(attr)
-            and name[0] != "_"
-            and name not in bad_functions
-            and not self.db_connection
-        ):
-            self.open()
-        return attr
 
     def fixsql(self, temp_string: Any, like: bool = False) -> str:
         # pylint: disable=no-self-use
@@ -169,7 +221,10 @@ class Sqldb:
         message: list[str] = []
         if args:
             if sqlstmt := args["stmt"]:
-                results = self.api(f"{self.plugin_id}:{self.database_name}.select")(sqlstmt)
+                try:
+                    results = self.api(f"{self.plugin_id}:{self.database_name}.select")(sqlstmt)
+                except sqlite3.Error as exc:
+                    return CommandResult(True, [f"select failed: {exc}"])
                 message.extend(f"{i}" for i in results)
             else:
                 message.append("Please enter a select statement")
@@ -183,35 +238,38 @@ class Sqldb:
         args = self.api("plugins.core.commands:command.current.args.get")()
         message: list[str] = []
         if args:
-            if args["table"]:
-                if not self.checktable(args["table"]):
-                    return CommandResult(True, [f"Table {args['table']} does not exist"])
-                if self.db_connection:
-                    cursor = self.db_connection.cursor()
-                    cursor.execute(f"PRAGMA table_info({args['table']})")
-                    desc = cursor.fetchall()
-                    cursor.close()
+            try:
+                if args["table"]:
+                    if not self.checktable(args["table"]):
+                        return CommandResult(True, [f"Table {args['table']} does not exist"])
+                    cursor = self._conn().cursor()
+                    try:
+                        cursor.execute(f"PRAGMA table_info({args['table']})")
+                        desc = cursor.fetchall()
+                    finally:
+                        cursor.close()
                     rule_width = min(40, self.api("plugins.core.proxy:line.length.get")())
                     message.extend((f"Fields in table {args['table']}:", "-" * rule_width))
                     message.extend(f"{item['name']:<25} : {item['type']}" for item in desc)
                     return CommandResult(True, message)
-            else:
-                tables: list[str] = []
-                if self.db_connection:
-                    cursor = self.db_connection.cursor()
-                    tables.extend(
+                cursor = self._conn().cursor()
+                try:
+                    tables = [
                         row["name"]
                         for row in cursor.execute(
                             'SELECT * FROM sqlite_master WHERE type = "table";'
                         )
-                    )
+                    ]
+                finally:
                     cursor.close()
-                if tables:
-                    message.append(f"Tables in database {self.database_name}:")
-                    message.extend(f"{item}" for item in tables if item != "sqlite_sequence")
-                else:
-                    message.append(f"No tables in database {self.database_name}")
-                return CommandResult(True, message)
+            except sqlite3.Error as exc:
+                return CommandResult(True, [f"tables failed: {exc}"])
+            if tables:
+                message.append(f"Tables in database {self.database_name}:")
+                message.extend(f"{item}" for item in tables if item != "sqlite_sequence")
+            else:
+                message.append(f"No tables in database {self.database_name}")
+            return CommandResult(True, message)
         return CommandResult(True, message)
 
     @AddCommand(group="DB")
@@ -223,7 +281,10 @@ class Sqldb:
         message: list[str] = []
         if args:
             if sqlstmt := args["stmt"]:
-                self.api(f"{self.plugin_id}:{self.database_name}.modify")(sqlstmt)
+                try:
+                    self.api(f"{self.plugin_id}:{self.database_name}.modify")(sqlstmt)
+                except sqlite3.Error as exc:
+                    return CommandResult(True, [f"modify failed: {exc}"])
             else:
                 message.append("Please enter an update statement")
         return CommandResult(True, message)
@@ -232,8 +293,10 @@ class Sqldb:
     @AddParser(description="vacuum the database")
     def _command_dbvac(self) -> CommandResult:
         """Vacuum the database."""
-        if self.db_connection:
-            self.db_connection.execute("VACUUM")
+        try:
+            self._conn().execute("VACUUM")
+        except sqlite3.Error as exc:
+            return CommandResult(True, [f"vacuum failed: {exc}"])
 
         return CommandResult(True, ["Database Vacuumed"])
 
@@ -257,7 +320,10 @@ class Sqldb:
         elif args["rownumber"] < 1:
             message.append("Please include a valid row number")
         else:
-            _, new_message = self.remove(args["table"], args["rownumber"])
+            try:
+                _, new_message = self.remove(args["table"], args["rownumber"])
+            except sqlite3.Error as exc:
+                return CommandResult(True, [f"remove failed: {exc}"])
             message.append(new_message)
 
         return CommandResult(True, message)
@@ -275,7 +341,11 @@ class Sqldb:
             name = datetime.datetime.now(datetime.UTC).strftime("%a-%b-%d-%Y-%H-%M-%Z")
 
         backup_file_name = self.backup_template % name + ".zip"
-        if self.backupdb(name):
+        try:
+            backed_up = self.backupdb(name)
+        except sqlite3.Error as exc:
+            return CommandResult(True, [f"backup failed: {exc}"])
+        if backed_up:
             message.append(f"backed up {self.database_name} with name {backup_file_name}")
         else:
             message.append(f"could not back up {self.database_name} with name {backup_file_name}")
@@ -288,9 +358,6 @@ class Sqldb:
 
         for i in self.tables:
             self.checktable(i)
-
-    def turnonpragmas(self) -> None:
-        """Turn on pragmas."""
 
     def addtable(self, tablename: str, sql: str, **kwargs: Any) -> None:
         """Add a table to the database.
@@ -368,7 +435,7 @@ class Sqldb:
         column_defaults = self.tables[tablename].default_column_values
         for column in columns:
             if column not in temp_dict:
-                new_dict[column] = column_defaults[column]
+                new_dict[column] = _sql_default_to_value(column_defaults[column])
             else:
                 new_dict[column] = temp_dict[column]
         return new_dict
@@ -416,14 +483,13 @@ class Sqldb:
 
     def getversion(self) -> int:
         """Get the version of the database."""
-        version = 1
-        if self.db_connection:
-            cursor = self.db_connection.cursor()
+        cursor = self._conn().cursor()
+        try:
             cursor.execute("PRAGMA user_version;")
             row = cursor.fetchone()
-            version = row["user_version"]
+            return int(row["user_version"])
+        finally:
             cursor.close()
-        return version
 
     def checktable(self, tablename: str) -> bool:
         """Check to see if a table exists, if not create it."""
@@ -442,17 +508,16 @@ class Sqldb:
 
     def checktableexists(self, tablename: str) -> bool:
         """Query the database master table to see if a table exists."""
-        retv = False
-        if self.db_connection:
-            cursor = self.db_connection.cursor()
-            retv = any(
+        cursor = self._conn().cursor()
+        try:
+            return any(
                 row["name"] == tablename
                 for row in cursor.execute(
                     f'SELECT * FROM sqlite_master WHERE name = "{tablename}" AND type = "table";'
                 )
             )
+        finally:
             cursor.close()
-        return retv
 
     def checkversion(self) -> None:
         """Checks the version of the database, upgrades if neccessary."""
@@ -464,14 +529,30 @@ class Sqldb:
 
     def setversion(self, version: int) -> None:
         """Set the version of the database."""
-        if self.db_connection:
-            cursor = self.db_connection.cursor()
-            cursor.execute(f"PRAGMA user_version={version};")
-            self.db_connection.commit()
-            cursor.close()
+        with self._transaction() as connection:
+            connection.execute(f"PRAGMA user_version={int(version)};")
 
     def updateversion(self, old_version: int, new_version: int) -> None:
-        """Update a database from old_version to new_version."""
+        """Update a database from old_version to new_version.
+
+        Each step runs atomically with its version bump, so a failed step leaves the
+        database at the last good version. A missing step raises before anything changes.
+        """
+        steps = range(old_version + 1, new_version + 1)
+        if missing := [version for version in steps if version not in self.version_functions]:
+            log_to(
+                [self.plugin_id, "plugins.core.sqldb"],
+                logging.ERROR,
+                "updateversion - no upgrade function for version(s) %s of db: %s in plugin: %s",
+                missing,
+                self.database_name,
+                self.plugin_id,
+            )
+            msg = (
+                f"no upgrade function for version(s) {missing} of database "
+                f"{self.database_name} in plugin {self.plugin_id}"
+            )
+            raise ValueError(msg)
         log_to(
             [self.plugin_id, "plugins.core.sqldb"],
             logging.DEBUG,
@@ -481,16 +562,12 @@ class Sqldb:
             new_version,
         )
         self.backupdb(old_version)
-        for version in range(old_version + 1, new_version + 1):
+        for version in steps:
             try:
-                self.version_functions[version]()
-                log_to(
-                    [self.plugin_id, "plugins.core.sqldb"],
-                    logging.DEBUG,
-                    "updateversion - updated to version %s",
-                    version,
-                )
-            except Exception:  # pylint: disable=broad-except
+                with self._transaction() as connection:
+                    self.version_functions[version]()
+                    connection.execute(f"PRAGMA user_version={int(version)}")
+            except Exception:
                 log_to(
                     [self.plugin_id, "plugins.core.sqldb"],
                     logging.ERROR,
@@ -499,8 +576,13 @@ class Sqldb:
                     self.plugin_id,
                     exc_info=True,
                 )
-                return
-        self.setversion(new_version)
+                raise
+            log_to(
+                [self.plugin_id, "plugins.core.sqldb"],
+                logging.DEBUG,
+                "updateversion - updated to version %s",
+                version,
+            )
         log_to(
             [self.plugin_id, "plugins.core.sqldb"],
             logging.DEBUG,
@@ -510,115 +592,107 @@ class Sqldb:
         )
 
     def select(self, sql_statement: str) -> list[dict[str, Any]]:
-        """Run a select statement against the database, returns a list."""
-        result: list[dict[str, Any]] = []
-        if self.db_connection:
-            cursor = self.db_connection.cursor()
-            try:
-                result.extend(iter(cursor.execute(sql_statement)))
-            except Exception:  # pylint: disable=broad-except
-                log_to(
-                    [self.plugin_id, "plugins.core.sqldb"],
-                    logging.ERROR,
-                    "select - could not run sql statement : %s",
-                    sql_statement,
-                    exc_info=True,
-                )
-            cursor.close()
-        return result
+        """Run a select statement against the database, returns a list.
+
+        Raises:
+            sqlite3.Error: The statement failed. It is logged first.
+
+        """
+        try:
+            with self._transaction() as connection:
+                cursor = connection.cursor()
+                try:
+                    return list(cursor.execute(sql_statement))
+                finally:
+                    cursor.close()
+        except sqlite3.Error:
+            self._log_failure("select", sql_statement)
+            raise
 
     def modify(self, sql_statement: str, data: Any = None) -> tuple[int | None, Any]:
-        """Run a statement to modify the database."""
-        result: Any = []
-        row_id: int | None = -1
-        if self.db_connection:
-            cursor = self.db_connection.cursor()
-            try:
-                if data:
-                    cursor.execute(sql_statement, data)
-                else:
-                    cursor.execute(sql_statement)
-                row_id = cursor.lastrowid
-                self.db_connection.commit()
-                result = None
-            except Exception:  # pylint: disable=broad-except
-                log_to(
-                    [self.plugin_id, "plugins.core.sqldb"],
-                    logging.ERROR,
-                    "modify - could not run sql statement : %s",
-                    sql_statement,
-                    exc_info=True,
-                )
-            cursor.close()
+        """Run a statement to modify the database, returns (lastrowid, None).
 
-        return row_id, result
+        Raises:
+            sqlite3.Error: The statement failed and was rolled back. It is logged first.
+
+        """
+        try:
+            with self._transaction() as connection:
+                cursor = connection.cursor()
+                try:
+                    if data:
+                        cursor.execute(sql_statement, data)
+                    else:
+                        cursor.execute(sql_statement)
+                    return cursor.lastrowid, None
+                finally:
+                    cursor.close()
+        except sqlite3.Error:
+            self._log_failure("modify", sql_statement)
+            raise
 
     def modifymany(self, sql_statement: str, data: Any = None) -> tuple[int | None, Any]:
-        """Run a statement to modify many rows in the database."""
-        result: Any = []
-        row_id: int | None = -1
-        if self.db_connection and data:
-            cursor = self.db_connection.cursor()
-            try:
-                cursor.executemany(sql_statement, data)
-                row_id = cursor.lastrowid
-                self.db_connection.commit()
-                result = None
-                cursor.close()
-            except Exception:  # pylint: disable=broad-except
-                log_to(
-                    [self.plugin_id, "plugins.core.sqldb"],
-                    logging.ERROR,
-                    "modifymany - could not run sql statement : %s",
-                    sql_statement,
-                    exc_info=True,
-                )
+        """Run a statement to modify many rows in the database, all or none.
 
-        return row_id, result
+        Raises:
+            sqlite3.Error: A row failed and none were kept. It is logged first.
+
+        """
+        if not data:
+            return -1, []
+        try:
+            with self._transaction() as connection:
+                cursor = connection.cursor()
+                try:
+                    cursor.executemany(sql_statement, data)
+                    return cursor.lastrowid, None
+                finally:
+                    cursor.close()
+        except sqlite3.Error:
+            self._log_failure("modifymany", sql_statement)
+            raise
 
     def modifyscript(self, sql_statement: str) -> tuple[int | None, Any]:
-        """Run a statement to execute a script."""
-        result: Any = []
-        row_id: int | None = -1
-        if self.db_connection:
-            cursor = self.db_connection.cursor()
-            try:
-                cursor.executescript(sql_statement)
-                row_id = cursor.lastrowid
-                self.db_connection.commit()
-                result = None
-                cursor.close()
-            except Exception:  # pylint: disable=broad-except
-                log_to(
-                    [self.plugin_id, "plugins.core.sqldb"],
-                    logging.ERROR,
-                    "modifyscript - could not run sql statement : %s",
-                    sql_statement,
-                    exc_info=True,
-                )
+        """Run a script of statements, all or none.
 
-        return row_id, result
+        Raises:
+            sqlite3.Error: A statement failed and none were kept. It is logged first.
+
+        """
+        try:
+            with self._transaction() as connection:
+                cursor = connection.cursor()
+                try:
+                    for statement in _split_script(sql_statement):
+                        cursor.execute(statement)
+                    return cursor.lastrowid, None
+                finally:
+                    cursor.close()
+        except sqlite3.Error:
+            self._log_failure("modifyscript", sql_statement)
+            raise
 
     def selectbykeyword(self, selectstmt: str, keyword: str) -> dict[Any, dict[str, Any]]:
         """Run a select statement against the database, return a dictionary.
 
         where the keys are the keyword specified.
+
+        Raises:
+            sqlite3.Error: The statement failed. It is logged first.
+
         """
         result: dict[Any, dict[str, Any]] = {}
-        if self.db_connection:
-            cursor = self.db_connection.cursor()
-            try:
-                for row in cursor.execute(selectstmt):
-                    result[row[keyword]] = row
-            except Exception:  # pylint: disable=broad-except
-                log_to(
-                    [self.plugin_id, "plugins.core.sqldb"],
-                    logging.ERROR,
-                    "selectbykeyword - could not run sql statement : %s",
-                    selectstmt,
-                    exc_info=True,
-                )
-            cursor.close()
+        try:
+            with self._transaction() as connection:
+                cursor = connection.cursor()
+                try:
+                    for row in cursor.execute(selectstmt):
+                        result[row[keyword]] = row
+                finally:
+                    cursor.close()
+        except sqlite3.Error:
+            self._log_failure("selectbykeyword", selectstmt)
+            raise
         return result
 
     def getlast(
@@ -683,20 +757,20 @@ class Sqldb:
             "backupdb - backing up database %s",
             self.database_name,
         )
-        if self.db_connection:
-            cursor = self.db_connection.cursor()
+        connection = self._conn()
+        cursor = connection.cursor()
+        try:
             cursor.execute("PRAGMA integrity_check")
             ret = cursor.fetchone()
+        finally:
             cursor.close()
-            integrity = ret["integrity_check"] == "ok"
-            if not integrity:
-                log_to(
-                    [self.plugin_id, "plugins.core.sqldb"],
-                    logging.ERROR,
-                    "backupdb - integrity check failed, aborting backup",
-                )
-                return success
-            self.close()
+        if ret["integrity_check"] != "ok":
+            log_to(
+                [self.plugin_id, "plugins.core.sqldb"],
+                logging.ERROR,
+                "backupdb - integrity check failed, aborting backup",
+            )
+            return success
 
         archivedir = self.database_data_directory / "archive"
         archivedir.mkdir(parents=True, exist_ok=True)
@@ -707,7 +781,8 @@ class Sqldb:
         backupfile = archivedir / backup_filename
 
         try:
-            shutil.copy(self.db_file, backupfile)
+            with contextlib.closing(sqlite3.connect(backupfile)) as destination:
+                connection.backup(destination)
         except OSError:
             log_to(
                 [self.plugin_id, "plugins.core.sqldb"],

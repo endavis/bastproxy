@@ -400,7 +400,8 @@ by calling `plugin.state.save` on each.
 3. **`ev_plugin_unloaded` handlers** do the per-subsystem cleanup, each for the plugin ID in
    the event: the events plugin removes the plugin's event registrations, the commands plugin
    its command data, the settings plugin its settings (after saving), and the timers,
-   triggers, watch and mudcmds plugins theirs. Event *definitions* the plugin added with
+   triggers, watch and mudcmds plugins theirs, and the sqldb plugin closes the plugin's
+   databases. Event *definitions* the plugin added with
    `event.add` are not removed.
 
 4. **Loader bookkeeping**: the plugin is removed from the `pluginstoload` setting, the

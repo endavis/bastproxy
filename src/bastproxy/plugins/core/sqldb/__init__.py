@@ -40,6 +40,15 @@ for an example of using sqldb
     mydb = dbcreate(self.api('plugins.core.sqldb:baseclass.get')(), self,
                            dbname='mydb')
 ```
+
+## Behavior
+
+- The connection opens lazily on first use, and a call after `close()` opens it again.
+- Statement methods (`select`, `selectbykeyword`, `modify`, `modifymany`, `modifyscript`)
+  log a failure, roll it back and raise `sqlite3.Error`.
+- Each upgrade step in `version_functions` runs atomically with its `user_version` bump. A
+  failed or missing step raises out of `postinit`.
+- The sqldb plugin closes a plugin's databases when the plugin unloads.
 """
 
 # these 4 are required
