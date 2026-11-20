@@ -216,7 +216,7 @@ Settings system listens to:
 - `plugins.core.settings:setting.get` - Get a setting value
 - `plugins.core.settings:setting.set` - Change a setting value
 - `plugins.core.settings:setting.set.from.user` - Validate user input (a missing value, unknown, hidden or readonly setting) and change a setting, or reset it with `reset=True`, returning `(success, message lines)`; an empty string is a value, and a value together with `reset=True` is refused; shared by `pset` and the per-plugin `set`
-- `plugins.core.settings:setting.reset(plugin_id, setting=None)` - Reset one setting, or all settings of the plugin when `setting` is None, to defaults
+- `plugins.core.settings:setting.reset(plugin_id, setting=None)` - Reset one setting, or all settings of the plugin when `setting` is None, to defaults. Reset-all leaves hidden settings such as `_version` unchanged and raises `ev_<plugin>_var_<setting>_modified` for each visible setting whose value changed
 - `plugins.core.settings:setting.info.get` - Get metadata for a setting
 - `plugins.core.settings:setting.list` - Get all settings for a plugin
 - `plugins.core.settings:setting.format` - Format a setting for display
