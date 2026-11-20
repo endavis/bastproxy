@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: plugins/core/example/_settings.py
+# Filename: plugins/core/settings/plugin/_settings.py
 #
 # File Description: settings plugin
 #
@@ -77,7 +77,7 @@ def _store_and_notify(plugin: Any, plugin_id: str, setting: str, value: Any) -> 
 
 
 class SettingsPlugin(BasePlugin):
-    """a test plugin."""
+    """The settings plugin: stores, validates and changes plugin settings."""
 
     @RegisterPluginHook("__init__")
     def _phook_init_plugin(self) -> None:
@@ -414,7 +414,7 @@ class SettingsPlugin(BasePlugin):
         """Format a setting for printing."""
         value = self.api(f"{self.plugin_id}:setting.get")(plugin_id, setting_name)
         setting_info = self.api(f"{self.plugin_id}:setting.info.get")(plugin_id, setting_name)
-        if setting_info.nocolor:
+        if setting_info.nocolor and isinstance(value, str):
             value = value.replace("@", "@@")
         elif setting_info.stype == "color":
             value = f"{value}{value.replace('@', '@@')}@w"
@@ -468,7 +468,7 @@ class SettingsPlugin(BasePlugin):
     @AddArgument(
         "-p",
         "--plugin",
-        help="onyl show settings in the specific plugin",
+        help="only show settings in the specific plugin",
         default="",
         nargs="?",
     )
@@ -508,12 +508,11 @@ class SettingsPlugin(BasePlugin):
             for setting_name in plugin_settings:
                 if args["search"] and args["search"] not in setting_name:
                     continue
-                if plugin_settings[setting_name].readonly:
-                    continue
                 if setting_format := self.api(f"{self.plugin_id}:setting.format")(
                     plugin_id, setting_name
                 ):
-                    plugin_message.append(f"{plugin_id:<30} {setting_format}")
+                    marker = " (readonly)" if plugin_settings[setting_name].readonly else ""
+                    plugin_message.append(f"{plugin_id:<30} {setting_format}{marker}")
 
         if not plugin_message:
             return CommandResult(True, default_message)
@@ -583,12 +582,12 @@ class SettingsPlugin(BasePlugin):
             return False, ["please specify a value, or --default to reset the setting"]
 
         if not self.settings_map.get(setting_name):
-            return True, [f"plugin setting {setting_name} does not exist"]
+            return False, [f"plugin setting {setting_name} does not exist"]
 
         if not plugin_id:
             owners = self.settings_map[setting_name]
             if len(owners) > 1:
-                return True, [
+                return False, [
                     f"{setting_name} exists in several plugins: {', '.join(owners)}; "
                     "use -p <plugin>"
                 ]
@@ -599,11 +598,11 @@ class SettingsPlugin(BasePlugin):
                 plugin_id, setting_name
             )
         ):
-            return True, [f"plugin setting {plugin_id} {setting_name} does not exist"]
+            return False, [f"plugin setting {plugin_id} {setting_name} does not exist"]
         if setting_info.hidden:
-            return True, [f"plugin setting {plugin_id} {setting_name} does not exist"]
+            return False, [f"plugin setting {plugin_id} {setting_name} does not exist"]
         if setting_info.readonly:
-            return True, [f"{setting_name} is a readonly setting"]
+            return False, [f"{setting_name} is a readonly setting"]
 
         val = value
         try:
@@ -617,10 +616,10 @@ class SettingsPlugin(BasePlugin):
             if setting_info.aftersetmessage:
                 tmsg.extend(["\n", setting_info.aftersetmessage])
         except SettingValidationError as err:
-            return True, [str(err)]
+            return False, [str(err)]
         except ValueError:
             shown = val if val else '""'
             msg = [f"Cannot convert {shown} to {stype_name(setting_info.stype)}"]
-            return True, msg
+            return False, msg
         else:
             return True, tmsg

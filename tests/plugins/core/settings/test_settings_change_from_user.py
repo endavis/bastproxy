@@ -67,7 +67,7 @@ def test_empty_string_is_set() -> None:
 def test_empty_string_on_int_setting_reports_conversion() -> None:
     stub = _stub(change_error=ValueError('Cannot convert "" to int'))
     assert SettingsPlugin._api_setting_set_from_user(stub, "foo", "", PID) == (
-        True,
+        False,
         ['Cannot convert "" to int'],
     )
 
@@ -78,7 +78,7 @@ def test_empty_string_refused_by_real_validator() -> None:
     error = validate_ipv4_host("")
     assert error
     stub = _stub(change_error=SettingValidationError(error))
-    assert SettingsPlugin._api_setting_set_from_user(stub, "foo", "", PID) == (True, [error])
+    assert SettingsPlugin._api_setting_set_from_user(stub, "foo", "", PID) == (False, [error])
 
 
 def test_reset_resets_and_reports() -> None:
@@ -103,7 +103,7 @@ def test_reset_with_value_refused() -> None:
 
 def test_reset_refused_for_unknown_hidden_readonly() -> None:
     assert SettingsPlugin._api_setting_set_from_user(_stub(), "nope", None, PID, reset=True) == (
-        True,
+        False,
         ["plugin setting nope does not exist"],
     )
     for info, msg in (
@@ -112,7 +112,7 @@ def test_reset_refused_for_unknown_hidden_readonly() -> None:
     ):
         stub = _stub(info)
         assert SettingsPlugin._api_setting_set_from_user(stub, "foo", None, PID, reset=True) == (
-            True,
+            False,
             [msg],
         )
         stub.reset.assert_not_called()
@@ -120,7 +120,7 @@ def test_reset_refused_for_unknown_hidden_readonly() -> None:
 
 def test_unknown_name() -> None:
     assert SettingsPlugin._api_setting_set_from_user(_stub(), "nope", "5") == (
-        True,
+        False,
         ["plugin setting nope does not exist"],
     )
 
@@ -128,7 +128,7 @@ def test_unknown_name() -> None:
 def test_setting_owned_by_another_plugin() -> None:
     stub = _stub()
     assert SettingsPlugin._api_setting_set_from_user(stub, "foo", "5", OTHER) == (
-        True,
+        False,
         [f"plugin setting {OTHER} foo does not exist"],
     )
     stub.change.assert_not_called()
@@ -137,7 +137,7 @@ def test_setting_owned_by_another_plugin() -> None:
 def test_hidden_setting() -> None:
     stub = _stub(_info(hidden=True))
     assert SettingsPlugin._api_setting_set_from_user(stub, "foo", "5", PID) == (
-        True,
+        False,
         [f"plugin setting {PID} foo does not exist"],
     )
     stub.change.assert_not_called()
@@ -146,7 +146,7 @@ def test_hidden_setting() -> None:
 def test_readonly_setting() -> None:
     stub = _stub(_info(readonly=True))
     assert SettingsPlugin._api_setting_set_from_user(stub, "foo", "5", PID) == (
-        True,
+        False,
         ["foo is a readonly setting"],
     )
     stub.change.assert_not_called()
@@ -172,7 +172,7 @@ def test_success_with_aftersetmessage() -> None:
 def test_value_error() -> None:
     stub = _stub(change_error=ValueError("bad"))
     assert SettingsPlugin._api_setting_set_from_user(stub, "foo", "bad", PID) == (
-        True,
+        False,
         ["Cannot convert bad to int"],
     )
 

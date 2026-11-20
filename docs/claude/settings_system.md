@@ -78,8 +78,8 @@ Validated settings: `listenport` (port 1 to 65535), `mudport` (0 for unset, or a
 `ipv6address` (an IP literal of that version, or a hostname), `mudwindowsize` (`client`, `off` or `COLSxROWS`),
 `linelen` (1 or more), `mudlinewait`, `spamcount`, `historysize`, `command_indent`, `raised_history_size` and
 `tracking_max_changes` (0 or more), and `retained_trees` (1 or more). The shared validators `int_range`,
-`validate_port`, `validate_port_or_unset`, `validate_ipv4_host` and `validate_ipv6_host` are exported from
-`bastproxy.plugins.core.settings`.
+`validate_port`, `validate_port_or_unset`, `validate_ipv4_host` and `validate_ipv6_host` live in
+`bastproxy.libs.validators` and are re-exported from `bastproxy.plugins.core.settings`.
 
 ### Setting Types
 
