@@ -6,12 +6,12 @@
 # By: Bast
 
 # Standard Library
+import asyncio
 import datetime
 import os
 import platform
 import signal
 import sys
-import time
 from pathlib import Path
 from typing import Any
 
@@ -640,7 +640,11 @@ class ProxyPlugin(BasePlugin):
 
         self.api(f"{self.plugin_id}:proxy.shutdown")()
 
-        time.sleep(5)
+        self.api("libs.asynch:task.add")(self._restart_task, "Restart Task")
+
+    async def _restart_task(self) -> None:
+        """Wait without blocking the event loop, then re-exec the process (#643)."""
+        await asyncio.sleep(5)
 
         os.execv(sys.executable, [Path(sys.executable).name, *sys.argv])
 
