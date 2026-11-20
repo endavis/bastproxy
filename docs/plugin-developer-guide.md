@@ -456,6 +456,7 @@ without `--db` and without a table lists the tables of every database.
 
 `plugins.core.sqldb:baseclass.get` and the subclass pattern still work but emit a
 `DeprecationWarning`. See [ADR-0014](decisions/0014-plugins-add-sqldb-databases-through-databaseadd-with-plain-data-definitions.md).
+The [SQLite Database System](claude/sqldb_system.md) page describes the whole system.
 
 ## Triggers
 

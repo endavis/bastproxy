@@ -1,5 +1,5 @@
 # Project: bastproxy
-# Filename: plugins/core/sqldb/plugin/_init_.py
+# Filename: plugins/core/sqldb/plugin/__init__.py
 #
 # File Description: a plugin to create a sqlite3 interface
 #

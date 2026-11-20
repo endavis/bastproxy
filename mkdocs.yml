@@ -122,6 +122,7 @@ nav:
       - Logging System: claude/logging_system.md
       - Colour System: claude/colors_system.md
       - Colour System Findings: claude/colors_findings.md
+      - SQLite Database System: claude/sqldb_system.md
   - Development:
       - Coding Standards: development/coding-standards.md
       - CI/CD & Testing: development/ci-cd-testing.md
