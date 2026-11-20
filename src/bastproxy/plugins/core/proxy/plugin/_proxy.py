@@ -448,10 +448,31 @@ class ProxyPlugin(BasePlugin):
         if self.mud_connection and self.mud_connection.connecting:
             return CommandResult(True, ["The proxy is already connecting to the mud"])
 
-        self.mud_connection = MudConnection(
-            self.api("plugins.core.settings:setting.get")(self.plugin_id, "mudhost"),
-            self.api("plugins.core.settings:setting.get")(self.plugin_id, "mudport"),
-        )
+        mudhost = self.api("plugins.core.settings:setting.get")(self.plugin_id, "mudhost")
+        mudport = self.api("plugins.core.settings:setting.get")(self.plugin_id, "mudport")
+        missing: list[str] = []
+        if not mudhost:
+            missing.extend(
+                (
+                    "Please set the mudhost.",
+                    f"{self.api('plugins.core.commands:command.format')(self.plugin_id, 'set')}"
+                    " mudhost 'host'",
+                )
+            )
+        if not mudport:
+            missing.extend(
+                (
+                    "Please set the mudport.",
+                    f"{self.api('plugins.core.commands:command.format')(self.plugin_id, 'set')}"
+                    " mudport 'port'",
+                )
+            )
+        if missing:
+            return CommandResult(
+                False, ["Cannot connect to the mud, settings are missing", *missing]
+            )
+
+        self.mud_connection = MudConnection(mudhost, mudport)
         # set before the task is queued so a second command is refused too (#306)
         self.mud_connection.connecting = True
 
