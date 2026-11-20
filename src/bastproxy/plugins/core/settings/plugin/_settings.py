@@ -18,7 +18,7 @@ from bastproxy.libs import argp
 # Project
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.logger import get_logger, log_to
-from bastproxy.libs.persistentdict import PersistentDict
+from bastproxy.libs.persistentdict import PersistentDict, check_serializable
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
@@ -42,6 +42,12 @@ def _store_and_notify(plugin: Any, plugin_id: str, setting: str, value: Any) -> 
 
     if old_value == value:
         return True
+
+    try:
+        check_serializable(setting, value)
+    except (TypeError, ValueError) as err:
+        msg = f"{plugin_id} {setting}: value cannot be saved: {err}"
+        raise SettingValidationError(msg) from err
 
     plugin.settings_values[plugin_id][setting] = value
     plugin.settings_values[plugin_id].sync()
@@ -286,7 +292,8 @@ class SettingsPlugin(BasePlugin):
 
         Raises:
           SettingValidationError (a ValueError) if the setting's validator
-          rejects the value; the old value is kept
+          rejects the value or the value cannot be saved to the settings file;
+          the old value is kept
 
         Returns:
           True if the value was changed, False otherwise

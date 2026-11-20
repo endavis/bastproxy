@@ -175,6 +175,13 @@ Settings are automatically persisted:
 - Format: JSON by default
 - Automatically saved when changed
 - Loaded on plugin startup
+- A file that cannot be parsed (corrupt or empty) is logged at ERROR and renamed to
+  `settingvalues.txt.corrupt-<YYYYmmdd-HHMMSS>` (a counter is added if that name exists). The
+  settings start from their defaults and the next save writes a fresh file; loading never raises.
+- Each save writes a temporary file, `fsync`s it, then renames it over the real file, so a crash
+  leaves either the old or the new file.
+- `setting.set` refuses a value that cannot be written as JSON (for example a `set`): it raises
+  `SettingValidationError`, the old value is kept and the file is unchanged.
 
 ## Setting Events
 

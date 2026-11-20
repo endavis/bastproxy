@@ -34,6 +34,7 @@ Classes:
 
 # Standard Library
 import contextlib
+import datetime
 import json
 import logging
 import os
@@ -110,6 +111,31 @@ def convert_keys_to_int(tdict: dict) -> dict[Any, Any]:
     return new
 
 
+def check_serializable(key: Any, value: Any, tformat: str = "json") -> None:
+    """Check that a value can be written in the given format.
+
+    Args:
+        key: The key the value would be stored under, used in the message.
+        value: The value to check.
+        tformat: The serialization format ('json' or 'pickle').
+
+    Raises:
+        TypeError: If the value cannot be serialized.
+
+    """
+    try:
+        if tformat == "pickle":
+            pickle.dumps(value, 2)
+        else:
+            json.dumps(convert(value), skipkeys=True)
+    except (TypeError, ValueError, pickle.PicklingError, AttributeError) as err:
+        msg = (
+            f"Value for key {key!r} of type {type(value).__name__} "
+            f"cannot be saved as {tformat}: {err}"
+        )
+        raise TypeError(msg) from err
+
+
 class PersistentDict(dict):
     """Persistent dictionary with an API compatible with shelve and anydbm.
 
@@ -153,7 +179,7 @@ class PersistentDict(dict):
             None
 
         Raises:
-            ValueError: If the file is not in a supported format.
+            None
 
         """
         self.owner_id = owner_id
@@ -201,6 +227,12 @@ class PersistentDict(dict):
             Path(temp_name).unlink(missing_ok=True)
             raise
         shutil.move(temp_name, self.file_name)  # atomic commit
+        with contextlib.suppress(OSError):
+            dir_fd = os.open(self.file_name.parent, os.O_RDONLY)
+            try:
+                os.fsync(dir_fd)
+            finally:
+                os.close(dir_fd)
         if self.mode is not None:
             Path(self.file_name).chmod(self.mode)
 
@@ -284,9 +316,13 @@ class PersistentDict(dict):
         if self.format == "json":
             with file_object.open(mode="w", encoding="utf-8") as f:
                 json.dump(self, f, separators=(",", ":"), skipkeys=True, indent=2)
+                f.flush()
+                os.fsync(f.fileno())
         elif self.format == "pickle":
             with file_object.open(mode="wb") as f:
                 pickle.dump(dict(self), f, 2)
+                f.flush()
+                os.fsync(f.fileno())
         else:
             msg = f"Unknown format: {self.format!r}"
             raise NotImplementedError(msg)
@@ -297,15 +333,14 @@ class PersistentDict(dict):
         This method loads the dictionary data from the file on disk. It attempts to
         read the data using the specified serialization format (either 'json' or
         'pickle'). If the file does not exist or is not readable, the method does
-        nothing. If an error occurs during the loading process, a ValueError is
-        raised.
+        nothing. If the file cannot be loaded it is moved aside (see `load`) and
+        the dictionary stays empty.
 
         Returns:
             None
 
         Raises:
-            ValueError: If the file is not in a supported format or an error occurs
-            during loading.
+            None
 
         """
         # try formats from most restrictive to least restrictive
@@ -319,15 +354,16 @@ class PersistentDict(dict):
         specified serialization format (either 'json' or 'pickle'). It converts
         the keys to integers where possible and updates the in-memory dictionary
         with the loaded data. If the file does not exist or is not readable, the
-        method does nothing. If an error occurs during the loading process, a
-        ValueError is raised.
+        method does nothing. If the file cannot be loaded, the error is logged,
+        the file is renamed to ``<name>.corrupt-<YYYYmmdd-HHMMSS>`` (a counter is
+        added if that name exists), and the dictionary stays empty, so the next
+        sync writes a fresh file and the bad one is kept for inspection.
 
         Returns:
             None
 
         Raises:
-            ValueError: If the file is not in a supported format or an error occurs
-            during loading.
+            None
 
         """
         tstuff = {}
@@ -358,8 +394,45 @@ class PersistentDict(dict):
                 exc_info=True,
             )
 
-        msg = "File not in a supported format"
-        raise ValueError(msg)
+        self._move_corrupt_aside(sources)
+        return None
+
+    def _move_corrupt_aside(self, sources: list[str]) -> None:
+        """Rename an unloadable file to ``<name>.corrupt-<timestamp>``."""
+        stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        base = f"{self.file_name.name}.corrupt-{stamp}"
+        target = self.file_name.with_name(base)
+        counter = 1
+        while target.exists():
+            target = self.file_name.with_name(f"{base}-{counter}")
+            counter += 1
+        try:
+            self.file_name.rename(target)
+        except OSError:
+            log_to(
+                sources,
+                logging.ERROR,
+                "Could not move corrupt file %s aside",
+                self.file_name,
+                exc_info=True,
+            )
+            return
+        log_to(sources, logging.ERROR, "Moved corrupt file %s to %s", self.file_name, target)
+
+    def check_serializable(self, key: Any, value: Any) -> None:
+        """Check that a value can be written in this dict's format.
+
+        The dictionary is not modified.
+
+        Args:
+            key: The key the value would be stored under.
+            value: The value to check.
+
+        Raises:
+            TypeError: If the value cannot be serialized.
+
+        """
+        check_serializable(key, value, self.format)
 
     def __setitem__(self, key: Any, val: Any) -> None:
         """Set the value for a given key in the dictionary.
