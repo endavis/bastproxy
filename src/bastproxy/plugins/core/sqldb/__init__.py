@@ -23,8 +23,9 @@ Call `plugins.core.sqldb:database.add` from the owning plugin, with plain data. 
 
 The returned database has its tables created and its migrations applied. Its `{name}.*` APIs
 and `db*` commands are registered under the owner, and it is closed when the owner unloads.
-The `db*` command names are fixed, so a second database in one plugin replaces the first one's
-commands (issue #603). `baseclass.get` and subclassing `Sqldb` are deprecated.
+The `db*` commands act on one of the owner's databases. With one database they work as
+before. With several, pass `--db <name>`, for example `dbselect --db stats select * from things`;
+`dbtables` without `--db` lists them all. `baseclass.get` and subclassing `Sqldb` are deprecated.
 
 ## Behavior
 

@@ -13,6 +13,7 @@ import logging
 import re
 import sqlite3
 import warnings
+import weakref
 import zipfile
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -110,6 +111,7 @@ class Sqldb:
         self.version = 1
         self.version_functions: dict[int, Callable[..., Any]] = {}
         self.tables: dict[str, SQLTable] = {}
+        self.owner_databases: weakref.WeakSet[Sqldb] | None = None
         register_api = "plugins.core.sqldb:database.register"
         if self.api("libs.api:api.exists")(register_api):
             self.api(register_api)(self)
@@ -231,17 +233,79 @@ class Sqldb:
 
         return "NULL"
 
+    def _command_candidates(self) -> "list[Sqldb]":
+        """Return the databases a ``db*`` command can act on, sorted by name.
+
+        These are the databases the owning plugin registered. A database that was
+        never registered targets only itself.
+        """
+        siblings = self.owner_databases
+        if not siblings:
+            return [self]
+        return sorted(siblings, key=lambda db: db.database_name)
+
+    def _command_target(self, args: Mapping[str, Any] | None) -> "Sqldb | None":
+        """Pick the database a ``db*`` command acts on.
+
+        Args:
+            args: The parsed command arguments, with an optional ``db`` name.
+
+        Returns:
+            The target database, or None when ``--db`` names no database or is needed
+            to choose between several; ``_command_target_error`` gives the message.
+        """
+        candidates = self._command_candidates()
+        requested = str((args or {}).get("db", "") or "")
+        if requested:
+            for db in candidates:
+                if db.database_name == requested:
+                    return db
+            return None
+        if len(candidates) == 1:
+            return candidates[0]
+        return None
+
+    def _command_target_error(self, args: Mapping[str, Any] | None) -> str:
+        """Return the message for a ``db*`` command that found no target database."""
+        names = ", ".join(db.database_name for db in self._command_candidates())
+        if requested := str((args or {}).get("db", "") or ""):
+            return f"Unknown database {requested}, available databases: {names}"
+        return f"Several databases are available: {names}. Use --db <name>"
+
+    def _table_lines(self) -> list[str]:
+        """Return the lines listing the tables of this database."""
+        cursor = self._conn().cursor()
+        try:
+            tables = [
+                row["name"]
+                for row in cursor.execute('SELECT * FROM sqlite_master WHERE type = "table";')
+            ]
+        finally:
+            cursor.close()
+        if tables:
+            return [
+                f"Tables in database {self.database_name}:",
+                *(f"{item}" for item in tables if item != "sqlite_sequence"),
+            ]
+        return [f"No tables in database {self.database_name}"]
+
     @AddCommand(group="DB")
-    @AddParser(description="backup the database")
+    @AddParser(description="run a select statement against the database")
+    @AddArgument("--db", help="the database to use, needed with several", default="")
     @AddArgument("stmt", help="the sql statement", default="", nargs="?")
     def _command_dbselect(self) -> CommandResult:
         """Run a cmd against the database."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         message: list[str] = []
         if args:
+            target = self._command_target(args)
+            if target is None:
+                return CommandResult(True, [self._command_target_error(args)])
             if sqlstmt := args["stmt"]:
                 try:
-                    results = self.api(f"{self.plugin_id}:{self.database_name}.select")(sqlstmt)
+                    results = target.api(f"{target.plugin_id}:{target.database_name}.select")(
+                        sqlstmt
+                    )
                 except sqlite3.Error as exc:
                     return CommandResult(True, [f"select failed: {exc}"])
                 message.extend(f"{i}" for i in results)
@@ -251,17 +315,28 @@ class Sqldb:
 
     @AddCommand(group="DB")
     @AddParser(description="show tables and fields in database")
+    @AddArgument("--db", help="the database to use, default all", default="")
     @AddArgument("table", help="the table (not required)", default="", nargs="?")
     def _command_dbtables(self) -> CommandResult:
         """Show tables and fields."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         message: list[str] = []
         if args:
+            if not args["table"] and not args.get("db") and len(self._command_candidates()) > 1:
+                for database in self._command_candidates():
+                    try:
+                        message.extend(database._table_lines())
+                    except sqlite3.Error as exc:
+                        message.append(f"tables failed for {database.database_name}: {exc}")
+                return CommandResult(True, message)
+            target = self._command_target(args)
+            if target is None:
+                return CommandResult(True, [self._command_target_error(args)])
             try:
                 if args["table"]:
-                    if not self.checktable(args["table"]):
+                    if not target.checktable(args["table"]):
                         return CommandResult(True, [f"Table {args['table']} does not exist"])
-                    cursor = self._conn().cursor()
+                    cursor = target._conn().cursor()
                     try:
                         cursor.execute("SELECT * FROM pragma_table_info(?)", (args["table"],))
                         desc = cursor.fetchall()
@@ -271,37 +346,27 @@ class Sqldb:
                     message.extend((f"Fields in table {args['table']}:", "-" * rule_width))
                     message.extend(f"{item['name']:<25} : {item['type']}" for item in desc)
                     return CommandResult(True, message)
-                cursor = self._conn().cursor()
-                try:
-                    tables = [
-                        row["name"]
-                        for row in cursor.execute(
-                            'SELECT * FROM sqlite_master WHERE type = "table";'
-                        )
-                    ]
-                finally:
-                    cursor.close()
+                message.extend(target._table_lines())
             except sqlite3.Error as exc:
                 return CommandResult(True, [f"tables failed: {exc}"])
-            if tables:
-                message.append(f"Tables in database {self.database_name}:")
-                message.extend(f"{item}" for item in tables if item != "sqlite_sequence")
-            else:
-                message.append(f"No tables in database {self.database_name}")
             return CommandResult(True, message)
         return CommandResult(True, message)
 
     @AddCommand(group="DB")
     @AddParser(description="run a sql update/insert against the database")
+    @AddArgument("--db", help="the database to use, needed with several", default="")
     @AddArgument("stmt", help="the sql statement", default="", nargs="?")
     def _command_dbmodify(self) -> CommandResult:
         """Run a cmd against the database."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         message: list[str] = []
         if args:
+            target = self._command_target(args)
+            if target is None:
+                return CommandResult(True, [self._command_target_error(args)])
             if sqlstmt := args["stmt"]:
                 try:
-                    self.api(f"{self.plugin_id}:{self.database_name}.modify")(sqlstmt)
+                    target.api(f"{target.plugin_id}:{target.database_name}.modify")(sqlstmt)
                 except sqlite3.Error as exc:
                     return CommandResult(True, [f"modify failed: {exc}"])
             else:
@@ -310,10 +375,15 @@ class Sqldb:
 
     @AddCommand(group="DB")
     @AddParser(description="vacuum the database")
+    @AddArgument("--db", help="the database to use, needed with several", default="")
     def _command_dbvac(self) -> CommandResult:
         """Vacuum the database."""
+        args = self.api("plugins.core.commands:command.current.args.get")()
+        target = self._command_target(args)
+        if target is None:
+            return CommandResult(True, [self._command_target_error(args)])
         try:
-            self._conn().execute("VACUUM")
+            target._conn().execute("VACUUM")
         except sqlite3.Error as exc:
             return CommandResult(True, [f"vacuum failed: {exc}"])
 
@@ -321,26 +391,35 @@ class Sqldb:
 
     @AddCommand(group="DB")
     @AddParser(description="close the database")
+    @AddArgument("--db", help="the database to use, needed with several", default="")
     def _command_dbclose(self) -> CommandResult:
         """Close the database."""
-        self.close()
-        return CommandResult(True, [f"Database {self.database_name} was closed"])
+        args = self.api("plugins.core.commands:command.current.args.get")()
+        target = self._command_target(args)
+        if target is None:
+            return CommandResult(True, [self._command_target_error(args)])
+        target.close()
+        return CommandResult(True, [f"Database {target.database_name} was closed"])
 
     @AddCommand(group="DB")
     @AddParser(description="remove a row from a table")
+    @AddArgument("--db", help="the database to use, needed with several", default="")
     @AddArgument("table", help="the table to remove the row from", default="", nargs="?")
     @AddArgument("rownumber", help="the row number to remove", default=-1, nargs="?", type=int)
     def _command_dbremove(self) -> CommandResult:
         """Remove a table from the database."""
         args = self.api("plugins.core.commands:command.current.args.get")()
+        target = self._command_target(args)
+        if target is None:
+            return CommandResult(True, [self._command_target_error(args)])
         message: list[str] = []
-        if not args["table"] or args["table"] not in self.tables:
+        if not args["table"] or args["table"] not in target.tables:
             message.append("Please include a valid table")
         elif args["rownumber"] < 1:
             message.append("Please include a valid row number")
         else:
             try:
-                _, new_message = self.remove(args["table"], args["rownumber"])
+                _, new_message = target.remove(args["table"], args["rownumber"])
             except sqlite3.Error as exc:
                 return CommandResult(True, [f"remove failed: {exc}"])
             message.append(new_message)
@@ -349,27 +428,31 @@ class Sqldb:
 
     @AddCommand(group="DB")
     @AddParser(description="backup the database")
+    @AddArgument("--db", help="the database to use, needed with several", default="")
     @AddArgument("name", help="the name to backup to", default="", nargs="?")
     def _command_dbbackup(self) -> CommandResult:
         """Backup the database."""
         args = self.api("plugins.core.commands:command.current.args.get")()
+        target = self._command_target(args)
+        if target is None:
+            return CommandResult(True, [self._command_target_error(args)])
         message: list[str] = []
         if args["name"]:
             name = args["name"]
         else:
             name = datetime.datetime.now(datetime.UTC).strftime("%a-%b-%d-%Y-%H-%M-%Z")
 
-        backup_file_name = self.backup_template % name + ".zip"
+        backup_file_name = target.backup_template % name + ".zip"
         if not _is_plain_backup_name(name):
             return CommandResult(True, [f"{name!r} is not a plain backup name"])
         try:
-            backed_up = self.backupdb(name)
+            backed_up = target.backupdb(name)
         except sqlite3.Error as exc:
             return CommandResult(True, [f"backup failed: {exc}"])
         if backed_up:
-            message.append(f"backed up {self.database_name} with name {backup_file_name}")
+            message.append(f"backed up {target.database_name} with name {backup_file_name}")
         else:
-            message.append(f"could not back up {self.database_name} with name {backup_file_name}")
+            message.append(f"could not back up {target.database_name} with name {backup_file_name}")
 
         return CommandResult(True, message)
 
