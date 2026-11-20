@@ -443,8 +443,16 @@ The call returns the database and registers, under the owner, the APIs `<owner>:
 closes the database and the APIs and commands are removed. Never import the sqldb plugin's modules;
 use the API.
 
-Limitation: the `db*` command names are fixed, so a second database in one plugin replaces the
-first one's commands. Its APIs do not collide. Issue #603 tracks it.
+A plugin can add several databases. The `db*` commands act on one of them: with a single database
+they work as before, with several each needs `--db <name>`, for example:
+
+```text
+dbselect --db stats select * from things
+dbbackup --db stats nightly
+```
+
+An unknown name or a missing `--db` lists the available databases and changes nothing. `dbtables`
+without `--db` and without a table lists the tables of every database.
 
 `plugins.core.sqldb:baseclass.get` and the subclass pattern still work but emit a
 `DeprecationWarning`. See [ADR-0014](decisions/0014-plugins-add-sqldb-databases-through-databaseadd-with-plain-data-definitions.md).

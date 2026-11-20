@@ -75,6 +75,9 @@ class SQLDBPlugin(BasePlugin):
         Returns:
             The ready Sqldb. Its ``{name}.*`` APIs and ``db*`` commands are registered
             under the owner and the database is closed when the owner unloads.
+            The ``db*`` commands act on one of the owner's databases: pass
+            ``--db <name>`` to pick it. It is optional with a single database and
+            required with several.
 
         Raises:
             ValueError: The owner is unknown, the database exists or a definition is invalid.
@@ -116,7 +119,9 @@ class SQLDBPlugin(BasePlugin):
     )
     def _api_database_register(self, db: Sqldb) -> None:
         """Track a database under the plugin that owns it."""
-        self.databases.setdefault(db.plugin_id, weakref.WeakSet()).add(db)
+        owned = self.databases.setdefault(db.plugin_id, weakref.WeakSet())
+        owned.add(db)
+        db.owner_databases = owned
 
     def _close_databases_for(self, plugin_id: str) -> None:
         """Close and forget every database a plugin registered."""

@@ -26,7 +26,7 @@ A plugin needed a database through `plugins.core.sqldb:baseclass.get`: it subcla
 - The default directory is the owner's plugin data directory, so two plugins can name a database `stats`.
 - The factory registers the database's `{name}.*` APIs and its `db*` commands under the owner, and tracks it so the owner's unload closes it. Owners declare `PLUGIN_DEPENDENCIES = ["plugins.core.sqldb"]`, so a sqldb reload re-adds their databases.
 - `baseclass.get` and subclassing keep working and emit a `DeprecationWarning`.
-- Known limitation: the `db*` command names are fixed, so a second database in one plugin replaces the first one's commands. Its `{name}.*` APIs do not collide. Issue #603 tracks it.
+- The `db*` commands take an optional `--db <name>` and act on one of the owner's databases (issue #603). It is optional with one database, so existing syntax is unchanged, and required with several. `dbtables` without `--db` lists every database. Per-database command names were rejected: they would rename the commands even for plugins with one database, and the command list would grow with each database.
 
 ## Rationale
 
@@ -35,7 +35,7 @@ One call that takes data cannot forget `postinit()`, needs no subclass-in-a-func
 ## Related Issues
 
 - Issue #597: Add a sqldb factory API that replaces the dbcreate subclass pattern
-- Issue #603: let the sqldb `db*` commands serve more than one database per plugin
+- Issue #603: let the sqldb `db*` commands serve more than one database per plugin (implemented by `--db`)
 - ADR-0004 (API naming grammar)
 
 ## Related Documentation
