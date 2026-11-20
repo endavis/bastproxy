@@ -7,7 +7,6 @@
 
 # Standard Library
 import logging
-import numbers
 from typing import cast
 
 from bastproxy.libs.api import AddAPI
@@ -22,6 +21,25 @@ from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResul
 from bastproxy.plugins.core.events import RegisterToEvent
 from bastproxy.plugins.core.log import get_toplevel
 from bastproxy.plugins.core.log.libs._custom_logger import setup_loggers, type_counts
+
+
+def _normalize_level(level: object) -> str | None:
+    """Return the lowercase level name for a level name or standard number.
+
+    Accepts names in LEVELS (any case) and the numeric values of LEVELS.
+    Everything else, including bool and unknown numbers, returns None.
+    """
+    if isinstance(level, bool):
+        return None
+    if isinstance(level, int):
+        for name, value in LEVELS.items():
+            if value == level:
+                return name
+        return None
+    if isinstance(level, str):
+        lowered = level.lower()
+        return lowered if lowered in LEVELS else None
+    return None
 
 
 class LogPlugin(BasePlugin):
@@ -213,31 +231,46 @@ class LogPlugin(BasePlugin):
     @AddAPI("logger.client.level.set", description="toggle a log type to show to clients")
     def _api_logger_client_level_set(
         self, logtype: str, level: int | str = "info", flag: bool = True
-    ) -> None:
+    ) -> bool:
         """Toggle a log type to show to clients.
 
         @Ylogtype@w   = the type to toggle, can be multiple (list)
+        @Ylevel@w     = the level, a name in LEVELS (any case) or its numeric value
         @Yflag@w      = True to send to clients, false otherwise (default: True).
 
-        this function returns no values
+        returns True when the change was applied, False when the level was refused.
+        A removal (flag False) ignores the level.
         """
         get_logger(self.plugin_id).debug(
             "_api_logger_client_level_set: %s %s %s", logtype, level, flag
         )
 
         logger_name = get_toplevel(logtype)
-        if isinstance(level, numbers.Number):
-            level = logging.getLevelName(level).lower()
-        if not level:
+        if not flag:
+            if logger_name in self.handlers["client"]:
+                del self.handlers["client"][logger_name]
+                log_to(
+                    [self.plugin_id, logger_name],
+                    logging.DEBUG,
+                    "removing %s logging to client",
+                    logger_name,
+                )
+            self._sync_threshold(logger_name)
+            self.handlers["client"].sync()
+            return True
+
+        normalized = _normalize_level(level)
+        if normalized is None:
             log_to(
                 [self.plugin_id, logger_name],
                 logging.ERROR,
-                "api_toggletoclient: invalid log level %s",
+                "_api_logger_client_level_set: invalid log level %r",
                 level,
             )
-            return
+            return False
+        level = normalized
 
-        if flag and self.handlers["client"].get(logger_name) != level:
+        if self.handlers["client"].get(logger_name) != level:
             self.handlers["client"][logger_name] = level
             log_to(
                 [self.plugin_id, logger_name],
@@ -246,18 +279,10 @@ class LogPlugin(BasePlugin):
                 logger_name,
                 level,
             )
-        elif not flag and logger_name in self.handlers["client"]:
-            del self.handlers["client"][logger_name]
-            log_to(
-                [self.plugin_id, logger_name],
-                logging.DEBUG,
-                "removing %s logging to client %s",
-                logger_name,
-                level,
-            )
 
         self._sync_threshold(logger_name)
         self.handlers["client"].sync()
+        return True
 
     @AddParser(
         description="""toggle logtypes to clients
@@ -314,27 +339,27 @@ class LogPlugin(BasePlugin):
         return CommandResult(True, tmsg)
 
     @AddAPI("logger.console.level.set", description="toggle a log type to show to console")
-    def _api_logger_console_level_set(self, logtype: str, level: int | str = "info") -> None:
+    def _api_logger_console_level_set(self, logtype: str, level: int | str = "info") -> bool:
         """Toggle a log type to show to console.
 
         @Ylogtype@w   = the type to toggle
-        @Yflag@w      = True to send to console, false otherwise (default: True).
+        @Ylevel@w     = the level, a name in LEVELS (any case) or its numeric value
 
-        this function returns no values
+        returns True when the level was applied, False when it was refused.
         """
         get_logger(self.plugin_id).debug("_api_logger_console_level_set: %s %s", logtype, level)
 
         logger_name = get_toplevel(logtype)
-        if isinstance(level, numbers.Number):
-            level = logging.getLevelName(level).lower()
-        if not level:
+        normalized = _normalize_level(level)
+        if normalized is None:
             log_to(
                 [self.plugin_id, logger_name],
                 logging.ERROR,
-                "_api_logger_console_level_set: invalid log level %s",
+                "_api_logger_console_level_set: invalid log level %r",
                 level,
             )
-            return
+            return False
+        level = normalized
 
         self.handlers["console"][logger_name] = level
         log_to(
@@ -347,6 +372,7 @@ class LogPlugin(BasePlugin):
 
         self._sync_threshold(logger_name)
         self.handlers["console"].sync()
+        return True
 
     @AddParser(
         description="""change the level of logging for a logtype to the console
@@ -390,26 +416,26 @@ class LogPlugin(BasePlugin):
         return CommandResult(True, tmsg)
 
     @AddAPI("logger.file.level.set", description="toggle a log type to log to a file")
-    def _api_logger_file_level_set(self, logtype: str, level: int | str = "info") -> None:
+    def _api_logger_file_level_set(self, logtype: str, level: int | str = "info") -> bool:
         """Toggle a log type to log to a file.
 
         @Ylogtype@w   = the type to toggle
-        @Yflag@w      = True to send to file, false otherwise (default: True).
+        @Ylevel@w     = the level, a name in LEVELS (any case) or its numeric value
 
-        this function returns no values
+        returns True when the level was applied, False when it was refused.
         """
-        if isinstance(level, numbers.Number):
-            level = logging.getLevelName(level).lower()
-        if not level:
+        logger_name = get_toplevel(logtype)
+        normalized = _normalize_level(level)
+        if normalized is None:
             log_to(
-                [self.plugin_id, logtype],
+                [self.plugin_id, logger_name],
                 logging.ERROR,
-                "_api_logger_file_level_set: invalid log level %s",
+                "_api_logger_file_level_set: invalid log level %r",
                 level,
             )
-            return
+            return False
+        level = normalized
 
-        logger_name = get_toplevel(logtype)
         self.handlers["file"][logger_name] = level
         log_to(
             [self.plugin_id, logger_name],
@@ -421,6 +447,7 @@ class LogPlugin(BasePlugin):
 
         self._sync_threshold(logger_name)
         self.handlers["file"].sync()
+        return True
 
     @AddParser(
         description="""toggle logtypes to log to a file
