@@ -60,7 +60,7 @@ class Timer(Callback):
         enabled: bool = True,
         **kwargs: Any,
     ) -> None:
-        """Initialize the class. Time should be in military format, e.g.,"1430".
+        """Initialize the class. Time should be in military format in UTC, e.g.,"1430".
 
         Parameters:
         name (str): Name of the timer event.
@@ -72,8 +72,8 @@ class Timer(Callback):
         **kwargs (Optional): Additional keyword arguments
             onetime (bool): True if the timer is one-time only. Defaults to False.
             enabled (bool): True if the timer is enabled. Defaults to True.
-            time (str): Time (in military format) when the timer should fire. If None, timer will
-                fire according to the "seconds" value. Defaults to None.
+            time (str): Time of day as "HHMM" (UTC) when the timer should fire.
+                If not given, the timer fires according to the "seconds" value.
             log (bool): True if the timer should show up in the logs. Defaults to True.
         """
         super().__init__(name, plugin_id, func, enabled)
@@ -127,18 +127,34 @@ class Timer(Callback):
 
         return new_date
 
-    def get_next_fire(self) -> datetime.datetime:
-        """Gets the next timestamp when the timer should fire.
+    def get_next_fire(self, now: datetime.datetime | None = None) -> datetime.datetime:
+        """Gets the next time the timer should fire, from its previous due time.
+
+        An interval timer fires at the previous due time plus ``seconds``, so a
+        late run does not drift the schedule. Fires that were missed are
+        skipped, not replayed: the result is always after ``now``. A timer with
+        ``time`` set fires at the same HH:MM (UTC) on the next day.
+
+        Parameters:
+            now: The current time; defaults to the current UTC time.
 
         Returns:
-            int: Timestamp of the next time when the timer should fire.
+            datetime: The next time the timer should fire.
         """
-        now = datetime.datetime.now(datetime.UTC)
-        if not self.last_fired_datetime:
-            return self.get_first_fire()
-        next_fire = self.last_fired_datetime + datetime.timedelta(seconds=self.seconds)
-        while next_fire < now:
-            next_fire = next_fire + datetime.timedelta(seconds=self.seconds)
+        if now is None:
+            now = datetime.datetime.now(datetime.UTC)
+        if self.time:
+            hour_minute = time.strptime(self.time, "%H%M")
+            next_fire = now.replace(
+                hour=hour_minute.tm_hour, minute=hour_minute.tm_min, second=0, microsecond=0
+            )
+            while next_fire <= now:
+                next_fire = next_fire + datetime.timedelta(days=1)
+            return next_fire
+        step = datetime.timedelta(seconds=self.seconds)
+        next_fire = self.next_fire_datetime + step
+        while next_fire <= now:
+            next_fire = next_fire + step
         return next_fire
 
     def __str__(self) -> str:
@@ -383,7 +399,7 @@ class TimersPlugin(BasePlugin):
                                         timer: it is removed and the new one added
           @Yonetime@w   = True for a onetime timer, False otherwise
           @Yenabled@w   = True if enabled, False otherwise
-          @Ytime@w      = The time to start this timer, e.g. 1300 for 1PM.
+          @Ytime@w      = The time of day (HHMM, UTC) to fire this timer, e.g. 1300 is 13:00 UTC.
 
         returns an Event instance
         """
@@ -534,6 +550,7 @@ class TimersPlugin(BasePlugin):
 
         """
         if timer.enabled:
+            timer.last_fired_datetime = datetime.datetime.now(datetime.UTC)
             try:
                 timer.execute()
                 self.overall_fire_count = self.overall_fire_count + 1
