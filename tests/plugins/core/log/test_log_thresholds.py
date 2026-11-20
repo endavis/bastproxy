@@ -139,14 +139,16 @@ def test_client_level_set_remove_resets_the_threshold() -> None:
     assert not get_logger("t247.rm").isEnabledFor(logging.DEBUG)
 
 
-def test_type_clean_resets_the_threshold_of_removed_types() -> None:
+def test_type_clean_resyncs_the_threshold_of_the_names_it_touches() -> None:
     stub = _StubLog()
-    stub.handlers["file"]["t247.clean"] = "debug"
-    LogPlugin._sync_threshold(stub, "t247.clean")  # type: ignore[arg-type]
-    assert get_logger("t247.clean").isEnabledFor(logging.DEBUG)
+    stub.handlers["file"]["t247.clean"] = "info"
+    stub.handlers["console"]["t247.clean"] = "debug"
     removed = LogPlugin._api_logger_type_clean(stub)
     assert "t247.clean" in removed
-    assert not get_logger("t247.clean").isEnabledFor(logging.DEBUG)
+    assert "t247.clean" not in stub.handlers["file"]
+    assert stub.handlers["console"]["t247.clean"] == "debug"
+    assert "t247.clean" in stub.synced
+    assert get_logger("t247.clean").isEnabledFor(logging.DEBUG)
 
 
 def test_command_test_reports_the_handler_flags(caplog: pytest.LogCaptureFixture) -> None:

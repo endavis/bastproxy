@@ -177,13 +177,12 @@ class LogPlugin(BasePlugin):
         """Check if a logger can log to the console.
 
         if the logger hasn't been seen, it will default to logging.INFO
+        the default is returned without being stored in the settings
         """
         logger_name = get_toplevel(logger)
-        if logger_name not in self.handlers["console"]:
-            self.handlers["console"][logger_name] = "info"
-            self.handlers["console"].sync()
-
-        convlevel = getattr(logging, self.handlers["console"][logger_name].upper(), logging.INFO)
+        convlevel = getattr(
+            logging, self.handlers["console"].get(logger_name, "info").upper(), logging.INFO
+        )
         return level >= convlevel
 
     @AddAPI("logger.file.is.enabled", description="check if a logger can log to file")
@@ -191,13 +190,12 @@ class LogPlugin(BasePlugin):
         """Check if a logger can log to the file.
 
         if the logger hasn't been seen, it will default to logging.INFO
+        the default is returned without being stored in the settings
         """
         logger_name = get_toplevel(logger)
-        if logger_name not in self.handlers["file"]:
-            self.handlers["file"][logger_name] = "info"
-            self.handlers["file"].sync()
-
-        convlevel = getattr(logging, self.handlers["file"][logger_name].upper(), logging.INFO)
+        convlevel = getattr(
+            logging, self.handlers["file"].get(logger_name, "info").upper(), logging.INFO
+        )
         return level >= convlevel
 
     @AddAPI("logger.client.is.enabled", description="check if a logger can log to the client")
@@ -364,9 +362,7 @@ class LogPlugin(BasePlugin):
         if args["logtype"]:
             for i in args["logtype"]:
                 logger_name = get_toplevel(i)
-                if logger_name not in self.handlers["console"]:
-                    self.handlers["console"][logger_name] = "info"
-                if self.handlers["console"][logger_name] == "info":
+                if self.handlers["console"].get(logger_name, "info").lower() == "info":
                     self.api(f"{self.plugin_id}:logger.console.level.set")(
                         logger_name, level="debug"
                     )
@@ -447,9 +443,7 @@ class LogPlugin(BasePlugin):
         if args["logtype"]:
             for i in args["logtype"]:
                 logger_name = get_toplevel(i)
-                if logger_name not in self.handlers["file"]:
-                    self.handlers["file"][logger_name] = "info"
-                if self.handlers["file"][logger_name] == "info":
+                if self.handlers["file"].get(logger_name, "info").lower() == "info":
                     self.api(f"{self.plugin_id}:logger.file.level.set")(logger_name, level="debug")
                     tmsg.append(f"setting {logger_name} to log to file at level 'debug'")
                 else:
@@ -486,6 +480,7 @@ class LogPlugin(BasePlugin):
         types.extend(self.handlers["client"].keys())
         types.extend(self.handlers["console"].keys())
         types.extend(self.handlers["file"].keys())
+        types.extend(self.type_counts.keys())
         types = sorted(set(types))
         line_length = self.api("plugins.core.proxy:line.length.get")()
         tmsg = [
@@ -562,46 +557,45 @@ class LogPlugin(BasePlugin):
         )
         return CommandResult(True, tmsg)
 
-    @AddAPI("logger.type.clean", description="clean log types that have not been logged to")
+    @AddAPI(
+        "logger.type.clean",
+        description="remove console and file log type entries that are at the default level",
+    )
     def _api_logger_type_clean(self) -> list[str]:
-        """Clean log types with no counts."""
-        remove = []
+        """Remove console and file entries at the default level (info).
 
-        types: list[str] = []
-        types.extend(self.handlers["client"].keys())
-        types.extend(self.handlers["console"].keys())
-        types.extend(self.handlers["file"].keys())
-        types = sorted(set(types))
+        Client entries are never removed: absent means not sent to the client, so a
+        client entry is never a default. Counts do not decide what is removed.
+        The threshold is resynced for each affected name.
 
-        for i in types:
-            if i not in self.type_counts or max(self.type_counts[i].values()) <= 0:
-                remove.append(i)
+        Returns the sorted names that had at least one entry removed.
+        """
+        removed: set[str] = set()
 
-        for i in remove:
-            if i in self.handlers["client"]:
-                del self.handlers["client"][i]
-            if i in self.handlers["console"]:
-                del self.handlers["console"][i]
-            if i in self.handlers["file"]:
-                del self.handlers["file"][i]
-            if i in self.type_counts:
-                del self.type_counts[i]
-            self._sync_threshold(i)
+        for handler in ("console", "file"):
+            settings = self.handlers[handler]
+            for name in list(settings.keys()):
+                if str(settings[name]).lower() == "info":
+                    del settings[name]
+                    removed.add(name)
+
+        for name in sorted(removed):
+            self._sync_threshold(name)
 
         self.handlers["file"].sync()
         self.handlers["client"].sync()
         self.handlers["console"].sync()
 
-        return remove
+        return sorted(removed)
 
     @RegisterToEvent(event_name="ev_plugins.core.proxy_shutdown")
     def _eventcb_proxy_shutdown(self) -> None:
         """Clean up log types."""
         self.api(f"{self.plugin_id}:logger.type.clean")()
 
-    @AddParser(description="remove log types that have not been used")
+    @AddParser(description="remove console and file log types that are at the default level (info)")
     def _command_clean(self) -> CommandResult:
-        """Remove log types that have not been used."""
+        """Remove console and file log types that are at the default level."""
         remove = self.api(f"{self.plugin_id}:logger.type.clean")()
 
         tmsg = ["Removed the following types:"]
