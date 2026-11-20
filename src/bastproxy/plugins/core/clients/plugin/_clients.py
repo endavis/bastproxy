@@ -6,6 +6,8 @@
 # By: Bast
 
 # Standard Library
+import datetime
+import math
 from collections.abc import KeysView, ValuesView
 from functools import partial
 
@@ -29,18 +31,33 @@ class BanRecord:
         self.ip_addr: str = ip_addr
         self.how_long: int = how_long
         self.timer_name = f"{self.plugin_id}_banremove_{self.ip_addr}"
+        # the absolute time the ban ends, None for a ban with no expiry (#640)
+        self.expires_at: datetime.datetime | None = None
 
         if not copy and self.how_long > 0:
-            api_call = self.api(f"{self.plugin_id}:client.banned.remove")
-            callback = partial(api_call, self.ip_addr, auto=True)
-            self.api("plugins.core.timers:timer.add")(
-                self.timer_name,
-                callback,
-                self.how_long,
-                unique=True,
-                onetime=True,
-                plugin_id=self.plugin_id,
+            self.expires_at = datetime.datetime.now(datetime.UTC) + datetime.timedelta(
+                seconds=self.how_long
             )
+            self._add_timer(self.how_long)
+
+    def _add_timer(self, seconds: float) -> None:
+        """Add the one-time timer that lifts the ban."""
+        api_call = self.api(f"{self.plugin_id}:client.banned.remove")
+        callback = partial(api_call, self.ip_addr, auto=True)
+        self.api("plugins.core.timers:timer.add")(
+            self.timer_name,
+            callback,
+            seconds,
+            onetime=True,
+            plugin_id=self.plugin_id,
+        )
+
+    @property
+    def has_expired(self) -> bool:
+        """True if the ban has an expiry time and it has passed."""
+        return self.expires_at is not None and self.expires_at <= datetime.datetime.now(
+            datetime.UTC
+        )
 
     @property
     def expires(self) -> str:
@@ -56,6 +73,14 @@ class BanRecord:
     def copy(self, newclass: type["BanRecord"]) -> "BanRecord":
         newrecord = newclass(self.plugin_id, self.ip_addr, self.how_long, copy=True)
         newrecord.timer_name = self.timer_name
+        # a record from before #640 (old plugin class) has no expires_at
+        newrecord.expires_at = getattr(self, "expires_at", None)
+        # a reload removed the old plugin's timers, so re-create it for the
+        # remaining time (the timer needs at least 1 second); an expired ban
+        # is dropped by the caller
+        if newrecord.expires_at is not None and not newrecord.has_expired:
+            remaining = (newrecord.expires_at - datetime.datetime.now(datetime.UTC)).total_seconds()
+            newrecord._add_timer(max(1, math.ceil(remaining)))
         return newrecord
 
 
@@ -111,8 +136,15 @@ class ClientPlugin(BasePlugin):
         # copy the banned ips to the newly loaded class to free up the original objects and class
         if self.banned:
             get_logger(self.plugin_id).debug("Loading %s banned IPs", len(self.banned))
-            for item in self.banned:
-                self.banned[item] = self.banned[item].copy(BanRecord)
+            for item in list(self.banned):
+                record = self.banned[item].copy(BanRecord)
+                if record.has_expired:
+                    del self.banned[item]
+                    get_logger(self.plugin_id).error(
+                        "%s : ban has timed out and is no longer banned.", item
+                    )
+                else:
+                    self.banned[item] = record
 
     @AddAPI("client.count", description="return the # of clients connected")
     def _api_client_count(self) -> int:
