@@ -54,7 +54,7 @@ class Sqldb:
         self.plugin_id = plugin_id
         self.database_name = kwargs["dbname"] or "db" if "dbname" in kwargs else "db"
         self.api = API(owner_id=f"{self.plugin_id}:{self.database_name}")
-        self.backup_template = f"{self.database_name}_%%s.sqlite"
+        self.backup_template = f"{self.database_name}_%s.sqlite"
         self.database_data_directory = self.api.BASEPATH / "data" / "db"
         if "dbdir" in kwargs:
             self.database_data_directory = kwargs["dbdir"]
@@ -149,6 +149,9 @@ class Sqldb:
     def fixsql(self, temp_string: Any, like: bool = False) -> str:
         # pylint: disable=no-self-use
         """Fix quotes in a item that will be passed into a sql statement."""
+        if temp_string is None:
+            return "NULL"
+
         if temp_string := str(temp_string):
             if like:
                 return "'%" + temp_string.replace("'", "''") + "%'"
@@ -419,6 +422,9 @@ class Sqldb:
 
     def checktable(self, tablename: str) -> bool:
         """Check to see if a table exists, if not create it."""
+        if tablename not in self.tables:
+            return False
+
         if self.tables[tablename] and not self.checktableexists(tablename):
             precreate = self.tables[tablename].precreate
             if precreate:
@@ -633,9 +639,7 @@ class Sqldb:
         else:
             sql_string = f"SELECT * FROM {table_name} ORDER by {column_id_name} desc limit {num}"
 
-        last_rows: list[dict[str, Any]] = self.api(f"{self.plugin_id}:{self.database_name}.select")(
-            sql_string
-        )
+        last_rows: list[dict[str, Any]] = self.select(sql_string)
         return last_rows
 
     def getrow(self, row_id: int, table_name: str) -> list[dict[str, Any]] | dict[str, Any]:
@@ -653,23 +657,16 @@ class Sqldb:
 
         sql_string = f"SELECT * FROM {table_name} WHERE {column_id_name} = {row_id}"
 
-        row_result: list[dict[str, Any]] = self.api(
-            f"{self.plugin_id}:{self.database_name}.select"
-        )(sql_string)
+        row_result: list[dict[str, Any]] = self.select(sql_string)
         return row_result
 
-    def getlastrowid(self, table_name: str) -> int | None:
-        """Return the id of the last row in a table."""
+    def getlastrowid(self, table_name: str) -> int:
+        """Return the id of the last row in a table, or -1 if the table is empty."""
         column_id_name = self.tables[table_name].keyfield
-        return (
-            rows[0]["MAX"]
-            if (
-                rows := self.api(f"{self.plugin_id}:{self.database_name}.select")(
-                    f"SELECT MAX({column_id_name}) AS MAX FROM {table_name}"
-                )
-            )
-            else -1
-        )
+        rows = self.select(f"SELECT MAX({column_id_name}) AS MAX FROM {table_name}")
+        if rows and rows[0]["MAX"] is not None:
+            return int(rows[0]["MAX"])
+        return -1
 
     def backupdb(self, postname: str | int) -> bool:
         """Backup the database."""
