@@ -11,7 +11,6 @@ including saving, loading, and context manager behavior.
 
 """
 
-import inspect
 import os
 from pathlib import Path
 
@@ -454,11 +453,14 @@ class TestTuplesRefused:
 class TestRemovedOptions:
     """Pickle, `mode` and `tformat` are gone (#610)."""
 
-    def test_tformat_and_mode_are_not_parameters(self) -> None:
-        # extra keyword arguments go to dict(), so the options are gone rather than rejected
-        params = inspect.signature(PersistentDict.__init__).parameters
-        assert "tformat" not in params
-        assert "mode" not in params
+    @pytest.mark.parametrize(
+        ("name", "value"), [("tformat", "json"), ("tformat", "pickle"), ("mode", "0644")]
+    )
+    def test_removed_arguments_raise(self, temp_data_dir: Path, name: str, value: str) -> None:
+        path = temp_data_dir / "removed.json"
+        with pytest.raises(TypeError, match=name):
+            PersistentDict("test_owner", path, **{name: value})
+        assert not path.exists()
 
     def test_no_pickle_or_pload(self) -> None:
         assert not hasattr(persistentdict, "pickle")

@@ -163,9 +163,17 @@ class PersistentDict(dict):
             None
 
         Raises:
-            None
+            TypeError: If the removed ``tformat`` or ``mode`` argument is passed.
+                JSON is the only format and the file mode is always 0600.
 
         """
+        for removed in ("tformat", "mode"):
+            if removed in kwargs:
+                msg = (
+                    f"PersistentDict no longer accepts the {removed!r} argument: "
+                    "JSON is the only format and files are always 0600"
+                )
+                raise TypeError(msg)
         self.owner_id = owner_id
         self._dump_shallow_attrs = ["api"]
         self.api = API(owner_id=f"{self.owner_id}:libs.persistentdict:{file_name}")
