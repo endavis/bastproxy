@@ -526,9 +526,12 @@ class TimersPlugin(BasePlugin):
                     timer,
                     exc_info=True,
                 )
+        if self.timer_lookup.get(timer.name) is not timer:
+            # the timer removed itself while it ran (or was replaced); leave it removed
+            return
         try:
             self.timer_events[time].remove(timer)
-        except ValueError:
+        except (KeyError, ValueError):
             log_to(
                 [self.plugin_id, timer.owner_id],
                 logging.ERROR,
@@ -574,7 +577,16 @@ class TimersPlugin(BasePlugin):
                 ):
                     if self.timer_events.get(i):
                         for timer in self.timer_events[i][:]:
-                            self.execute_timer(i, timer)
+                            try:
+                                self.execute_timer(i, timer)
+                            except Exception:  # pylint: disable=broad-except
+                                log_to(
+                                    [self.plugin_id, timer.owner_id],
+                                    logging.ERROR,
+                                    "check_for_timers_to_fire - error handling timer: %s",
+                                    timer.name,
+                                    exc_info=True,
+                                )
 
                 self.time_last_checked = now
 
