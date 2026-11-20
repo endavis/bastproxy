@@ -73,7 +73,8 @@ class BanRecord:
     def copy(self, newclass: type["BanRecord"]) -> "BanRecord":
         newrecord = newclass(self.plugin_id, self.ip_addr, self.how_long, copy=True)
         newrecord.timer_name = self.timer_name
-        newrecord.expires_at = self.expires_at
+        # a record from before #640 (old plugin class) has no expires_at
+        newrecord.expires_at = getattr(self, "expires_at", None)
         # a reload removed the old plugin's timers, so re-create it for the
         # remaining time (the timer needs at least 1 second); an expired ban
         # is dropped by the caller

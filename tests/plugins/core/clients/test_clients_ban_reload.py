@@ -112,3 +112,14 @@ def test_permanent_ban_record_unaffected() -> None:
     assert fake.timers == {}
     assert not new.has_expired
     assert new.expires == "Permanent"
+
+
+def test_copy_of_record_without_expires_at_attribute() -> None:
+    fake = FakeTimers()
+    with _at(0):
+        record = _record(fake, 20)
+    del record.expires_at  # a ban made by the pre-#640 plugin class
+    with _at(8):
+        new = _reload(fake, record)
+    assert new.expires_at is None
+    assert not fake.timers
