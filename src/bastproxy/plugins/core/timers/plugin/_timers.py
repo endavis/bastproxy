@@ -377,8 +377,10 @@ class TimersPlugin(BasePlugin):
                                         Timers use whole-second slots, so
                                         sub-second intervals are not supported
         @Yargs@w arguments:
-          @Yunique@w    = True if no duplicates of this timer are allowed,
-                                        False otherwise
+          @Yunique@w    = True to refuse the add (keeping the existing timer)
+                                        if a timer with this name already exists.
+                                        False (the default) replaces the existing
+                                        timer: it is removed and the new one added
           @Yonetime@w   = True for a onetime timer, False otherwise
           @Yenabled@w   = True if enabled, False otherwise
           @Ytime@w      = The time to start this timer, e.g. 1300 for 1PM.
@@ -429,6 +431,15 @@ class TimersPlugin(BasePlugin):
                 name,
             )
             return None
+
+        if name in self.timer_lookup:
+            log_to(
+                [self.plugin_id, plugin_id],
+                logging.DEBUG,
+                "_api_timer_add: timer %s already exists, replacing it",
+                name,
+            )
+            self._remove_timer_internal(self.timer_lookup[name])
 
         timer = Timer(name, func, seconds, plugin_id, **kwargs)
         log_to([self.plugin_id, plugin_id], logging.DEBUG, "_api_timer_add: adding timer %s", name)
@@ -486,7 +497,10 @@ class TimersPlugin(BasePlugin):
             self.timer_lookup[name].enabled = flag
 
     def _add_timer_internal(self, timer: Timer) -> None:
-        """Internally add a timer."""
+        """Internally add a timer, unscheduling any other timer registered under its name."""
+        existing = self.timer_lookup.get(timer.name)
+        if existing is not None and existing is not timer:
+            self._remove_timer_internal(existing)
         timer_next_time_to_fire = math.floor(timer.next_fire_datetime.timestamp())
         if timer_next_time_to_fire != -1:
             if timer_next_time_to_fire not in self.timer_events:
