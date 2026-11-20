@@ -72,6 +72,24 @@ def test_repeating_timer_still_reschedules() -> None:
     assert SLOT + 5 in stub.timer_events
 
 
+def test_replaced_timer_leaves_its_slot_and_does_not_fire_again() -> None:
+    stub = _stub()
+    fired: list[str] = []
+    old = _timer("t", False, lambda _t: fired.append("old"))
+    new = _timer("t", False, lambda _t: fired.append("new"))
+    stub._add_timer_internal(old)
+    stub._add_timer_internal(new)
+
+    TimersPlugin.execute_timer(stub, SLOT, old)
+    # a later pass over the same slot (as check_for_timers_to_fire does) only sees `new`
+    for timer in list(stub.timer_events[SLOT]):
+        assert timer is new
+    assert old not in [t for slot in stub.timer_events.values() for t in slot]
+    assert stub.timer_lookup["t"] is new
+    assert fired == ["old"]
+    assert SLOT + 5 not in stub.timer_events
+
+
 class _StopLoopError(Exception):
     pass
 

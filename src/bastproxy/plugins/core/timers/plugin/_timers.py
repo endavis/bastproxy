@@ -526,18 +526,22 @@ class TimersPlugin(BasePlugin):
                     timer,
                     exc_info=True,
                 )
-        if self.timer_lookup.get(timer.name) is not timer:
-            # the timer removed itself while it ran (or was replaced); leave it removed
-            return
+        still_registered = self.timer_lookup.get(timer.name) is timer
         try:
             self.timer_events[time].remove(timer)
+            if not self.timer_events[time]:
+                del self.timer_events[time]
         except (KeyError, ValueError):
-            log_to(
-                [self.plugin_id, timer.owner_id],
-                logging.ERROR,
-                "check_for_timers_to_fire - timer %s did not exist in timerevents",
-                timer.name,
-            )
+            if still_registered:
+                log_to(
+                    [self.plugin_id, timer.owner_id],
+                    logging.ERROR,
+                    "check_for_timers_to_fire - timer %s did not exist in timerevents",
+                    timer.name,
+                )
+        if not still_registered:
+            # the timer removed itself while it ran (or was replaced); leave it removed
+            return
         if not timer.onetime:
             timer.next_fire_datetime = timer.get_next_fire()
             if timer.log:
