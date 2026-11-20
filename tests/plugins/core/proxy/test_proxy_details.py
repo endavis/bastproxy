@@ -83,3 +83,9 @@ def test_info_shows_option_rows_not_an_empty_options_row() -> None:
     assert "Local options   : TTYPE" in lines
     assert "Remote options  : GMCP, MCCP2_COMPRESS" in lines
     assert not any(line.startswith("Options ") for line in lines)
+
+
+def test_details_connected_without_connected_time() -> None:
+    text = "\n".join(ProxyPlugin._command_details(_stub(_mud(connected_time=None))).message)
+    assert "Connected                     : Unknown" in text
+    assert "Host                          : mud.example" in text
