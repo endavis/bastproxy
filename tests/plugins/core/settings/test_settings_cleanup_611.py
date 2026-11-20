@@ -91,3 +91,13 @@ def test_failed_set_from_user_is_a_failed_command_result() -> None:
     settings.plugin_id = "plugins.core.settings"
     settings.api = lambda name: apis[name]
     assert SettingsPlugin._command_settings_plugin_sets(settings) == expected
+
+
+def test_shared_setting_name_without_plugin_is_a_failure() -> None:
+    owners = ["plugins.test.a", "plugins.test.b"]
+    stub = MagicMock()
+    stub.settings_map = {"foo": owners}
+    for value, reset in (("5", False), (None, True)):
+        success, msg = SettingsPlugin._api_setting_set_from_user(stub, "foo", value, reset=reset)
+        assert success is False
+        assert msg == [f"foo exists in several plugins: {', '.join(owners)}; use -p <plugin>"]

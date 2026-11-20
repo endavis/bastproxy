@@ -587,7 +587,7 @@ class SettingsPlugin(BasePlugin):
         if not plugin_id:
             owners = self.settings_map[setting_name]
             if len(owners) > 1:
-                return True, [
+                return False, [
                     f"{setting_name} exists in several plugins: {', '.join(owners)}; "
                     "use -p <plugin>"
                 ]
