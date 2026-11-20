@@ -42,6 +42,18 @@ def _normalize_level(level: object) -> str | None:
     return None
 
 
+# log level name -> (colour setting name, default colour)
+_LEVEL_COLORS: dict[str, tuple[str, str]] = {
+    "error": ("color_error", "@x136"),
+    "warning": ("color_warning", "@y"),
+    "info": ("color_info", "@w"),
+    "debug": ("color_debug", "@x246"),
+    "critical": ("color_critical", "@r"),
+}
+
+_LEVEL_CHOICES = ["debug", "info", "warning", "error", "critical"]
+
+
 class LogPlugin(BasePlugin):
     """a class to manage logging."""
 
@@ -123,57 +135,17 @@ class LogPlugin(BasePlugin):
         if isinstance(level, int):
             level = logging.getLevelName(level).lower()
 
-        match level:
-            case "error":
-                try:
-                    return cast(
-                        str,
-                        self.api("plugins.core.settings:setting.get")(
-                            self.plugin_id, "color_error"
-                        ),
-                    )
-                except Exception:
-                    return "@x136"
-            case "warning":
-                try:
-                    return cast(
-                        str,
-                        self.api("plugins.core.settings:setting.get")(
-                            self.plugin_id, "color_warning"
-                        ),
-                    )
-                except Exception:
-                    return "@y"
-            case "info":
-                try:
-                    return cast(
-                        str,
-                        self.api("plugins.core.settings:setting.get")(self.plugin_id, "color_info"),
-                    )
-                except Exception:
-                    return "@w"
-            case "debug":
-                try:
-                    return cast(
-                        str,
-                        self.api("plugins.core.settings:setting.get")(
-                            self.plugin_id, "color_debug"
-                        ),
-                    )
-                except Exception:
-                    return "@x246"
-            case "critical":
-                try:
-                    return cast(
-                        str,
-                        self.api("plugins.core.settings:setting.get")(
-                            self.plugin_id, "color_critical"
-                        ),
-                    )
-                except Exception:
-                    return "@r"
-            case _:
-                return ""
+        entry = _LEVEL_COLORS.get(level)
+        if entry is None:
+            return ""
+        setting_name, default = entry
+        try:
+            return cast(
+                str,
+                self.api("plugins.core.settings:setting.get")(self.plugin_id, setting_name),
+            )
+        except Exception:
+            return default
 
     def _sync_threshold(self, name: str) -> None:
         """Set the pre-filter threshold of a logger from the three handler settings.
@@ -295,7 +267,7 @@ class LogPlugin(BasePlugin):
         "--level",
         help="the level to log at",
         default="info",
-        choices=["debug", "info", "warning", "error", "critical"],
+        choices=_LEVEL_CHOICES,
     )
     @AddArgument(
         "-r",
@@ -376,19 +348,38 @@ class LogPlugin(BasePlugin):
 
     @AddParser(
         description="""change the level of logging for a logtype to the console
-          this will toggle the logtype between 'info' and 'debug'
+          without --level this will toggle the logtype between 'info' and 'debug'
+          with --level the logtype is set to that level
 
           if no arguments, log types that are currenty sent to the console will be listed"""
     )
     @AddArgument("logtype", help="a list of logtypes to toggle", default=[], nargs="*")
+    @AddArgument(
+        "-l",
+        "--level",
+        help="set the logtypes to this level instead of toggling between info and debug",
+        default=None,
+        choices=_LEVEL_CHOICES,
+    )
     def _command_console(self) -> CommandResult:
         """Toggle logtypes to the console."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         tmsg = []
         if args["logtype"]:
+            level = args.get("level")
             for i in args["logtype"]:
                 logger_name = get_toplevel(i)
-                if self.handlers["console"].get(logger_name, "info").lower() == "info":
+                if level:
+                    if self.api(f"{self.plugin_id}:logger.console.level.set")(
+                        logger_name, level=level
+                    ):
+                        stored = self.handlers["console"][logger_name]
+                        tmsg.append(f"setting {logger_name} to log to console at level '{stored}'")
+                    else:
+                        tmsg.append(
+                            f"could not set {logger_name} to log to console at level '{level}'"
+                        )
+                elif self.handlers["console"].get(logger_name, "info").lower() == "info":
                     self.api(f"{self.plugin_id}:logger.console.level.set")(
                         logger_name, level="debug"
                     )
@@ -450,27 +441,42 @@ class LogPlugin(BasePlugin):
         return True
 
     @AddParser(
-        description="""toggle logtypes to log to a file
+        description="""change the level of logging for a logtype to a file
 
-          the file will be located in the data/logs/<logtype> directory
+          every logtype is written to the main log file, bastproxy.log, in the
+          data logs directory
+          without --level this will toggle the logtype between 'info' and 'debug'
+          with --level the logtype is set to that level
 
           if no arguments, types that are sent to file will be listed"""
     )
     @AddArgument("logtype", help="a list of logtypes to toggle", default=[], nargs="*")
     @AddArgument(
-        "-n",
-        "--notimestamp",
-        help="do not log to file with a timestamp",
-        action="store_false",
+        "-l",
+        "--level",
+        help="set the logtypes to this level instead of toggling between info and debug",
+        default=None,
+        choices=_LEVEL_CHOICES,
     )
     def _command_file(self) -> CommandResult:
         """Toggle a logtype to log to a file."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         tmsg = []
         if args["logtype"]:
+            level = args.get("level")
             for i in args["logtype"]:
                 logger_name = get_toplevel(i)
-                if self.handlers["file"].get(logger_name, "info").lower() == "info":
+                if level:
+                    if self.api(f"{self.plugin_id}:logger.file.level.set")(
+                        logger_name, level=level
+                    ):
+                        stored = self.handlers["file"][logger_name]
+                        tmsg.append(f"setting {logger_name} to log to file at level '{stored}'")
+                    else:
+                        tmsg.append(
+                            f"could not set {logger_name} to log to file at level '{level}'"
+                        )
+                elif self.handlers["file"].get(logger_name, "info").lower() == "info":
                     self.api(f"{self.plugin_id}:logger.file.level.set")(logger_name, level="debug")
                     tmsg.append(f"setting {logger_name} to log to file at level 'debug'")
                 else:
@@ -551,7 +557,7 @@ class LogPlugin(BasePlugin):
         "--loglevel",
         help="the level for the test",
         default="info",
-        choices=["debug", "info", "warning", "error", "critical"],
+        choices=_LEVEL_CHOICES,
         required=True,
     )
     def _command_test(self) -> CommandResult:
