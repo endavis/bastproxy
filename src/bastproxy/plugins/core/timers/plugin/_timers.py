@@ -526,15 +526,22 @@ class TimersPlugin(BasePlugin):
                     timer,
                     exc_info=True,
                 )
+        still_registered = self.timer_lookup.get(timer.name) is timer
         try:
             self.timer_events[time].remove(timer)
-        except ValueError:
-            log_to(
-                [self.plugin_id, timer.owner_id],
-                logging.ERROR,
-                "check_for_timers_to_fire - timer %s did not exist in timerevents",
-                timer.name,
-            )
+            if not self.timer_events[time]:
+                del self.timer_events[time]
+        except (KeyError, ValueError):
+            if still_registered:
+                log_to(
+                    [self.plugin_id, timer.owner_id],
+                    logging.ERROR,
+                    "check_for_timers_to_fire - timer %s did not exist in timerevents",
+                    timer.name,
+                )
+        if not still_registered:
+            # the timer removed itself while it ran (or was replaced); leave it removed
+            return
         if not timer.onetime:
             timer.next_fire_datetime = timer.get_next_fire()
             if timer.log:
@@ -574,7 +581,16 @@ class TimersPlugin(BasePlugin):
                 ):
                     if self.timer_events.get(i):
                         for timer in self.timer_events[i][:]:
-                            self.execute_timer(i, timer)
+                            try:
+                                self.execute_timer(i, timer)
+                            except Exception:  # pylint: disable=broad-except
+                                log_to(
+                                    [self.plugin_id, timer.owner_id],
+                                    logging.ERROR,
+                                    "check_for_timers_to_fire - error handling timer: %s",
+                                    timer.name,
+                                    exc_info=True,
+                                )
 
                 self.time_last_checked = now
 
