@@ -329,7 +329,8 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         sending the data to the mud
         """
         if isinstance(self.line, str):
-            current_line = self.line.replace("||", "|")
+            sep = self.api.command_separator or "|"
+            current_line = self.line.replace(sep * 2, sep)
             if current_line != self.line:
                 self.line = current_line
 

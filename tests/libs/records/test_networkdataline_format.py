@@ -113,6 +113,19 @@ def test_fix_double_command_seperator() -> None:
     assert raw.line == b"a||b"
 
 
+def test_fix_double_command_seperator_uses_configured_separator(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(API, "command_separator", ";")
+    doubled = NetworkDataLine("a;;b", originated="client")
+    doubled.fix_double_command_seperator()
+    assert doubled.line == "a;b"
+
+    pipes = NetworkDataLine("a||b", originated="client")
+    pipes.fix_double_command_seperator()
+    assert pipes.line == "a||b"
+
+
 def test_str_of_io_line_is_text(plugin_stand_ins: StandIns) -> None:
     assert str(NetworkDataLine("hello", preamble=False)) == "hello"
 

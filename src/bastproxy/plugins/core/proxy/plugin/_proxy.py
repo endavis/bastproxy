@@ -660,6 +660,7 @@ class ProxyPlugin(BasePlugin):
             newsep = event_record["newvalue"]
 
             self.api.__class__.command_split_regex = build_command_split_regex(newsep)
+            self.api.__class__.command_separator = newsep
 
     @RegisterToEvent(event_name="ev_{plugin_id}_var_mudwindowsize_modified")
     def _eventcb_mudwindowsize_change(self) -> None:
