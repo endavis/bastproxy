@@ -3,6 +3,7 @@
 from typing import Any
 from unittest.mock import MagicMock
 
+from bastproxy.libs.textwidth import display_width
 from bastproxy.plugins.core.colors.plugin._colors import ColorsPlugin
 from bastproxy.plugins.core.utils.plugin._utils import UtilsPlugin
 
@@ -45,6 +46,19 @@ def make_utils_stub() -> MagicMock:
         ),
     }[name]
     return stub
+
+
+def _column_widths(stripped_line: str) -> list[int]:
+    """Read the column widths off a rendered table line with its colour codes stripped.
+
+    The line looks like ``| cell | cell |``. A column other than the last is as wide as its cell.
+    The last column is padded out to the line length, so it is read as the width of its text:
+    pass a line whose last cell is the widest of its column, such as the header row.
+    """
+    cells = stripped_line[2:-2].split(" | ")
+    widths = [display_width(cell) for cell in cells]
+    widths[-1] = display_width(cells[-1].rstrip())
+    return widths
 
 
 def legacy_table(stub: MagicMock, table_name: str, data: list[dict], columns: list[dict]) -> list:
@@ -92,8 +106,7 @@ def test_colored_cells_are_aligned() -> None:
     strip = stub.api("plugins.core.colors:colorcode.strip")
     rows = [strip(line) for line in result[1:]]
     assert rows[0].index("|", 3) == rows[2].index("|", 3) == rows[3].index("|", 3)
-    assert columns[0]["width"] == 5
-    assert columns[1]["width"] == 4
+    assert _column_widths(rows[0]) == [5, 4]
 
 
 def _bar_positions(line: str) -> list[int]:

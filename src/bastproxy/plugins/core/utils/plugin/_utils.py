@@ -8,7 +8,6 @@
 # Standard Library
 import bisect
 import datetime
-import fnmatch
 import math
 import re
 import sys
@@ -32,15 +31,73 @@ from bastproxy.libs.api import AddAPI
 from bastproxy.libs.textwidth import display_width, text_units
 from bastproxy.plugins._baseplugin import BasePlugin
 
-TIMELENGTH_REGEXP = re.compile(
-    r"^(?P<days>((\d*\.\d+)|\d+)+d)?"
-    r":?(?P<hours>((\d*\.\d+)|\d+)+h)?"
-    r":?(?P<minutes>((\d*\.\d+)|\d+)+m)?"
-    r":?(?P<seconds>\d+s)?$"
-)
+# One "<number><unit>" part of a time length, such as "1.5h" or "30m".
+_TIMELENGTH_PART = re.compile(r"(\d+(?:\.\d+)?|\.\d+)([dhms])", re.ASCII)
+# Units in the order they must appear, with their length in seconds.
+_UNIT_SECONDS: dict[str, int] = {"d": 86400, "h": 3600, "m": 60, "s": 1}
+_UNIT_ORDER = tuple(_UNIT_SECONDS)
+
+
+def parse_timelength(text: Any) -> int | None:
+    """Parse a time length such as ``1d:2h:30m:40s`` into whole seconds.
+
+    The text is one or more ``<number><unit>`` parts, with the unit one of d, h, m or s and the
+    number an integer or a decimal (``1.5h``, ``.5d``). Units must appear in the order d, h, m, s,
+    each at most once, and a single ``:`` may follow a part. Surrounding whitespace is ignored and
+    the total is rounded half up. Anything else, including a non-str or a total too large to
+    represent, returns None.
+    """
+    if not isinstance(text, str):
+        return None
+    stripped = text.strip()
+    pos = 0
+    last_rank = -1
+    total = 0.0
+    while pos < len(stripped):
+        part = _TIMELENGTH_PART.match(stripped, pos)
+        if part is None:
+            return None
+        rank = _UNIT_ORDER.index(part.group(2))
+        if rank <= last_rank:
+            return None
+        last_rank = rank
+        total += float(part.group(1)) * _UNIT_SECONDS[part.group(2)]
+        pos = part.end()
+        if pos < len(stripped) and stripped[pos] == ":":
+            pos += 1
+    if last_rank < 0:
+        return None
+    if not math.isfinite(total):
+        return None
+    return int(total + 0.5)
+
 
 _TRUE_WORDS = frozenset({"true", "yes", "on", "1"})
 _FALSE_WORDS = frozenset({"false", "no", "off", "0"})
+
+
+def _fill_to_width(filler: str, width: int) -> str:
+    """Repeat ``filler`` to fill exactly ``width`` display columns.
+
+    Graphemes are kept while they fit. A wide grapheme that would run past the end is replaced
+    by a space. An empty filler, or a width of 0 or less, gives an empty string.
+    """
+    units = text_units(filler)
+    if width <= 0 or not any(unit_width for _, unit_width in units):
+        return ""
+    out: list[str] = []
+    used = 0
+    index = 0
+    while used < width:
+        unit, unit_width = units[index % len(units)]
+        index += 1
+        if used + unit_width <= width:
+            out.append(unit)
+            used += unit_width
+        else:
+            out.append(" ")
+            used += 1
+    return "".join(out)
 
 
 def to_bool(value: Any) -> bool:
@@ -284,12 +341,21 @@ class UtilsPlugin(BasePlugin):
             If False the items in the list will be printed row-wise.
         gap : int
             The number of spaces that should separate the longest column
-            item/s from the next column. This is the effective spacing
-            between columns based on the maximum len() of the list items.
+            item/s from the next column. Widths are display widths, so colour codes
+            take no room and wide characters take two columns.
+
+        An empty list gives an empty result, and ``cols`` below 1 is treated as 1.
         """
         list_of_strings = [str(item) for item in obj]
-        number_of_columns = min(cols, len(list_of_strings))
-        max_len = max(len(item) for item in list_of_strings)
+        if not list_of_strings:
+            return []
+        strip = self.api("plugins.core.colors:colorcode.strip")
+
+        def cell_width(item: str) -> int:
+            return display_width(strip(item))
+
+        number_of_columns = min(max(1, cols), len(list_of_strings))
+        max_len = max(cell_width(item) for item in list_of_strings)
         if columnwise:
             number_of_columns = math.ceil(float(len(list_of_strings)) / float(number_of_columns))
         plist = [
@@ -301,7 +367,7 @@ class UtilsPlugin(BasePlugin):
             if len(plist[-1]) != number_of_columns:
                 plist[-1].extend([""] * (len(list_of_strings) - len(plist[-1])))
             rows = zip(*plist, strict=False)
-        return ["".join([c.ljust(max_len + gap) for c in p]) for p in rows]
+        return ["".join([c + " " * (max_len + gap - cell_width(c)) for c in p]) for p in rows]
 
     @AddAPI("object.dump", description="dump an object as a string")
     def _api_object_dump(self, object: Any) -> str:
@@ -323,13 +389,15 @@ class UtilsPlugin(BasePlugin):
 
     @AddAPI("string.dedent", description="dedent a list of strings")
     def _api_string_dedent(self, list_of_strings: list[str]) -> list[str]:
-        """Dedent a list of strings."""
-        if len(list_of_strings) == 0:
-            return list_of_strings
-        new_data = [list_of_strings[0].lstrip()]
-        diff = len(list_of_strings[0]) - len(new_data[0])
-        new_data.extend(line[diff:] for line in list_of_strings[1:])
-        return new_data
+        """Dedent a list of strings by their common indentation.
+
+        The common indentation is the smallest indentation of the non-blank lines. It is removed
+        from each non-blank line, and a whitespace-only line becomes an empty string. The input
+        list is not modified.
+        """
+        indents = [len(line) - len(line.lstrip()) for line in list_of_strings if line.strip()]
+        common = min(indents, default=0)
+        return [line[common:] if line.strip() else "" for line in list_of_strings]
 
     @AddAPI(
         "timedelta.to.string",
@@ -346,7 +414,8 @@ class UtilsPlugin(BasePlugin):
     ) -> str:
         """Take two times and return a string of the difference.
 
-        in the form ##d:##h:##m:##s.
+        in the form ##d:##h:##m:##s. With ``nosec`` the seconds are left out, and a difference
+        of under a minute is shown as ``00m``.
         """
         # convert start_time to seconds
         if isinstance(start_time, time.struct_time):
@@ -375,7 +444,7 @@ class UtilsPlugin(BasePlugin):
         if outar[1] != 0 or days:
             hours = True
             message.append(f"{colorn}{outar[1]:02d}{colors}h")
-        if outar[2] != 0 or days or hours or fmin:
+        if outar[2] != 0 or days or hours or fmin or nosec:
             message.append(f"{colorn}{outar[2]:02d}{colors}m")
         if not nosec:
             message.append(f"{colorn}{outar[3]:02d}{colors}s")
@@ -386,79 +455,91 @@ class UtilsPlugin(BasePlugin):
         "number.to.readable",
         description="convert a number to a shorter readable number",
     )
-    def _api_number_to_readable(self, num: float, places: int = 2) -> Any:
-        """Convert a number to a shorter readable number."""
-        converted_string: str | float = ""
-        nform = f"%00.0{places}f"
+    def _api_number_to_readable(self, num: float, places: int = 2) -> str:
+        """Convert a number to a shorter readable string.
+
+        Zero is ``"0"`` and a magnitude under 1000 is its own text. Larger magnitudes are scaled
+        to K, M, B or T and shown with ``places`` decimals, such as ``"1.50 M"``. A value that
+        rounds up to 1000 of a unit moves up to the next one (999999 is ``"1.00 M"``). A negative
+        number keeps its sign.
+        """
         if not num:
-            return 0
-        if num >= 1000000000000:
-            converted_string = nform % (num / 1000000000000.0) + " T"  # trillion
-        elif num >= 1000000000:
-            converted_string = nform % (num / 1000000000.0) + " B"  # billion
-        elif num >= 1000000:
-            converted_string = nform % (num / 1000000.0) + " M"  # million
-        elif num >= 1000:
-            converted_string = nform % (num / 1000.0) + " K"  # thousand
-        else:
-            converted_string = num  # hundreds
-        return converted_string
+            return "0"
+        sign = "-" if num < 0 else ""
+        magnitude = abs(num)
+        if magnitude < 1000:
+            return f"{sign}{magnitude}"
+        scales = ((1e3, "K"), (1e6, "M"), (1e9, "B"), (1e12, "T"))
+        index = max(i for i, (scale, _) in enumerate(scales) if magnitude >= scale)
+        text = f"{magnitude / scales[index][0]:.{places}f}"
+        while index < len(scales) - 1 and float(text) >= 1000:
+            index += 1
+            text = f"{magnitude / scales[index][0]:.{places}f}"
+        return f"{sign}{text} {scales[index][1]}"
 
     @AddAPI(
         "seconds.to.dhms",
         description="convert seconds to years, days, hours, mins, secs",
     )
     def _api_seconds_to_dhms(self, seconds: float) -> dict[str, int]:
-        """Convert seconds to years, days, hours, mins, secs."""
-        seconds = int(seconds)
-        converted_time = {"years": 0, "days": 0, "hours": 0, "mins": 0, "secs": 0}
-        if seconds == 0:
-            return converted_time
+        """Convert seconds to years, days, hours, mins, secs.
 
-        converted_time["years"] = math.floor(seconds / (3600 * 24 * 365))
-        seconds -= converted_time["years"] * 3600 * 24 * 365
-        converted_time["days"] = seconds // (3600 * 24)
-        seconds -= converted_time["days"] * 3600 * 24
-        converted_time["hours"] = seconds // 3600
-        seconds -= converted_time["hours"] * 3600
-        converted_time["mins"] = seconds // 60
-        seconds -= converted_time["mins"] * 60
-        converted_time["secs"] = int(seconds % 60)
-        return converted_time
+        A negative input gives the parts of its absolute value, each negated, so the parts
+        still add up to the input (-3700 gives hours -1, mins -1, secs -40).
+        """
+        whole = int(seconds)
+        sign = -1 if whole < 0 else 1
+        remaining = abs(whole)
+        years, remaining = divmod(remaining, 3600 * 24 * 365)
+        days, remaining = divmod(remaining, 3600 * 24)
+        hours, remaining = divmod(remaining, 3600)
+        mins, secs = divmod(remaining, 60)
+        return {
+            "years": sign * years,
+            "days": sign * days,
+            "hours": sign * hours,
+            "mins": sign * mins,
+            "secs": sign * secs,
+        }
 
     @AddAPI("timelength.format", description="format a length of time into a string")
     def _api_timelength_format(self, length: float, nosec: bool = False) -> str:
-        """Format a length of time into a string."""
-        message = []
-        converted_time = self.api(f"{self.plugin_id}:seconds.to.dhms")(length)
+        """Format a length of time into a string.
+
+        A negative length is formatted as its absolute value with a ``-`` prefix. With ``nosec``
+        the seconds are left out, and a length of under a minute is shown as ``00m``.
+        """
+        whole = int(length)
+        message: list[str] = []
+        converted_time = self.api(f"{self.plugin_id}:seconds.to.dhms")(abs(whole))
         years = False
         days = False
         hours = False
         mins = False
         if converted_time["years"] > 0:
             years = True
-            message.append(f"{converted_time['years'] or 0}y")
+            message.append(f"{converted_time['years']}y")
         if converted_time["days"] > 0:
             if years:
                 message.append(":")
             days = True
-            message.append(f"{converted_time['days'] or 0:02d}d")
-        if converted_time["hours"]:
+            message.append(f"{converted_time['days']:02d}d")
+        if converted_time["hours"] > 0:
             if years or days:
                 message.append(":")
             hours = True
-            message.append(f"{converted_time['hours'] or 0:02d}h")
-        if converted_time["mins"] > 0:
+            message.append(f"{converted_time['hours']:02d}h")
+        if converted_time["mins"] > 0 or (nosec and not message):
             if years or days or hours:
                 message.append(":")
             mins = True
-            message.append(f"{converted_time['mins'] or 0:02d}m")
+            message.append(f"{converted_time['mins']:02d}m")
         if (converted_time["secs"] > 0 or not message) and not nosec:
             if years or days or hours or mins:
                 message.append(":")
-            message.append(f"{converted_time['secs'] or 0:02d}s")
+            message.append(f"{converted_time['secs']:02d}s")
 
-        return "".join(message)
+        return ("-" if whole < 0 else "") + "".join(message)
 
     # verify a value to contain an @ color
     def verify_color(self, value: Any) -> Any:
@@ -470,27 +551,30 @@ class UtilsPlugin(BasePlugin):
 
     # verify a time to be military
     def verify_miltime(self, mtime: str) -> str:
-        """Verify a time like 0830 or 1850."""
-        try:
-            time.strptime(mtime, "%H%M")
-        except Exception as e:
-            raise ValueError from e
+        """Verify a time of exactly four ASCII digits, HHMM from 0000 to 2359."""
+        if not (
+            isinstance(mtime, str)
+            and len(mtime) == 4
+            and mtime.isascii()
+            and mtime.isdigit()
+            and int(mtime[:2]) < 24
+            and int(mtime[2:]) < 60
+        ):
+            raise ValueError(f"Cannot convert {mtime!r} to a time of four digits (HHMM)")
 
         return mtime
 
     # verfiy a time to be valid
     def verify_timelength(self, usertime: str) -> Any:
         """Verify a user time length."""
-        ttime = None
-
         try:
-            ttime = int(usertime)
+            ttime: int | None = int(usertime)
         except ValueError:
             ttime = self.api(f"{self.plugin_id}:timelength.to.seconds")(usertime)
 
-        if ttime == 0 or ttime:
-            return ttime
-        raise ValueError
+        if ttime is None or ttime < 0:
+            raise ValueError(f"Cannot convert {usertime!r} to a time length")
+        return ttime
 
     @AddAPI("value.verify", description="verify that a value is of a certain type")
     def _api_value_verify(self, value: Any, vtype: Any) -> Any:
@@ -542,17 +626,17 @@ class UtilsPlugin(BasePlugin):
         length_difference = length - noncolored_string_length
         half_length = length_difference // 2
 
-        filler = filler_character * half_length
+        new_length = (half_length * 2) + noncolored_string_length
+        extra = max(0, length - new_length)
+
+        left_filler = _fill_to_width(filler_character, half_length)
+        right_filler = _fill_to_width(filler_character, max(0, half_length) + extra)
         filler_color_end = "@w" if filler_color else ""
 
         new_str = (
-            f"{filler_color}{filler}{filler_color_end}  {string_to_center}  {filler_color}{filler}"
+            f"{filler_color}{left_filler}{filler_color_end}  {string_to_center}  "
+            f"{filler_color}{right_filler}"
         )
-
-        new_length = (half_length * 2) + noncolored_string_length
-
-        if new_length < length:
-            new_str += filler_character * (length - new_length)
 
         if endcaps:
             new_str = self.api("plugins.core.utils:line.cap")(
@@ -567,84 +651,53 @@ class UtilsPlugin(BasePlugin):
         return f"{new_str}{filler_color_end}"
 
     @AddAPI("string.match.in.list", description="check a list for a match of arg")
-    def _api_string_match_in_list(self, arg: str, item_list: list[str]) -> list[str]:
-        """Check a list for a match of arg."""
+    def _api_string_match_in_list(self, arg: str, item_list: list[Any]) -> list[str]:
+        """Check a list for a match of arg, taking arg literally.
+
+        An exact match returns ``[arg]``. Otherwise the str items that start with arg are
+        returned, and if there are none, the str items that contain it. Wildcard characters
+        in arg have no special meaning.
+        """
         string_to_match = str(arg)
-        match = f"{string_to_match}*"
-        matches: dict[str, list[str]] = {"partofstring": [], "frontofstring": []}
         if arg in item_list or string_to_match in item_list:
             return [arg]
 
-        for i in item_list:
-            if fnmatch.fnmatch(i, match):
-                matches["frontofstring"].append(i)
-            elif isinstance(i, str) and string_to_match in i:
-                matches["partofstring"].append(i)
+        str_items: list[str] = [i for i in item_list if isinstance(i, str)]
+        front = [i for i in str_items if i.startswith(string_to_match)]
+        if front:
+            return front
 
-        if matches["frontofstring"]:
-            return matches["frontofstring"]
-
-        return matches["partofstring"]
+        return [i for i in str_items if string_to_match in i]
 
     @AddAPI("timelength.to.seconds", description="converts a time length to seconds")
     def _api_timelength_to_seconds(self, timel: str) -> int | None:
-        """Converts a time length to seconds.
+        """Converts a time length to seconds, or None if it is not valid.
 
-        Format is 1d:2h:30m:40s, any part can be missing
+        Format is 1d:2h:30m:40s. Any part can be missing, but the units that are present must
+        be in the order d, h, m, s. Numbers may be decimals (1.5h); see ``parse_timelength``.
         """
-        timelength_match = TIMELENGTH_REGEXP.match(timel)
-
-        if not timelength_match:
-            return None
-
-        timelength_match_groups = timelength_match.groupdict()
-
-        if all(
-            [
-                not timelength_match_groups["days"],
-                not timelength_match_groups["hours"],
-                not timelength_match_groups["minutes"],
-                not timelength_match_groups["seconds"],
-            ]
-        ):
-            return None
-
-        days = timelength_match_groups["days"]
-        converted_days = int(days[:-1]) if days.endswith("d") else int(days) if days else 0
-
-        hours = timelength_match_groups["hours"]
-        converted_hours = int(hours[:-1]) if hours.endswith("h") else int(hours) if hours else 0
-
-        minutes = timelength_match_groups["minutes"]
-        converted_minutes = (
-            int(minutes[:-1]) if minutes.endswith("m") else int(minutes) if minutes else 0
-        )
-
-        seconds = timelength_match_groups["seconds"]
-        converted_seconds = (
-            int(seconds[:-1]) if seconds.endswith("s") else int(seconds) if seconds else 0
-        )
-
-        return (
-            converted_days * 24 * 60 * 60
-            + converted_hours * 60 * 60
-            + converted_minutes * 60
-            + converted_seconds
-        )
+        return parse_timelength(timel)
 
     @AddAPI(
         "table.format",
         description="converts a list of dicts to a table with a header",
     )
     def _api_table_format(
-        self, table_name: str, data: Any, columns: list[dict[str, Any]], color: str = ""
+        self,
+        table_name: str,
+        data: Iterable[Any],
+        columns: list[dict[str, Any]],
+        color: str = "",
     ) -> list[str]:
         """Columns is a list of dicts.
 
         dict format:
             'name'  : string for the column name,
-            'key'   : dictionary key,
-            'width' : the width of the column.
+            'key'   : dictionary key.
+
+        The column width is computed, and the column dicts are not modified; a ``width`` key
+        passed in is ignored. ``data`` may be any iterable of rows. An empty ``columns`` gives
+        an empty result.
 
         Widths and padding ignore color codes, so colored cells stay aligned. When the rows
         are wider than the line length, data cells wrap inside their columns (at spaces, then
@@ -652,16 +705,18 @@ class UtilsPlugin(BasePlugin):
         labels wrap too (at spaces, then within a word, down to one column each); the table grows
         past the line length only when even that cannot fit.
         """
+        if not columns:
+            return []
+        rows = list(data)
         line_length_default: int = self.api("plugins.core.proxy:line.length.get")()
         output_color = color or self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_subheader_color"
         )
-        temp_data = [{item["key"]: item["name"] for item in columns}, *list(data)]
+        temp_data = [{item["key"]: item["name"] for item in columns}, *rows]
         color_end = "@w"
         strip = self.api("plugins.core.colors:colorcode.strip")
         tokenize = self.api("plugins.core.colors:colorcode.to.tokens")
 
-        data = list(data)
         header_dict = {item["key"]: item["name"] for item in columns}
         count = len(columns)
         # the visible text of every cell, stripped once: the header row first, then the data
@@ -722,21 +777,19 @@ class UtilsPlugin(BasePlugin):
             header_word_mins,
             unit_mins,
         )
-        for column, width in zip(columns, widths, strict=True):
-            column["width"] = width
-
         separator = f" {output_color}|{color_end} "
 
         def build_line(item: Any) -> str:
             cells = []
-            for column in columns:
+            for column, width in zip(columns, widths, strict=True):
                 cell = str(item[column["key"]])
-                cells.append(cell + " " * (column["width"] - display_width(strip(cell))))
+                cells.append(cell + " " * (width - display_width(strip(cell))))
             return separator.join(cells)
 
         def build_rows(item: Any) -> list[str]:
             wrapped = [
-                wrap_cell(str(item[column["key"]]), column["width"], tokenize) for column in columns
+                wrap_cell(str(item[column["key"]]), width, tokenize)
+                for column, width in zip(columns, widths, strict=True)
             ]
             height = max(len(cell_lines) for cell_lines in wrapped)
             return [
@@ -750,7 +803,7 @@ class UtilsPlugin(BasePlugin):
             ]
 
         subheader_msgs = build_rows(header_dict)
-        data_msg = [row for item in data for row in build_rows(item)]
+        data_msg = [row for item in rows for row in build_rows(item)]
 
         # the table only grows past the line length when even one column per cell cannot fit
         line_length = max(line_length_default, sum(widths) + overhead)

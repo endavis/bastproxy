@@ -3,7 +3,11 @@
 from typing import Any
 
 from bastproxy.plugins.core.utils.plugin._utils import UtilsPlugin, wrap_cell
-from tests.plugins.core.utils.test_utils_output_table import LINELEN, make_utils_stub
+from tests.plugins.core.utils.test_utils_output_table import (
+    LINELEN,
+    _column_widths,
+    make_utils_stub,
+)
 
 _STUB = make_utils_stub()
 _TOKENIZE = _STUB.api("plugins.core.colors:colorcode.to.tokens")
@@ -24,6 +28,6 @@ def test_tilde_escape_is_one_column() -> None:
 def test_table_cell_with_escaped_at_is_not_wider_than_it_looks() -> None:
     columns: list[dict[str, Any]] = [{"name": "Name", "key": "n"}]
     lines = UtilsPlugin._api_table_format(_STUB, "T", [{"n": "mail@@host"}], columns)
-    assert columns[0]["width"] == 9
+    assert _column_widths(_STRIP(lines[-2])) == [9]
     assert all(len(_STRIP(line)) == LINELEN for line in lines[1:])
     assert any("mail@host" in _STRIP(line) for line in lines)
