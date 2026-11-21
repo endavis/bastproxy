@@ -209,7 +209,7 @@ A plugin can own a telnet option the core does not handle, such as Aardwolf's op
 
 Properties: `noansi` (every terminal escape sequence stripped, and MXP stripped first when `mxp_mode` is set), `colorcoded` (same), `is_io`, `is_command_telnet`, `internal`, `fromclient`, `frommud`.
 
-`format()` runs at send time. For internal I/O lines it calls `add_preamble()` (`#BP: `). For client lines it calls `fix_double_command_seperator()`. Then it calls `color_line()` and `add_line_endings()`. `format(to_mud=True)`, used by `SendDataDirectlyToMud`, skips the preamble and `color_line()` for internal lines and only adds line endings, so the MUD receives the bare command (#555). Colour codes (`@r`) in such a line are not converted: they reach the MUD as literal text. `lock()` locks the twelve tracked fields (the content and flag fields, plus `originated`, `line_type`, `split_from` (#264) and `mxp_mode`), not `was_sent`; a write to a locked field raises `RuntimeError`. A second `lock()` and a `format()` on a locked line do nothing.
+`format()` runs at send time. For internal I/O lines it calls `add_preamble()` (`#BP: `). For client lines it calls `fix_double_command_seperator()`. Then it calls `color_line()` and `add_line_endings()`. A MUD line gets only `add_line_endings()`, so its `@` and doubled separators reach the client unchanged (#718). A plugin that writes colour codes into a MUD line converts them itself with `plugins.core.colors:colorcode.to.ansicode`. `format(to_mud=True)`, used by `SendDataDirectlyToMud`, skips the preamble and `color_line()` for internal lines and only adds line endings, so the MUD receives the bare command (#555). Colour codes (`@r`) in such a line are not converted: they reach the MUD as literal text. `lock()` locks the twelve tracked fields (the content and flag fields, plus `originated`, `line_type`, `split_from` (#264) and `mxp_mode`), not `was_sent`; a write to a locked field raises `RuntimeError`. A second `lock()` and a `format()` on a locked line do nothing.
 
 ### NetworkData
 
@@ -484,7 +484,8 @@ The audit of the record system lists the measurements and the new defects: [Reco
 4. Match against `line.noansi`, change `line.line`
 5. Gag with `line.send = False`. Don't remove lines from the list
 6. Don't add line endings: `format()` does it at send time
-7. Keep callbacks fast and non-blocking. They run synchronously inside the pipeline, once per line
+7. Convert colour codes written into a MUD line with `colorcode.to.ansicode`: `format()` leaves a MUD line's text unchanged (#718)
+8. Keep callbacks fast and non-blocking. They run synchronously inside the pipeline, once per line
 
 ### Debugging
 

@@ -270,7 +270,9 @@ def _eventcb_process_mud_data(self):
         # Check content
         if "important" in line.noansi:
             # Modify line (tracked automatically by Record System)
-            line.line = f"@R{line.noansi}@w"
+            to_ansi = self.api("plugins.core.colors:colorcode.to.ansicode")
+            escape = self.api("plugins.core.colors:colorcode.escape")
+            line.line = to_ansi(f"@R{escape(line.noansi)}@w")
 
             # Call another plugin's API (API System)
             self.api("plugins.my.logger:log.important")(line.noansi)
