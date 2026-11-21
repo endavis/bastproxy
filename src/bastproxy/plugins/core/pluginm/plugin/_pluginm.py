@@ -21,6 +21,22 @@ from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResul
 from bastproxy.plugins.core.events import RegisterToEvent
 
 
+def _full_plugin_id(name: str) -> str:
+    """Return a plugin id or package name with the ``plugins.`` prefix.
+
+    Args:
+        name: A plugin id or package, with or without the ``plugins.`` prefix.
+
+    Returns:
+        The name unchanged when it starts with ``plugins.``, otherwise the name
+        with ``plugins.`` in front (a leading ``.`` is dropped first).
+
+    """
+    if name.startswith("plugins."):
+        return name
+    return f"plugins.{name.removeprefix('.')}"
+
+
 def _package_description(plugin_info: PluginInfo) -> str:
     """Return the PACKAGE_DESCRIPTION of the package a plugin lives in.
 
@@ -99,8 +115,7 @@ class PluginManager(BasePlugin):
 
         """
         msg = []
-        if "plugins" not in package:
-            package = f"plugins{package}" if package.startswith(".") else f"plugins.{package}"
+        package = _full_plugin_id(package)
 
         loaded_plugins_by_id = self.api("libs.plugins.loader:plugin.list.loaded")()
         if plist := [
@@ -301,13 +316,14 @@ class PluginManager(BasePlugin):
           Load a plugin
           @CUsage@w: load @Yplugin@w
             @Yplugin@w    = the id of the plugin to load,
-                            example: core.example.timerex.
+                            example: debug.records
+                            (plugins.debug.records works too).
 
         will load the plugin and all of its dependencies
         """
         args = self.api("plugins.core.commands:command.current.args.get")()
 
-        plugin_id = args["plugin"]
+        plugin_id = _full_plugin_id(args["plugin"]) if args["plugin"] else ""
 
         if not plugin_id:
             return CommandResult(False, ["No plugin specified"])
@@ -318,7 +334,7 @@ class PluginManager(BasePlugin):
         not_loaded_plugins_by_id = self.api("libs.plugins.loader:plugin.list.not.loaded")()
 
         if plugin_id and plugin_id not in not_loaded_plugins_by_id:
-            return CommandResult(True, [f"Plugin {plugin_id} not found"])
+            return CommandResult(False, [f"Plugin {plugin_id} not found"])
 
         plugin_response = self.api("libs.plugins.loader:plugin.load")([plugin_id])
 
@@ -363,17 +379,18 @@ class PluginManager(BasePlugin):
         unload a plugin
         @CUsage@w: unload @Yplugin@w
           @Yplugin@w    = the id of the plugin to unload,
-                          example: example.timerex.
+                          example: debug.records
+                          (plugins.debug.records works too).
         """
         args = self.api("plugins.core.commands:command.current.args.get")()
 
-        plugin_id = args["plugin"]
+        plugin_id = _full_plugin_id(args["plugin"]) if args["plugin"] else ""
 
         if not plugin_id:
             return CommandResult(False, ["No plugin specified"])
 
         if not self.api("libs.plugins.loader:plugin.is.loaded")(plugin_id):
-            return CommandResult(True, [f"Plugin {plugin_id} is not loaded"])
+            return CommandResult(False, [f"Plugin {plugin_id} is not loaded"])
 
         if self.api("libs.plugins.loader:plugin.info.get")(plugin_id).is_required:
             return CommandResult(False, [f"Plugin {plugin_id} is required and cannot be unloaded"])
@@ -399,16 +416,18 @@ class PluginManager(BasePlugin):
         reload a plugin
         @CUsage@w: reload @Yplugin@w
           @Yplugin@w    = the id of the plugin to reload,
-                          example: example.timerex.
+                          example: debug.records
+                          (plugins.debug.records works too).
         """
         args = self.api("plugins.core.commands:command.current.args.get")()
+        args = {**args, "plugin": _full_plugin_id(args["plugin"]) if args["plugin"] else ""}
 
         if not self.api("libs.plugins.loader:plugin.id.is.valid")(args["plugin"]):
-            return CommandResult(True, [f"{args['plugin']} is not a valid plugin id"])
+            return CommandResult(False, [f"{args['plugin']} is not a valid plugin id"])
 
         if not self.api("libs.plugins.loader:plugin.is.loaded")(args["plugin"]):
             return CommandResult(
-                True,
+                False,
                 [f"{args['plugin']} is not loaded; use #bp.core.pluginm.load {args['plugin']}"],
             )
 
