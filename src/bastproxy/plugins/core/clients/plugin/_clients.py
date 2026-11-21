@@ -185,16 +185,27 @@ class ClientPlugin(BasePlugin):
 
     @AddAPI("client.banned.add", description="add a banned client")
     def _api_client_banned_add(self, client_uuid: str, how_long: int = 600) -> bool:
-        """Add a banned client."""
-        self.clients[client_uuid].connected = False
-        banned: bool = self.api(f"{self.plugin_id}:client.banned.add.by.ip")(
-            self.clients[client_uuid].addr, how_long
-        )
+        """Add a banned client; return False for an unknown client."""
+        client = self.clients.get(client_uuid)
+        if client is None:
+            get_logger(self.plugin_id).warning("cannot ban unknown client %s", client_uuid)
+            return False
+        client.connected = False
+        banned: bool = self.api(f"{self.plugin_id}:client.banned.add.by.ip")(client.addr, how_long)
         return banned
 
     @AddAPI("client.banned.add.by.ip", description="add a banned ip")
     def _api_client_banned_add_by_ip(self, ip_address: str, how_long: int) -> bool:
-        """Add a banned ip."""
+        """Add a banned ip.
+
+        how_long is a positive number of seconds, or -1 for a permanent ban.
+        Any other value is refused.
+        """
+        if how_long == 0 or how_long < -1:
+            get_logger(self.plugin_id).warning(
+                "refusing to ban %s for %s seconds", ip_address, how_long
+            )
+            return False
         if how_long == -1:
             permbanips = self.api("plugins.core.settings:setting.get")(self.plugin_id, "permbanips")
             if ip_address not in permbanips:

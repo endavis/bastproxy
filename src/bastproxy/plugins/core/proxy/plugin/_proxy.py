@@ -393,11 +393,16 @@ class ProxyPlugin(BasePlugin):
         mud = self.mud_connection
         if mud and mud.connected:
             local_options, remote_options = mud.telnet_options()
+            connected = (
+                mud.connected_time.strftime(self.api.time_format)
+                if mud.connected_time
+                else "Unknown"
+            )
             tmsg.extend(
                 (
                     template % ("Host", mud.addr),
                     template % ("Port", mud.port),
-                    template % ("Connected", mud.connected_time.strftime(self.api.time_format)),
+                    template % ("Connected", connected),
                     template % ("Idle", mud.idle),
                     template % ("Lines sent", f"{mud.lines_sent:,}"),
                     template % ("Lines received", f"{mud.lines_received:,}"),
@@ -666,18 +671,24 @@ class ProxyPlugin(BasePlugin):
     @AddArgument(
         "-ni",
         "--networkinterfaces",
-        help="show network interfaces in output",
+        help="hide network interfaces from the output",
         action="store_false",
         default=True,
     )
     @AddArgument(
         "-of",
         "--openfiles",
-        help="show open files in output",
+        help="hide open files from the output",
         action="store_false",
         default=True,
     )
-    @AddArgument("-p", "--ports", help="show network ports", action="store_false", default=True)
+    @AddArgument(
+        "-p",
+        "--ports",
+        help="hide network ports from the output",
+        action="store_false",
+        default=True,
+    )
     def _command_resource(self) -> CommandResult:
         """Output proxy resource usage."""
         args = self.api("plugins.core.commands:command.current.args.get")()
