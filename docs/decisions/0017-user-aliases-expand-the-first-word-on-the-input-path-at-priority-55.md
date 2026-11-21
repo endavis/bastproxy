@@ -36,9 +36,11 @@ Priority 55 keeps ADR-0016's contract as written: the history holds the typed li
 ## Related Issues
 
 - Issue #708: add user aliases
+- Issue #711: add a loop command (reads %1 as its counter)
 - Issue #592: user variables, aliases, actions and loop
 
 ## Related Documentation
 
 - [Aliases](../client/aliases.md)
+- [Loop](../client/loop.md)
 - [Data flow](../claude/data_flow.md)
