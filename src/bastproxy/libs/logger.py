@@ -15,6 +15,8 @@ Bastproxy code logs through standard-library loggers. This module adds:
 - ``RenderFilter`` and ``RecordContextFilter``: filters for the root handlers.
 - ``RecordIdFormatter``: the file log formatter, showing ``-`` when there is no record id.
 - ``RecordLogBuffer``, ``get_record_logs``: the last log lines written for each record.
+- ``ErrorLogBuffer``, ``get_errors``, ``add_error``, ``clear_errors``: the last ERROR and
+  above records, shown by the errors plugin.
 
 Use lazy ``%`` arguments so the message is only built when the level is enabled::
 
@@ -28,6 +30,7 @@ This module uses the standard library only so ``libs`` never imports a plugin.
 import copy
 import logging
 from collections import OrderedDict, deque
+from datetime import datetime
 from typing import Any
 
 LEVELS: dict[str, int] = {
@@ -266,3 +269,100 @@ def get_record_logs(record_id: str) -> list[str]:
 def clear_record_logs() -> None:
     """Empty the buffer (for tests)."""
     RECORD_LOG_BUFFER.clear()
+
+
+MAX_ERRORS = 200
+NOT_COLLECTED_ATTR = "_bp_not_collected"
+
+
+def _render_error_message(record: logging.LogRecord) -> str:
+    """Render a record's message like ``RenderFilter``, plus the last exception line."""
+    try:
+        msg = record.msg
+        if isinstance(msg, bytes):
+            msg = msg.decode("utf-8", errors="replace")
+            record.msg = msg
+        text = record.getMessage()
+    except Exception:
+        text = str(record.msg)
+    text = "\n".join(text.splitlines())
+    if record.exc_info and record.exc_info[1] is not None:
+        exc = record.exc_info[1]
+        last = f"{type(exc).__name__}: {exc}".strip().splitlines()
+        if last:
+            text = f"{text}\n{last[-1]}"
+    return text
+
+
+class ErrorLogBuffer(logging.Handler):
+    """Keep the last ``MAX_ERRORS`` records at ERROR or above.
+
+    Each entry is a dict with ``timestamp``, ``level``, ``source`` and ``msg``. A record with
+    ``NOT_COLLECTED_ATTR`` set is skipped. Access is guarded by the handler's lock.
+    """
+
+    def __init__(self, max_errors: int = MAX_ERRORS) -> None:
+        super().__init__(level=logging.ERROR)
+        self._errors: deque[dict[str, Any]] = deque(maxlen=max_errors)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        """Store the record as an error entry."""
+        if getattr(record, NOT_COLLECTED_ATTR, False):
+            return
+        try:
+            sources = getattr(record, "log_sources", None)
+            source = sources[0] if sources else record.name
+            entry = {
+                "timestamp": datetime.fromtimestamp(record.created).astimezone().isoformat(),
+                "level": record.levelname,
+                "source": source,
+                "msg": _render_error_message(record),
+            }
+        except Exception:
+            self.handleError(record)
+            return
+        self._errors.append(entry)
+
+    def add(self, timestamp: str, msg: str, level: str = "ERROR", source: str = "") -> None:
+        """Add an entry directly."""
+        self.acquire()
+        try:
+            self._errors.append(
+                {"timestamp": timestamp, "level": level, "source": source, "msg": msg}
+            )
+        finally:
+            self.release()
+
+    def get(self) -> list[dict[str, Any]]:
+        """Return a copy of the stored entries, oldest first."""
+        self.acquire()
+        try:
+            return [dict(e) for e in self._errors]
+        finally:
+            self.release()
+
+    def clear(self) -> None:
+        """Drop everything stored."""
+        self.acquire()
+        try:
+            self._errors.clear()
+        finally:
+            self.release()
+
+
+ERROR_BUFFER = ErrorLogBuffer()
+
+
+def get_errors() -> list[dict[str, Any]]:
+    """Return a copy of the collected errors, oldest first."""
+    return ERROR_BUFFER.get()
+
+
+def add_error(timestamp: str, msg: str, level: str = "ERROR", source: str = "") -> None:
+    """Add an error entry directly."""
+    ERROR_BUFFER.add(timestamp, msg, level, source)
+
+
+def clear_errors() -> None:
+    """Empty the error buffer."""
+    ERROR_BUFFER.clear()

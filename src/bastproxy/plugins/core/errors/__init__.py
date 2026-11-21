@@ -4,7 +4,7 @@
 # File Description: a plugin to handle errors
 #
 # By: Bast
-"""This plugin shows and clears errors seen during plugin execution."""
+"""This plugin shows and clears the recent errors logged (ERROR and above)."""
 
 # these 4 are required
 PLUGIN_NAME = "Error Plugin"

@@ -10,10 +10,13 @@ from typing import Any
 import pytest
 
 from bastproxy.libs.logger import (
+    ERROR_BUFFER,
     RECORD_LOG_BUFFER,
     RecordContextFilter,
     RenderFilter,
+    clear_errors,
     clear_record_logs,
+    get_errors,
     get_logger,
     get_record_logs,
     log_to,
@@ -301,6 +304,21 @@ def test_setup_adds_the_buffer_as_a_root_handler_with_both_filters(wired: Path) 
     _custom_logger.setup_loggers(logging.DEBUG)
     assert len(RECORD_LOG_BUFFER.filters) == 2
     assert root.handlers.count(RECORD_LOG_BUFFER) == 1
+
+
+def test_setup_adds_the_error_buffer_once_and_keeps_its_contents(wired: Path) -> None:
+    root = logging.getLogger()
+    assert root.handlers.count(ERROR_BUFFER) == 1
+    _custom_logger.setup_loggers(logging.DEBUG)
+    assert root.handlers.count(ERROR_BUFFER) == 1
+    clear_errors()
+    get_logger("t247.err").error("collected %s", "ok")
+    get_logger("t247.err").warning("not collected")
+    assert [e["msg"] for e in get_errors()] == ["collected ok"]
+    _custom_logger.reset_logging()
+    _custom_logger.setup_loggers(logging.DEBUG)
+    assert [e["msg"] for e in get_errors()] == ["collected ok"]
+    clear_errors()
 
 
 def test_reset_logging_removes_every_root_handler(wired: Path) -> None:

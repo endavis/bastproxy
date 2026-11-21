@@ -3,6 +3,7 @@
 import ast
 import logging
 import pathlib
+import sys
 from collections.abc import Iterator
 
 import pytest
@@ -10,14 +11,20 @@ import pytest
 from bastproxy.libs import logger as logger_module
 from bastproxy.libs.logger import (
     LEVELS,
+    MAX_ERRORS,
     MAX_LINES_PER_RECORD,
     MAX_RECORDS,
+    NOT_COLLECTED_ATTR,
     RECORD_LOG_BUFFER,
+    ErrorLogBuffer,
     RecordContextFilter,
     RecordIdFormatter,
     RecordLogBuffer,
     RenderFilter,
+    add_error,
+    clear_errors,
     clear_record_logs,
+    get_errors,
     get_logger,
     get_record_logs,
     get_toplevel,
@@ -416,3 +423,111 @@ def test_record_id_formatter_shows_the_id_or_a_dash() -> None:
     assert fmt.format(without) == "DEBUG - - - m"
     # the record keeps None, so the buffer's check still works
     assert without.record_id is None  # type: ignore[attr-defined]
+
+
+# --- ErrorLogBuffer (#672) ---
+
+
+@pytest.fixture
+def error_buffer() -> Iterator[ErrorLogBuffer]:
+    buf = ErrorLogBuffer()
+    yield buf
+    buf.close()
+
+
+def _rec(
+    level: int = logging.ERROR,
+    msg: object = "boom",
+    args: tuple[object, ...] = (),
+    name: str = "t672.x",
+    **extra: object,
+) -> logging.LogRecord:
+    record = logging.LogRecord(name, level, __file__, 1, msg, args, None)
+    for key, value in extra.items():
+        setattr(record, key, value)
+    return record
+
+
+def test_error_buffer_stores_error_and_critical(error_buffer: ErrorLogBuffer) -> None:
+    error_buffer.handle(_rec(logging.ERROR, "one"))
+    error_buffer.handle(_rec(logging.CRITICAL, "two"))
+    entries = error_buffer.get()
+    assert [e["msg"] for e in entries] == ["one", "two"]
+    assert [e["level"] for e in entries] == ["ERROR", "CRITICAL"]
+    assert set(entries[0]) == {"timestamp", "level", "source", "msg"}
+    assert entries[0]["source"] == "t672.x"
+    assert entries[0]["timestamp"]
+
+
+@pytest.mark.parametrize("level", [logging.WARNING, logging.INFO, logging.DEBUG])
+def test_error_buffer_skips_lower_levels(error_buffer: ErrorLogBuffer, level: int) -> None:
+    # the handler level is applied by the logger, so log through a real one
+    log = logging.getLogger("t672.levels")
+    log.propagate = False
+    log.setLevel(logging.DEBUG)
+    log.addHandler(error_buffer)
+    try:
+        log.log(level, "low")
+        assert error_buffer.get() == []
+        log.error("high")
+        assert [e["msg"] for e in error_buffer.get()] == ["high"]
+    finally:
+        log.removeHandler(error_buffer)
+
+
+def test_error_buffer_skips_not_collected(error_buffer: ErrorLogBuffer) -> None:
+    record = _rec()
+    setattr(record, NOT_COLLECTED_ATTR, True)
+    error_buffer.handle(record)
+    assert error_buffer.get() == []
+
+
+def test_error_buffer_is_bounded(error_buffer: ErrorLogBuffer) -> None:
+    for i in range(MAX_ERRORS + 5):
+        error_buffer.handle(_rec(msg=f"m{i}"))
+    entries = error_buffer.get()
+    assert len(entries) == MAX_ERRORS
+    assert entries[0]["msg"] == "m5"
+    assert entries[-1]["msg"] == f"m{MAX_ERRORS + 4}"
+
+
+def test_error_buffer_renders_messages(error_buffer: ErrorLogBuffer) -> None:
+    error_buffer.handle(_rec(msg="a %s %d", args=("b", 3)))
+    error_buffer.handle(_rec(msg="l1\r\nl2"))
+    error_buffer.handle(_rec(msg=b"raw\xffbytes"))
+    error_buffer.handle(_rec(msg="bad %d", args=("x",)))
+    msgs = [e["msg"] for e in error_buffer.get()]
+    assert msgs[0] == "a b 3"
+    assert msgs[1] == "l1\nl2"
+    assert msgs[2].startswith("raw")
+    assert msgs[2].endswith("bytes")
+    assert msgs[3] == "bad %d"
+
+
+def test_error_buffer_appends_last_exception_line(error_buffer: ErrorLogBuffer) -> None:
+    try:
+        raise ValueError("bad value")
+    except ValueError:
+        record = _rec(msg="failed")
+        record.exc_info = sys.exc_info()
+    error_buffer.handle(record)
+    assert error_buffer.get()[0]["msg"] == "failed\nValueError: bad value"
+
+
+def test_error_buffer_source_prefers_log_sources(error_buffer: ErrorLogBuffer) -> None:
+    error_buffer.handle(_rec(log_sources=("plug.a", "mudproxy")))
+    error_buffer.handle(_rec())
+    assert [e["source"] for e in error_buffer.get()] == ["plug.a", "t672.x"]
+
+
+def test_get_errors_returns_a_copy_and_add_clear_work() -> None:
+    clear_errors()
+    add_error("ts", "added", "ERROR", "s")
+    first = get_errors()
+    first.clear()
+    again = get_errors()
+    assert again[0]["msg"] == "added"
+    again[0]["msg"] = "changed"
+    assert get_errors()[0]["msg"] == "added"
+    clear_errors()
+    assert get_errors() == []

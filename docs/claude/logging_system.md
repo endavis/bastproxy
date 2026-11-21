@@ -37,14 +37,14 @@ log_to([__name__, self.plugin_id], logging.DEBUG, "added %s", item)  # more than
 
 ## Thresholds are a pre-filter, handlers decide
 
-The root logger is at DEBUG and has three handlers (console, file, client) in `src/bastproxy/plugins/core/log/libs/_custom_logger.py`. Each handler asks the log plugin whether a name may be emitted at a level (`logger.console.is.enabled`, `logger.file.is.enabled`, `logger.client.is.enabled`), and the client handler also lets ERROR and above through.
+The root logger is at DEBUG and has six handlers in `src/bastproxy/plugins/core/log/libs/_custom_logger.py`. The console, file and client handlers route by name: each asks the log plugin whether a name may be emitted at a level (`logger.console.is.enabled`, `logger.file.is.enabled`, `logger.client.is.enabled`), and the client handler also lets ERROR and above through. The other three are `TypeCountHandler`, `RecordLogBuffer` and `ErrorLogBuffer`.
 
 `set_threshold(name, level)` stores a level per toplevel name (the part before the first `:`) and sets it on the logger and on every existing logger with that toplevel. The log plugin calls it (`_sync_threshold`) at startup and whenever a console, file or client level changes: the threshold is DEBUG if any of the three is at a level below INFO for that name, otherwise INFO. The invariant: a logger's level is never above a level a handler would accept for that name. Because of this, a debug message for a name that no handler wants at debug is dropped before any handler runs. The handlers still make the routing decision.
 
 ## Routing in the handlers
 
 - **One emission per handler.** For a record from `log_to`, each handler takes the first name in `log_sources` that it allows and emits a copy of the record under that name. The client handler falls back to the first source for ERROR and above.
-- **Counts.** `TypeCountHandler` in `src/bastproxy/plugins/core/log/libs/_custom_logger.py` is a fourth root handler that calls `update_type_counts` once per source of each record, so `#bp.core.log.types` counts each record once per source. The console, file and client handlers do not count, so quiet mode, startup and their routing do not change the counts. Debug messages for names that are not at debug are no longer counted, because they never reach a handler.
+- **Counts.** `TypeCountHandler` in `src/bastproxy/plugins/core/log/libs/_custom_logger.py` is a fifth root handler that calls `update_type_counts` once per source of each record, so `#bp.core.log.types` counts each record once per source. The console, file and client handlers do not count, so quiet mode, startup and their routing do not change the counts. Debug messages for names that are not at debug are no longer counted, because they never reach a handler.
 - **`record_id`.** `RecordContextFilter` sets `record.record_id` to the UUID of the active record in `RMANAGER` (or `None`). It stores the UUID string, never the record, so a log record keeps no record alive.
 - **Rendering.** `RenderFilter` runs once per record on each handler: it formats the message with its arguments, splits it into lines and drops `\r`.
 
@@ -60,6 +60,16 @@ A fourth root handler, `RecordLogBuffer` in `src/bastproxy/libs/logger.py`, keep
 - **Retention settings.** `plugins.debug.records` also owns `retained_trees` (root record trees kept, default 100) and `tracking_max_changes` (change entries per new record, default 1000). See [Record System](record_system.md#recordmanager).
 
 The file log carries the record id: `"%(asctime)s : %(levelname)-9s - %(name)-22s - %(record_id)s - %(message)s"`, with `-` when no record is active. `RecordIdFormatter` formats a copy, so the log record keeps `None`. The console and client formats are unchanged.
+
+## Errors collected for the errors plugin
+
+A sixth root handler, `ErrorLogBuffer` in `src/bastproxy/libs/logger.py`, keeps the last `MAX_ERRORS` (200) records at ERROR or above in a `deque(maxlen=...)`, so the oldest are dropped. It is the module-level instance `ERROR_BUFFER`; the errors plugin reads it, so the list survives a reload of that plugin.
+
+- **Where it is wired.** `setup_loggers` adds `ERROR_BUFFER` back to the root logger every time (`reset_logging` removes every root handler), with no render or context filters: the buffer renders the message itself. `main()` in `src/bastproxy/__init__.py` also adds it after the temporary `basicConfig`, so errors logged before the log plugin loads are kept. Errors logged at import time, before `main()` runs, are not captured.
+- **Entry keys.** `timestamp` (ISO local time with offset, from `record.created`), `level`, `source` (the first `log_sources` entry, else the logger name) and `msg` (rendered like `RenderFilter`, with the last line of the exception appended when `exc_info` is set; the full traceback stays in the log file).
+- **`NOT_COLLECTED_ATTR`.** A record with `extra={NOT_COLLECTED_ATTR: True}` (`"_bp_not_collected"`) is skipped. The errors plugin's own startup summary is logged at ERROR with it, so it does not feed itself back.
+- **Functions.** `get_errors()` returns a copy, oldest first; `add_error(timestamp, msg, level="ERROR", source="")` adds an entry; `clear_errors()` empties the buffer. The `plugins.core.errors:error.list`, `error.add` and `error.clear` APIs delegate to them.
+- **Showing them.** `#bp.core.errors.show` lists all collected errors, `show <n>` the last `n`, both as `Time`, `Level`, `Source` and `Error` lines; the startup summary uses the same format.
 
 ## Colours
 

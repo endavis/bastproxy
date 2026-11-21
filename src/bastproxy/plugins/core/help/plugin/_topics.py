@@ -91,7 +91,8 @@ TOPICS: tuple[Topic, ...] = (
             "pluginm: loading and unloading plugins, see {prefix}.core.pluginm.help",
             "log: log output and levels, see {prefix}.core.log.help",
             "colors: color handling, see {prefix}.core.colors.help",
-            "errors: errors seen since startup, see {prefix}.core.errors.help",
+            "errors: recent errors logged since startup (ERROR and above),"
+            " see {prefix}.core.errors.help",
             "triggers: pattern matching on text, see {prefix}.core.triggers.help",
             "watch: watching commands and output, see {prefix}.core.watch.help",
             "timers: scheduled actions, see {prefix}.core.timers.help",
@@ -104,7 +105,8 @@ TOPICS: tuple[Topic, ...] = (
             "{prefix}.core.proxy.info and {prefix}.core.proxy.details show the MUD and"
             " client connections.",
             "{prefix}.core.clients.show shows connected clients.",
-            "{prefix}.core.errors.show shows errors seen since startup.",
+            "{prefix}.core.errors.show shows the recent errors logged since startup"
+            " (ERROR and above).",
             "{prefix}.core.log.client and {prefix}.core.log.console control log output"
             " to the client and the console.",
         ),
