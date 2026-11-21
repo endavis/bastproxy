@@ -28,6 +28,11 @@ from bastproxy.libs.records.tracking import tracking_actor
 from ._utils import CommandResult
 from .data.cmdargs import CmdArgsRecord
 
+# the longest argument string, in characters, a command accepts
+MAX_ARGUMENT_LENGTH = 8192
+# the run reason for a line refused for its argument length
+ARGUMENTS_TOO_LONG_REASON = "arguments too long"
+
 
 @dataclasses.dataclass
 class CommandStats:
@@ -119,7 +124,12 @@ class CommandClass:
 
             if not parsed.success:
                 message.extend(parsed.message)
-                return self.run_finish(False, message, "could not parse args", format=format)
+                reason = (
+                    ARGUMENTS_TOO_LONG_REASON
+                    if len(arg_string) > MAX_ARGUMENT_LENGTH
+                    else "could not parse args"
+                )
+                return self.run_finish(False, message, reason, format=format)
 
             args = CmdArgsRecord(
                 f"{self.plugin_id}:{self.name}",
@@ -208,7 +218,25 @@ class CommandClass:
         return CommandRunResult(success, message, return_value)
 
     def parse_args(self, arg_string: str) -> ParsedArgs:
-        """Parse an argument string for this command."""
+        """Parse an argument string for this command.
+
+        An argument string longer than MAX_ARGUMENT_LENGTH is refused before it is split.
+        """
+        if len(arg_string) > MAX_ARGUMENT_LENGTH:
+            log_to(
+                [self.plugin_id, "plugins.core.commands"],
+                logging.INFO,
+                "Arguments for command %s.%s are longer than %d characters",
+                self.plugin_id,
+                self.name,
+                MAX_ARGUMENT_LENGTH,
+            )
+            return ParsedArgs(
+                False,
+                {},
+                [f"@RError: arguments are longer than {MAX_ARGUMENT_LENGTH} characters@w"],
+            )
+
         # split it with shlex
         split_args_list = []
         args: argparse.Namespace | dict[str, Any] = {}

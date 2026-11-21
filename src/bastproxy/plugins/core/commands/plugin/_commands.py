@@ -35,7 +35,11 @@ from bastproxy.libs.scan import find_methods
 from bastproxy.libs.validators import int_range
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
-from bastproxy.plugins.core.commands.libs._command import CommandClass, CommandStats
+from bastproxy.plugins.core.commands.libs._command import (
+    ARGUMENTS_TOO_LONG_REASON,
+    CommandClass,
+    CommandStats,
+)
 from bastproxy.plugins.core.events import RegisterToEvent
 
 
@@ -1236,6 +1240,10 @@ class CommandsPlugin(BasePlugin):
 
                     result = command_item.run(command_args, format=command_item.format)
                     success, error = result.success, result.reason
+
+                    # a line refused for its argument length is not recorded in the history
+                    if error == ARGUMENTS_TOO_LONG_REASON:
+                        event_record["showinhistory"] = False
 
                     if success:
                         event_record.addupdate(
