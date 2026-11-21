@@ -30,6 +30,7 @@ from ._prompt import PromptQueue
 from ._waiters import (
     DEFAULT_MAX_LINES,
     DEFAULT_TIMEOUT,
+    MATCH_TIMEOUT,
     LineWaiter,
     WaiterRegistry,
     WaitResult,
@@ -131,6 +132,8 @@ class TriggerItem:
         self.on_prompt = on_prompt
         # True while another enabled trigger has the same pattern and text variant
         self.shared_pattern = False
+        # True once a timed-out match has been logged; reset when the trigger is updated
+        self.timeout_warned = False
         self._share_key: tuple[Any, bool] | None = None
         self.trigger_id = trigger_id
         self.event_name = f"event_{self.trigger_id}"
@@ -395,6 +398,7 @@ class TriggersPlugin(BasePlugin):
                 )
                 return False
 
+        item.timeout_warned = False
         if new_regex is not None:
             item.regex = new_regex
             item.original_regex = new_regex
@@ -788,15 +792,25 @@ class TriggersPlugin(BasePlugin):
                     text = colorcoded
                 else:
                     text = data
-                if item.shared_pattern:
-                    compiled = cast(re.Pattern[str], item.original_regex_compiled)
-                    key = (item.original_regex_compiled, bool(item.matchcolor))
-                    if key in shared_results:
-                        match = shared_results[key]
-                    else:
-                        match = shared_results[key] = compiled.match(text)
+                compiled = cast(re.Pattern[str], item.original_regex_compiled)
+                key = (item.original_regex_compiled, bool(item.matchcolor))
+                if item.shared_pattern and key in shared_results:
+                    match = shared_results[key]
                 else:
-                    match = cast(re.Pattern[str], item.original_regex_compiled).match(text)
+                    try:
+                        match = compiled.match(text, timeout=MATCH_TIMEOUT)
+                    except TimeoutError:
+                        match = None
+                        if not item.timeout_warned:
+                            item.timeout_warned = True
+                            log_to(
+                                [self.plugin_id, item.owner_id],
+                                logging.WARNING,
+                                "trigger %s: match timed out, treated as no match",
+                                item.trigger_id,
+                            )
+                    if item.shared_pattern:
+                        shared_results[key] = match
                 if not match:
                     continue
                 if item.conditions and not self._conditions_hold(item):

@@ -22,6 +22,8 @@ from bastproxy.libs.logger import log_to
 
 DEFAULT_TIMEOUT = 10.0
 DEFAULT_MAX_LINES = 1000
+# seconds one pattern match may take; a match that runs out of time counts as no match
+MATCH_TIMEOUT = 0.05
 _SOURCE = "plugins.core.triggers"
 
 _T = TypeVar("_T")
@@ -156,8 +158,24 @@ class LineWaiter:
             )
             return None
 
+        warned = False
+
         def matcher(seen: _Seen) -> WaitResult | None:
-            if match := compiled.match(seen.text):
+            nonlocal warned
+            try:
+                match = compiled.match(seen.text, timeout=MATCH_TIMEOUT)
+            except TimeoutError:
+                if not warned:
+                    warned = True
+                    log_to(
+                        [_SOURCE, self.owner_id],
+                        logging.WARNING,
+                        "waiter for %s: match of %r timed out, treated as no match",
+                        self.owner_id,
+                        pattern,
+                    )
+                return None
+            if match:
                 return WaitResult(seen.text, seen.is_prompt, match)
             return None
 
