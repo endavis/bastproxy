@@ -380,7 +380,8 @@ class UtilsPlugin(BasePlugin):
     ) -> str:
         """Take two times and return a string of the difference.
 
-        in the form ##d:##h:##m:##s.
+        in the form ##d:##h:##m:##s. With ``nosec`` the seconds are left out, and a difference
+        of under a minute is shown as ``00m``.
         """
         # convert start_time to seconds
         if isinstance(start_time, time.struct_time):
@@ -409,7 +410,7 @@ class UtilsPlugin(BasePlugin):
         if outar[1] != 0 or days:
             hours = True
             message.append(f"{colorn}{outar[1]:02d}{colors}h")
-        if outar[2] != 0 or days or hours or fmin:
+        if outar[2] != 0 or days or hours or fmin or nosec:
             message.append(f"{colorn}{outar[2]:02d}{colors}m")
         if not nosec:
             message.append(f"{colorn}{outar[3]:02d}{colors}s")
@@ -443,56 +444,64 @@ class UtilsPlugin(BasePlugin):
         description="convert seconds to years, days, hours, mins, secs",
     )
     def _api_seconds_to_dhms(self, seconds: float) -> dict[str, int]:
-        """Convert seconds to years, days, hours, mins, secs."""
-        seconds = int(seconds)
-        converted_time = {"years": 0, "days": 0, "hours": 0, "mins": 0, "secs": 0}
-        if seconds == 0:
-            return converted_time
+        """Convert seconds to years, days, hours, mins, secs.
 
-        converted_time["years"] = math.floor(seconds / (3600 * 24 * 365))
-        seconds -= converted_time["years"] * 3600 * 24 * 365
-        converted_time["days"] = seconds // (3600 * 24)
-        seconds -= converted_time["days"] * 3600 * 24
-        converted_time["hours"] = seconds // 3600
-        seconds -= converted_time["hours"] * 3600
-        converted_time["mins"] = seconds // 60
-        seconds -= converted_time["mins"] * 60
-        converted_time["secs"] = int(seconds % 60)
-        return converted_time
+        A negative input gives the parts of its absolute value, each negated, so the parts
+        still add up to the input (-3700 gives hours -1, mins -1, secs -40).
+        """
+        whole = int(seconds)
+        sign = -1 if whole < 0 else 1
+        remaining = abs(whole)
+        years, remaining = divmod(remaining, 3600 * 24 * 365)
+        days, remaining = divmod(remaining, 3600 * 24)
+        hours, remaining = divmod(remaining, 3600)
+        mins, secs = divmod(remaining, 60)
+        return {
+            "years": sign * years,
+            "days": sign * days,
+            "hours": sign * hours,
+            "mins": sign * mins,
+            "secs": sign * secs,
+        }
 
     @AddAPI("timelength.format", description="format a length of time into a string")
     def _api_timelength_format(self, length: float, nosec: bool = False) -> str:
-        """Format a length of time into a string."""
-        message = []
-        converted_time = self.api(f"{self.plugin_id}:seconds.to.dhms")(length)
+        """Format a length of time into a string.
+
+        A negative length is formatted as its absolute value with a ``-`` prefix. With ``nosec``
+        the seconds are left out, and a length of under a minute is shown as ``00m``.
+        """
+        whole = int(length)
+        message: list[str] = []
+        converted_time = self.api(f"{self.plugin_id}:seconds.to.dhms")(abs(whole))
         years = False
         days = False
         hours = False
         mins = False
         if converted_time["years"] > 0:
             years = True
-            message.append(f"{converted_time['years'] or 0}y")
+            message.append(f"{converted_time['years']}y")
         if converted_time["days"] > 0:
             if years:
                 message.append(":")
             days = True
-            message.append(f"{converted_time['days'] or 0:02d}d")
-        if converted_time["hours"]:
+            message.append(f"{converted_time['days']:02d}d")
+        if converted_time["hours"] > 0:
             if years or days:
                 message.append(":")
             hours = True
-            message.append(f"{converted_time['hours'] or 0:02d}h")
-        if converted_time["mins"] > 0:
+            message.append(f"{converted_time['hours']:02d}h")
+        if converted_time["mins"] > 0 or (nosec and not message):
             if years or days or hours:
                 message.append(":")
             mins = True
-            message.append(f"{converted_time['mins'] or 0:02d}m")
+            message.append(f"{converted_time['mins']:02d}m")
         if (converted_time["secs"] > 0 or not message) and not nosec:
             if years or days or hours or mins:
                 message.append(":")
-            message.append(f"{converted_time['secs'] or 0:02d}s")
+            message.append(f"{converted_time['secs']:02d}s")
 
-        return "".join(message)
+        return ("-" if whole < 0 else "") + "".join(message)
 
     # verify a value to contain an @ color
     def verify_color(self, value: Any) -> Any:
