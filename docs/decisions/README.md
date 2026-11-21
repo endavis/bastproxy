@@ -166,3 +166,4 @@ The Issue contains the full discussion; the ADR summarizes the outcome.
 | [0015](0015-settings-are-keyed-per-plugin-and-a-name-index-resolves-pset.md) | Settings are keyed per plugin and a name index resolves pset | Accepted |
 | [0016](0016-user-variables-expand-name-references-on-the-input-path.md) | User variables expand %{name} references on the input path | Accepted |
 | [0017](0017-user-aliases-expand-the-first-word-on-the-input-path-at-priority-55.md) | User aliases expand the first word on the input path at priority 55 | Accepted |
+| [0018](0018-user-actions-substitute-trigger-groups-into-commands-and-escape-matched-text.md) | User actions substitute trigger groups into commands and escape matched text | Accepted |

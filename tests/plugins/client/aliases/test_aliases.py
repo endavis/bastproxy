@@ -456,3 +456,22 @@ def test_command_names_do_not_shadow_base_plugin_commands() -> None:
     assert {"set", "reset", "save", "help"} <= base_names
     assert own_names == {"add", "remove", "list", "enable", "disable", "show"}
     assert not own_names & base_names
+
+
+def test_expansion_is_resent_follows_the_chain(tmp_path: Path) -> None:
+    """alias.expansion.is.resent is True only for a line whose expansion is re-sent."""
+    p = _plugin(tmp_path)
+    p._api_alias_add("n", "#bp.client.variables.add note %*")
+    p._api_alias_add("m", "stand|look")
+    p._api_alias_add("a", "b %1")
+    p._api_alias_add("b", "m")
+    p._api_alias_add("k", "kill %1")
+    p._api_alias_add("off", "#bp.x", enabled=False)
+    assert p._api_alias_expansion_is_resent("n hello") is True
+    assert p._api_alias_expansion_is_resent("m") is True
+    assert p._api_alias_expansion_is_resent("a x") is True
+    assert p._api_alias_expansion_is_resent("k orc") is False
+    assert p._api_alias_expansion_is_resent("off") is False
+    assert p._api_alias_expansion_is_resent("look") is False
+    assert p._api_alias_expansion_is_resent("#bp.client.aliases.list") is False
+    assert p.session_hits == {}

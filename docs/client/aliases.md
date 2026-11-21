@@ -74,6 +74,7 @@ An alias is active only when it and its group are enabled. A group that was neve
 | `plugins.client.aliases:alias.is.enabled(name)` | `True` only when the alias and its group are enabled |
 | `plugins.client.aliases:alias.group.enabled.set(group, enabled)` | how many aliases are in the group |
 | `plugins.client.aliases:alias.group.is.enabled(group)` | `bool` |
+| `plugins.client.aliases:alias.expansion.is.resent(line)` | `bool`: whether the aliases at the start of the line, following a chain, expand to something that is re-sent (it contains the separator or starts with the command prefix). Session hits are not counted. |
 
 ## Where expansion happens
 

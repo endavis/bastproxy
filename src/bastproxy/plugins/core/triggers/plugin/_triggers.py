@@ -828,7 +828,11 @@ class TriggersPlugin(BasePlugin):
                         line.colorcoded,
                         item.trigger_id,
                     )
-                self._fire(item, {"line": line, "matches": group_dict}, line)
+                self._fire(
+                    item,
+                    {"line": line, "matches": group_dict, "groups": match.groups()},
+                    line,
+                )
             except Exception:  # pylint: disable=broad-except
                 log_to(
                     [self.plugin_id, item.owner_id],
