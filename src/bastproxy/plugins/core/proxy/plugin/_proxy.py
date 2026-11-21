@@ -697,7 +697,7 @@ class ProxyPlugin(BasePlugin):
         cpu_percent = psutil.cpu_percent()
         virtual_memory = psutil.virtual_memory()
         cpu_count = psutil.cpu_count()
-        load_average = os.getloadavg()
+        load_average = psutil.getloadavg()
         net_if_addrs = psutil.net_if_addrs()
         column_width = 19
         process = psutil.Process(os.getpid())
