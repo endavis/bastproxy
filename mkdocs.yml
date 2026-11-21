@@ -104,6 +104,7 @@ nav:
   - Client Features:
       - Actions: client/actions.md
       - Aliases: client/aliases.md
+      - Substitutes: client/substitutes.md
       - Variables: client/variables.md
   - Architecture:
       - Overview: claude/README.md
@@ -176,6 +177,7 @@ nav:
       - "ADR-0016 User variables expand %{name} references on the input path": decisions/0016-user-variables-expand-name-references-on-the-input-path.md
       - ADR-0017 User aliases expand the first word on the input path at priority 55: decisions/0017-user-aliases-expand-the-first-word-on-the-input-path-at-priority-55.md
       - ADR-0018 User actions substitute trigger groups into commands and escape matched text: decisions/0018-user-actions-substitute-trigger-groups-into-commands-and-escape-matched-text.md
+      - ADR-0019 User substitutions rewrite MUD lines after triggers and keep colour codes: decisions/0019-user-substitutions-rewrite-mud-lines-after-triggers-and-keep-colour-codes.md
       - ADR-9001 uv: decisions/9001-use-uv-for-package-management.md
       - ADR-9002 doit: decisions/9002-use-doit-for-task-automation.md
       - ADR-9003 ruff: decisions/9003-use-ruff-for-linting-and-formatting.md
