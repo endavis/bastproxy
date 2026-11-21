@@ -247,16 +247,24 @@ class PluginManager(BasePlugin):
             self.plugin_id, "pluginstoload"
         )
 
-        plugins_to_load = []
+        plugins_to_load: list[str] = []
+        seen: set[str] = set()
 
-        for plugin in plugins_to_load_setting[:]:
+        for plugin in plugins_to_load_setting:
+            if plugin in seen:
+                get_logger(self.plugin_id).debug(
+                    "plugin %s is listed more than once to load at startup, skipping the repeat",
+                    plugin,
+                )
+                continue
+            seen.add(plugin)
+
             if not self.api("libs.plugins.loader:plugin.exists")(plugin):
                 get_logger(self.plugin_id).error(
                     "plugin %s was marked to load at startup "
                     "and no longer exists, removing from startup",
                     plugin,
                 )
-                plugins_to_load_setting.remove(plugin)
                 continue
 
             if self.api("libs.plugins.loader:plugin.is.loaded")(plugin):
@@ -265,7 +273,6 @@ class PluginManager(BasePlugin):
                     "and is already loaded, removing from startup",
                     plugin,
                 )
-                plugins_to_load_setting.remove(plugin)
                 continue
 
             if self.api("libs.plugins.loader:plugin.info.get")(plugin).is_dev:
@@ -274,18 +281,17 @@ class PluginManager(BasePlugin):
                     "and is a dev plugin, removing from startup",
                     plugin,
                 )
-                plugins_to_load_setting.remove(plugin)
                 continue
 
             plugins_to_load.append(plugin)
 
         self.api("plugins.core.settings:setting.set")(
-            self.plugin_id, "pluginstoload", plugins_to_load_setting
+            self.plugin_id, "pluginstoload", plugins_to_load
         )
 
-        if plugins_to_load_setting:
+        if plugins_to_load:
             get_logger(self.plugin_id).info("Loading other plugins")
-            self.api("libs.plugins.loader:plugin.load")(plugins_to_load_setting)
+            self.api("libs.plugins.loader:plugin.load")(plugins_to_load)
             get_logger(self.plugin_id).info("Finished loading other plugins")
 
     @RegisterToEvent(event_name="ev_plugins.core.proxy_shutdown")
@@ -357,10 +363,15 @@ class PluginManager(BasePlugin):
             plugins_to_load_setting = self.api("plugins.core.settings:setting.get")(
                 self.plugin_id, "pluginstoload"
             )
-            plugins_to_load_setting.extend(plugin_response["loaded_plugins"])
-            self.api("plugins.core.settings:setting.set")(
-                self.plugin_id, "pluginstoload", plugins_to_load_setting
-            )
+            added = [
+                loaded_id
+                for loaded_id in dict.fromkeys(plugin_response["loaded_plugins"])
+                if loaded_id not in plugins_to_load_setting
+            ]
+            if added:
+                self.api("plugins.core.settings:setting.set")(
+                    self.plugin_id, "pluginstoload", [*plugins_to_load_setting, *added]
+                )
 
         if plugin_response["bad_plugins"]:
             tmsg.extend(
