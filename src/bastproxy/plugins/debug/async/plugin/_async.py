@@ -15,6 +15,23 @@ from bastproxy.plugins._baseplugin import BasePlugin
 from bastproxy.plugins.core.commands import AddParser, CommandResult
 
 
+def _task_state(task: "asyncio.Task[Any]") -> str:
+    """Return the public state of a task: cancelled, done or pending."""
+    if task.cancelled():
+        return "cancelled"
+    if task.done():
+        return "done"
+    return "pending"
+
+
+def _format_stack(task: "asyncio.Task[Any]") -> list[str]:
+    """Return one line per stack frame of a task."""
+    return [
+        f"            {frame.f_code.co_filename}:{frame.f_lineno} {frame.f_code.co_name}"
+        for frame in task.get_stack()
+    ]
+
+
 class AsyncPlugin(BasePlugin):
     """a plugin to inspect records."""
 
@@ -32,9 +49,13 @@ class AsyncPlugin(BasePlugin):
             tmsg.extend(
                 (
                     f"    {task.get_name():<30}:",
-                    f"        {'State':<20} : {task._state}",
+                    f"        {'State':<20} : {_task_state(task)}",
                     f"        {'Coro':<20} : {cast(Any, task.get_coro()).__qualname__}",
-                    f"        {'Stack':<20} : {task.get_stack()}",
                 )
             )
+            if frames := _format_stack(task):
+                tmsg.append(f"        {'Stack':<20} :")
+                tmsg.extend(frames)
+            else:
+                tmsg.append(f"        {'Stack':<20} : none")
         return CommandResult(True, tmsg)
