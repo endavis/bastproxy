@@ -32,12 +32,46 @@ from bastproxy.libs.api import AddAPI
 from bastproxy.libs.textwidth import display_width, text_units
 from bastproxy.plugins._baseplugin import BasePlugin
 
-TIMELENGTH_REGEXP = re.compile(
-    r"^(?P<days>((\d*\.\d+)|\d+)+d)?"
-    r":?(?P<hours>((\d*\.\d+)|\d+)+h)?"
-    r":?(?P<minutes>((\d*\.\d+)|\d+)+m)?"
-    r":?(?P<seconds>\d+s)?$"
-)
+# One "<number><unit>" part of a time length, such as "1.5h" or "30m".
+_TIMELENGTH_PART = re.compile(r"(\d+(?:\.\d+)?|\.\d+)([dhms])", re.ASCII)
+# Units in the order they must appear, with their length in seconds.
+_UNIT_SECONDS: dict[str, int] = {"d": 86400, "h": 3600, "m": 60, "s": 1}
+_UNIT_ORDER = tuple(_UNIT_SECONDS)
+
+
+def parse_timelength(text: Any) -> int | None:
+    """Parse a time length such as ``1d:2h:30m:40s`` into whole seconds.
+
+    The text is one or more ``<number><unit>`` parts, with the unit one of d, h, m or s and the
+    number an integer or a decimal (``1.5h``, ``.5d``). Units must appear in the order d, h, m, s,
+    each at most once, and a single ``:`` may follow a part. Surrounding whitespace is ignored and
+    the total is rounded half up. Anything else, including a non-str or a total too large to
+    represent, returns None.
+    """
+    if not isinstance(text, str):
+        return None
+    stripped = text.strip()
+    pos = 0
+    last_rank = -1
+    total = 0.0
+    while pos < len(stripped):
+        part = _TIMELENGTH_PART.match(stripped, pos)
+        if part is None:
+            return None
+        rank = _UNIT_ORDER.index(part.group(2))
+        if rank <= last_rank:
+            return None
+        last_rank = rank
+        total += float(part.group(1)) * _UNIT_SECONDS[part.group(2)]
+        pos = part.end()
+        if pos < len(stripped) and stripped[pos] == ":":
+            pos += 1
+    if last_rank < 0:
+        return None
+    if not math.isfinite(total):
+        return None
+    return int(total + 0.5)
+
 
 _TRUE_WORDS = frozenset({"true", "yes", "on", "1"})
 _FALSE_WORDS = frozenset({"false", "no", "off", "0"})
@@ -481,16 +515,14 @@ class UtilsPlugin(BasePlugin):
     # verfiy a time to be valid
     def verify_timelength(self, usertime: str) -> Any:
         """Verify a user time length."""
-        ttime = None
-
         try:
-            ttime = int(usertime)
+            ttime: int | None = int(usertime)
         except ValueError:
             ttime = self.api(f"{self.plugin_id}:timelength.to.seconds")(usertime)
 
-        if ttime == 0 or ttime:
-            return ttime
-        raise ValueError
+        if ttime is None or ttime < 0:
+            raise ValueError(f"Cannot convert {usertime!r} to a time length")
+        return ttime
 
     @AddAPI("value.verify", description="verify that a value is of a certain type")
     def _api_value_verify(self, value: Any, vtype: Any) -> Any:
@@ -588,49 +620,12 @@ class UtilsPlugin(BasePlugin):
 
     @AddAPI("timelength.to.seconds", description="converts a time length to seconds")
     def _api_timelength_to_seconds(self, timel: str) -> int | None:
-        """Converts a time length to seconds.
+        """Converts a time length to seconds, or None if it is not valid.
 
-        Format is 1d:2h:30m:40s, any part can be missing
+        Format is 1d:2h:30m:40s. Any part can be missing, but the units that are present must
+        be in the order d, h, m, s. Numbers may be decimals (1.5h); see ``parse_timelength``.
         """
-        timelength_match = TIMELENGTH_REGEXP.match(timel)
-
-        if not timelength_match:
-            return None
-
-        timelength_match_groups = timelength_match.groupdict()
-
-        if all(
-            [
-                not timelength_match_groups["days"],
-                not timelength_match_groups["hours"],
-                not timelength_match_groups["minutes"],
-                not timelength_match_groups["seconds"],
-            ]
-        ):
-            return None
-
-        days = timelength_match_groups["days"]
-        converted_days = int(days[:-1]) if days.endswith("d") else int(days) if days else 0
-
-        hours = timelength_match_groups["hours"]
-        converted_hours = int(hours[:-1]) if hours.endswith("h") else int(hours) if hours else 0
-
-        minutes = timelength_match_groups["minutes"]
-        converted_minutes = (
-            int(minutes[:-1]) if minutes.endswith("m") else int(minutes) if minutes else 0
-        )
-
-        seconds = timelength_match_groups["seconds"]
-        converted_seconds = (
-            int(seconds[:-1]) if seconds.endswith("s") else int(seconds) if seconds else 0
-        )
-
-        return (
-            converted_days * 24 * 60 * 60
-            + converted_hours * 60 * 60
-            + converted_minutes * 60
-            + converted_seconds
-        )
+        return parse_timelength(timel)
 
     @AddAPI(
         "table.format",
