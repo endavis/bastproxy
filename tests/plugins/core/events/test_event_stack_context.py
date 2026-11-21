@@ -18,7 +18,6 @@ def _plugin() -> MagicMock:
     plugin.plugin_id = "plugins.core.events"
     plugin.global_raised_count = 0
     plugin.events = {}
-    plugin.all_event_stack = MagicMock()
 
     def get(name: str) -> Event:
         event: Event = plugin.events.setdefault(name, Event(name, created_by="test248"))

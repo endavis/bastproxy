@@ -14,7 +14,6 @@ from bastproxy.libs.context import event_stack, raised_event
 from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.net.protocols import PROTOCOL_EVENTS
 from bastproxy.libs.plugins import loader as plugin_loader
-from bastproxy.libs.queue import SimpleQueue
 from bastproxy.libs.records.events import RECORD_EVENTS
 from bastproxy.libs.scan import find_methods
 from bastproxy.libs.validators import int_range
@@ -38,8 +37,6 @@ class EventsPlugin(BasePlugin):
 
         self.global_raised_count: int = 0
         self.current_event: Event | None = None
-
-        self.all_event_stack = SimpleQueue(300)
 
         self.events: dict[str, Event] = {}
         # set once the post-startup registration has run; plugins loaded after
@@ -451,8 +448,6 @@ class EventsPlugin(BasePlugin):
         event = self.api(f"{self.plugin_id}:event.get")(event_name)
 
         self.global_raised_count += 1
-
-        self.all_event_stack.enqueue(event.name)
 
         # the event is on the event stack until the raise finishes, also when it raises
         with raised_event(event.name):

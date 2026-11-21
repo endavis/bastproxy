@@ -83,7 +83,6 @@ class SimpleQueue:
         self.items: list = []
         self.snapshot: SimpleQueue | None = None
         self.id_key: str | None = id_key
-        self.id_lookup: dict[str, Any] = {}
         self.last_automatically_removed_item: Any = None
 
     def isempty(self) -> bool:
