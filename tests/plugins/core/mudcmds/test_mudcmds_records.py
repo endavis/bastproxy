@@ -1,7 +1,6 @@
 """Tests for the MudCmdType and QueuedCommand records and their readers (#419)."""
 
 import dataclasses
-import re
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -21,8 +20,8 @@ PID = "plugins.test.a"
 def test_mudcmdtype_fields_defaults_and_slots() -> None:
     """MudCmdType has the documented fields, None callbacks and slots."""
     fields = [f.name for f in dataclasses.fields(MudCmdType)]
-    assert fields == ["cmd", "regex", "cregex", "ctype", "owner", "beforef", "afterf"]
-    rec = MudCmdType(cmd="c", regex="^a$", cregex=re.compile("^a$"), ctype="t", owner=PID)
+    assert fields == ["cmd", "regex", "ctype", "owner", "beforef", "afterf"]
+    rec = MudCmdType(cmd="c", regex="^a$", ctype="t", owner=PID)
     assert rec.beforef is None
     assert rec.afterf is None
     assert not hasattr(rec, "__dict__")
@@ -77,7 +76,6 @@ def test_type_add_stores_record() -> None:
     assert isinstance(rec, MudCmdType)
     assert rec.cmd == "look"
     assert rec.regex == "^x$"
-    assert rec.cregex == re.compile("^x$")
     assert rec.ctype == "t1"
     assert rec.owner == PID
     assert rec.beforef is before

@@ -115,7 +115,7 @@ class WatchPlugin(BasePlugin):
     @AddAPI("watch.add", description="add a watch")
     def _api_watch_add(
         self, watch_name: str, regex: str, owner: str | None = None, **kwargs: Any
-    ) -> None:
+    ) -> bool:
         """Add a command watch.
 
         @Ywatch_name@w   = name
@@ -124,7 +124,10 @@ class WatchPlugin(BasePlugin):
         @Ykeyword args@w arguments:
           stored unchanged in the watch's `extra` dict.
 
-        this function returns no values
+        Adding an existing name replaces that watch. This function returns True
+        when the watch was added or replaced. It returns False, changing nothing,
+        when no owner can be found, the regex does not compile, or the regex
+        already belongs to a watch with a different name.
         """
         if not owner:
             owner = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
@@ -133,17 +136,8 @@ class WatchPlugin(BasePlugin):
             get_logger(self.plugin_id).error(
                 "_api_watch_add: no plugin could be found to add %s", watch_name
             )
-            return
+            return False
 
-        if regex in self.regex_lookup:
-            log_to(
-                [self.plugin_id, owner],
-                logging.DEBUG,
-                "_api_watch_add: watch %s tried to add a regex that already existed for %s",
-                watch_name,
-                self.regex_lookup[regex],
-            )
-            return
         try:
             compiled = re.compile(regex)
         except re.error:
@@ -155,7 +149,22 @@ class WatchPlugin(BasePlugin):
                 regex,
                 exc_info=True,
             )
-            return
+            return False
+
+        existing_name = self.regex_lookup.get(regex)
+        if existing_name is not None and existing_name != watch_name:
+            log_to(
+                [self.plugin_id, owner],
+                logging.WARNING,
+                "_api_watch_add: watch %s tried to add a regex that already existed for %s",
+                watch_name,
+                existing_name,
+            )
+            return False
+
+        old = self.watch_data.get(watch_name)
+        if old and self.regex_lookup.get(old.regex) == watch_name:
+            del self.regex_lookup[old.regex]
 
         item = WatchItem(
             name=watch_name,
@@ -186,43 +195,48 @@ class WatchPlugin(BasePlugin):
                 "data": "The data that was matched",
             },
         )
+        return True
 
     @AddAPI("watch.remove", description="remove a watch")
-    def _api_watch_remove(self, watch_name: str, force: bool = False) -> bool | None:
+    def _api_watch_remove(self, watch_name: str, force: bool = False) -> bool:
         """Remove a command watch.
 
         @Ywatch_name@w   = The watch name
         @Yforce@w       = force removal if functions are registered.
 
-        this function returns no values
+        this function returns True if the watch was removed. It returns False
+        when the watch does not exist, or when functions are registered to it
+        and force is not set.
         """
-        if watch_name in self.watch_data:
-            item = self.watch_data[watch_name]
-            event = self.api("plugins.core.events:event.get")(item.event_name)
-            plugin = item.owner
-            if event and not event.isempty() and not force:
-                log_to(
-                    [self.plugin_id, plugin],
-                    logging.ERROR,
-                    "_api_watch_remove: watch %s for plugin %s has functions registered",
-                    watch_name,
-                    plugin,
-                )
-                return False
-            del self.regex_lookup[item.regex]
-            del self.watch_data[watch_name]
-            log_to(
-                [self.plugin_id, plugin],
-                logging.DEBUG,
-                "_api_watch_remove: watch %s for plugin %s removed",
-                watch_name,
-                plugin,
-            )
-        else:
+        if watch_name not in self.watch_data:
             get_logger(self.plugin_id).error(
                 "_api_watch_remove: watch %s does not exist", watch_name
             )
-        return None
+            return False
+
+        item = self.watch_data[watch_name]
+        plugin = item.owner
+        if not force and self.api("plugins.core.events:event.has.registrations")(item.event_name):
+            log_to(
+                [self.plugin_id, plugin],
+                logging.ERROR,
+                "_api_watch_remove: watch %s for plugin %s has functions registered",
+                watch_name,
+                plugin,
+            )
+            return False
+        if self.regex_lookup.get(item.regex) == watch_name:
+            del self.regex_lookup[item.regex]
+        del self.watch_data[watch_name]
+        self.api("plugins.core.events:event.remove")(item.event_name, force=True)
+        log_to(
+            [self.plugin_id, plugin],
+            logging.DEBUG,
+            "_api_watch_remove: watch %s for plugin %s removed",
+            watch_name,
+            plugin,
+        )
+        return True
 
     @AddAPI("watch.remove.for.plugin", description="remove all watches for a plugin")
     def _api_watch_remove_for_plugin(self, plugin: str) -> None:

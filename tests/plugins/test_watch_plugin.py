@@ -191,22 +191,25 @@ def test_watch_add_bad_regex_stores_nothing() -> None:
 
 def test_watch_remove_deletes_when_event_empty() -> None:
     """watch.remove deletes the item and its regex lookup."""
-    event = MagicMock()
-    event.isempty.return_value = True
-    stub = _plugin({"plugins.core.events:event.get": lambda _name: event})
+    event_remove = MagicMock()
+    stub = _plugin(
+        {
+            "plugins.core.events:event.has.registrations": lambda _name: False,
+            "plugins.core.events:event.remove": event_remove,
+        }
+    )
     stub.watch_data["w"] = _item("w", regex=r"^go")
     stub.regex_lookup[r"^go"] = "w"
 
-    assert WatchPlugin._api_watch_remove(stub, "w") is None
+    assert WatchPlugin._api_watch_remove(stub, "w") is True
+    event_remove.assert_called_once_with("watch_w", force=True)
     assert stub.watch_data == {}
     assert stub.regex_lookup == {}
 
 
 def test_watch_remove_keeps_item_when_event_has_functions() -> None:
     """Without force, a watch whose event has functions is kept."""
-    event = MagicMock()
-    event.isempty.return_value = False
-    stub = _plugin({"plugins.core.events:event.get": lambda _name: event})
+    stub = _plugin({"plugins.core.events:event.has.registrations": lambda _name: True})
     stub.watch_data["w"] = _item("w", regex=r"^go")
     stub.regex_lookup[r"^go"] = "w"
 

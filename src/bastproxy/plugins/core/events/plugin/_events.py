@@ -263,6 +263,34 @@ class EventsPlugin(BasePlugin):
         """
         return event_name in self.events
 
+    @AddAPI("event.remove", description="remove an event")
+    def _api_event_remove(self, event_name: str, force: bool = False) -> bool:
+        """Remove an event.
+
+        @Yevent_name@w   = the event to remove.
+        @Yforce@w        = remove the event even if functions are registered to it.
+
+        this function returns True if the event was removed. It returns False,
+        without removing anything, for an unknown event (silently), for an event
+        that is being raised right now, and for an event with registered
+        functions when force is not set (both logged as errors).
+        """
+        if event_name not in self.events:
+            return False
+        if event_name in event_stack.get():
+            get_logger(self.plugin_id).error(
+                "_api_event_remove: event %s is being raised and cannot be removed",
+                event_name,
+            )
+            return False
+        if not force and not self.events[event_name].isempty():
+            get_logger(self.plugin_id).error(
+                "_api_event_remove: event %s has functions registered", event_name
+            )
+            return False
+        del self.events[event_name]
+        return True
+
     @AddAPI(
         "event.has.registrations",
         description="check if an event has registered functions",

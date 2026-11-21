@@ -29,7 +29,6 @@ class MudCmdType:
 
     cmd: str
     regex: str
-    cregex: re.Pattern[str]
     ctype: str
     owner: str
     beforef: Callable[[], None] | None = None
@@ -86,11 +85,22 @@ class MUDCmdsPlugin(BasePlugin):
 
     @AddAPI("type.remove", description="remove a command type")
     def _api_type_remove(self, cmdtype: str) -> None:
-        """Remove a command."""
-        if cmdtype in self.cmds:
-            del self.cmds[cmdtype]
-        else:
+        """Remove a command type and drop its commands.
+
+        Queued commands of the type are dropped, the rest keep their order. When the
+        current command is of the type, its timing is finished and it is cleared
+        without running afterf or raising its completed event, and the next command
+        is sent.
+        """
+        if cmdtype not in self.cmds:
             get_logger(self.plugin_id).debug("_api_type_remove - %s not found", cmdtype)
+            return
+        del self.cmds[cmdtype]
+        self.queue = [queued for queued in self.queue if queued.ctype != cmdtype]
+        if self.current_command and self.current_command.ctype == cmdtype:
+            self._finish_timing()
+            self.current_command = None
+            self.sendnext()
 
     @AddAPI("command.start", description="tell the plugin a command has started")
     def _api_command_start(self, cmdtype: str) -> None:
@@ -113,7 +123,19 @@ class MUDCmdsPlugin(BasePlugin):
                 plugin, found with libs.api:caller.owner.get.
             beforef: function to call before the command is sent
             afterf: function to call after the command completes
+
+        A regex that does not compile is logged as an error and nothing is added.
         """
+        try:
+            re.compile(regex)
+        except re.error:
+            get_logger(self.plugin_id).error(
+                "_api_type_add - command type %s has an invalid regex %s",
+                cmdtype,
+                regex,
+                exc_info=True,
+            )
+            return
         owner = kwargs.get("owner") or self.api("libs.api:caller.owner.get")(
             ignore_owner_list=[self.plugin_id]
         )
@@ -123,7 +145,6 @@ class MUDCmdsPlugin(BasePlugin):
             self.cmds[cmdtype] = MudCmdType(
                 cmd=cmd,
                 regex=regex,
-                cregex=re.compile(regex),
                 ctype=cmdtype,
                 owner=owner,
                 beforef=beforef,
@@ -194,6 +215,11 @@ class MUDCmdsPlugin(BasePlugin):
     @AddAPI("command.queue", description="add a command to the plugin")
     def _api_command_queue(self, cmdtype: str, arguments: str = "") -> None:
         """Add a command to the queue."""
+        if cmdtype not in self.cmds:
+            get_logger(self.plugin_id).error(
+                "_api_command_queue - unknown command type %s", cmdtype
+            )
+            return
         plugin = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
         cmd = self.cmds[cmdtype].cmd
         if arguments:
