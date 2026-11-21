@@ -40,7 +40,6 @@ Classes:
 import asyncio
 import functools
 import signal
-import warnings
 from collections.abc import Awaitable, Callable, Coroutine
 from typing import Any, Optional
 
@@ -54,6 +53,9 @@ logger = get_logger(__name__)
 
 # Module-level set to store background tasks and prevent garbage collection
 _BACKGROUND_TASKS: set[asyncio.Task] = set()
+
+# Set once a shutdown has been started, so repeated signals do not start another
+_SHUTDOWN_STARTED: bool = False
 
 
 def _handle_task_result(
@@ -157,7 +159,7 @@ class TaskItem:
             The result of the task if it is done, otherwise None.
 
         """
-        return self.task.result() if self.task else None
+        return self.task.result() if self.task and self.task.done() else None
 
     def create(
         self,
@@ -328,6 +330,32 @@ async def shutdown(signal_: signal.Signals, loop_: asyncio.AbstractEventLoop) ->
     loop_.stop()
 
 
+def _signal_handler(sig: signal.Signals, loop: asyncio.AbstractEventLoop) -> TaskItem | None:
+    """Start the shutdown for a received signal, once.
+
+    A fresh shutdown coroutine is built each time a signal fires. Only the first
+    signal starts a shutdown; later ones are logged and ignored.
+
+    Args:
+        sig: The signal that was received.
+        loop: The asyncio event loop to shut down.
+
+    Returns:
+        The created TaskItem, or None if a shutdown is already in progress.
+
+    """
+    global _SHUTDOWN_STARTED  # pylint: disable=global-statement
+    if _SHUTDOWN_STARTED:
+        get_logger("mudproxy").warning(
+            "shutdown - already in progress, ignoring signal %s", sig.name
+        )
+        return None
+    _SHUTDOWN_STARTED = True
+    task_item = TaskItem(shutdown(sig, loop), name=f"{sig.name} shutdown handler")
+    task_item.create(loop=loop)
+    return task_item
+
+
 def run_asynch() -> None:
     """Run the asynchronous event loop.
 
@@ -352,14 +380,7 @@ def run_asynch() -> None:
     # for sig in (signal.SIGHUP, signal.SIGTERM, signal.SIGINT):
     for sig in [signal.SIGHUP, signal.SIGTERM, signal.SIGINT]:
         logger.info("adding signal handler for %s:%s", sig, sig.name)
-        # ignore RuntimeWarning about coroutine never awaited
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            task_item: TaskItem = TaskItem(
-                func=shutdown(sig, loop), name=f"{sig.name} shutdown handler"
-            )
-        # Capture task_item in closure using default argument
-        loop.add_signal_handler(sig, task_item.create)
+        loop.add_signal_handler(sig, _signal_handler, sig, loop)
 
     # Store reference to prevent garbage collection
     task_checker = loop.create_task(
