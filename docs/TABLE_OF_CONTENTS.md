@@ -9,6 +9,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 
 ### For Users
 <!-- BEGIN:audience=users -->
+- [Aliases](client/aliases.md) - Define short names that expand to longer input, with %1 to %9 and %* arguments
 - [bastproxy Documentation](index.md) - Overview of bastproxy and an index of its architecture, development and process docs
 - [Doit Tasks Reference](development/doit-tasks-reference.md) - Complete reference for all doit automation tasks
 - [GitHub Repository Settings](development/github-repository-settings.md) - Complete reference for all GitHub repository settings the template expects
@@ -39,6 +40,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [ADR-0014: Plugins add sqldb databases through database.add with plain-data definitions](decisions/0014-plugins-add-sqldb-databases-through-databaseadd-with-plain-data-definitions.md) - A plugin gets a sqldb database from plugins.core.sqldb:database.add with dicts for tables and migrations, instead of subclassing Sqldb and calling postinit.
 - [ADR-0015: Settings are keyed per plugin and a name index resolves pset](decisions/0015-settings-are-keyed-per-plugin-and-a-name-index-resolves-pset.md) - Settings are keyed by plugin and name, so plugins may reuse a name, and a name index resolves a bare pset only when one plugin owns the name.
 - [ADR-0016: User variables expand %{name} references on the input path](decisions/0016-user-variables-expand-name-references-on-the-input-path.md) - User variables are %{name} references expanded in one pass on ev_to_mud_data_modify at priority 60, with an API for aliases, actions and loop.
+- [ADR-0017: User aliases expand the first word on the input path at priority 55](decisions/0017-user-aliases-expand-the-first-word-on-the-input-path-at-priority-55.md) - Aliases expand the first word of client input at priority 55, in place or by re-sending, with %1-%9 and %* arguments and a depth bound of 10.
 - [ADR-9001: Use uv for package management](decisions/9001-use-uv-for-package-management.md) - Use uv for dependency management, virtual environments and package installation
 - [ADR-9002: Use doit for task automation](decisions/9002-use-doit-for-task-automation.md) - Use doit as the task runner for testing, linting, building and other routine operations
 - [ADR-9003: Use ruff for linting and formatting](decisions/9003-use-ruff-for-linting-and-formatting.md) - Use ruff as the one tool for linting and formatting, in place of flake8, black and isort
@@ -76,6 +78,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [AI Architectural Conventions](development/ai/architectural-conventions.md) - Imperative-form architectural rules AI agents must follow when generating code
 - [AI Command Blocking](development/ai/command-blocking.md) - Hooks that block dangerous commands from AI agents
 - [AI Enforcement Principles](development/ai/enforcement-principles.md) - How we enforce AI agent behavior in code and settings
+- [Aliases](client/aliases.md) - Define short names that expand to longer input, with %1 to %9 and %* arguments
 - [API System](claude/api_system.md) - The central API registry plugins use to publish and call functions
 - [API System Analysis and Findings](claude/api_system_findings.md) - Audit of API registration, removal, call cost, caller tracking and the patterns the API system uses, with defects and a patterns review
 - [Architecture Decision Records](decisions/README.md) - What an ADR is, the two numbering series, the ADR format, and how to create one with doit adr
@@ -185,6 +188,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [ADR-0014: Plugins add sqldb databases through database.add with plain-data definitions](decisions/0014-plugins-add-sqldb-databases-through-databaseadd-with-plain-data-definitions.md) - A plugin gets a sqldb database from plugins.core.sqldb:database.add with dicts for tables and migrations, instead of subclassing Sqldb and calling postinit.
 - [ADR-0015: Settings are keyed per plugin and a name index resolves pset](decisions/0015-settings-are-keyed-per-plugin-and-a-name-index-resolves-pset.md) - Settings are keyed by plugin and name, so plugins may reuse a name, and a name index resolves a bare pset only when one plugin owns the name.
 - [ADR-0016: User variables expand %{name} references on the input path](decisions/0016-user-variables-expand-name-references-on-the-input-path.md) - User variables are %{name} references expanded in one pass on ev_to_mud_data_modify at priority 60, with an API for aliases, actions and loop.
+- [ADR-0017: User aliases expand the first word on the input path at priority 55](decisions/0017-user-aliases-expand-the-first-word-on-the-input-path-at-priority-55.md) - Aliases expand the first word of client input at priority 55, in place or by re-sending, with %1-%9 and %* arguments and a depth bound of 10.
 - [ADR-9001: Use uv for package management](decisions/9001-use-uv-for-package-management.md) - Use uv for dependency management, virtual environments and package installation
 - [ADR-9002: Use doit for task automation](decisions/9002-use-doit-for-task-automation.md) - Use doit as the task runner for testing, linting, building and other routine operations
 - [ADR-9003: Use ruff for linting and formatting](decisions/9003-use-ruff-for-linting-and-formatting.md) - Use ruff as the one tool for linting and formatting, in place of flake8, black and isort
@@ -223,6 +227,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [AI Architectural Conventions](development/ai/architectural-conventions.md) - Imperative-form architectural rules AI agents must follow when generating code
 - [AI Command Blocking](development/ai/command-blocking.md) - Hooks that block dangerous commands from AI agents
 - [AI Enforcement Principles](development/ai/enforcement-principles.md) - How we enforce AI agent behavior in code and settings
+- [Aliases](client/aliases.md) - Define short names that expand to longer input, with %1 to %9 and %* arguments
 - [API System](claude/api_system.md) - The central API registry plugins use to publish and call functions
 - [API System Analysis and Findings](claude/api_system_findings.md) - Audit of API registration, removal, call cost, caller tracking and the patterns the API system uses, with defects and a patterns review
 - [Architecture Decision Records](decisions/README.md) - What an ADR is, the two numbering series, the ADR format, and how to create one with doit adr

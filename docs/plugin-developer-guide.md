@@ -389,8 +389,9 @@ plugin (`src/bastproxy/plugins/core/commands/plugin/_commands.py`):
   left-stripped, starts with the `cmdprefix` setting, `run_internal_command_from_event` runs the
   command, sets `line.send = False` so the line does not reach the MUD, and sends the output with
   `SendDataDirectlyToClient(..., clients=...)` to the client that typed it. Any other line passes
-  through to the MUD. `plugins.client.variables` then expands `%{name}` references in the remaining
-  lines at priority 60, after command handling; see [Variables](client/variables.md).
+  through to the MUD. `plugins.client.aliases` then rewrites or re-sends an alias line at priority 55, and
+  `plugins.client.variables` expands `%{name}` references in the remaining lines at priority 60,
+  after command handling; see [Aliases](client/aliases.md) and [Variables](client/variables.md).
 
 Details: [command execution flow](claude/command_system.md#command-execution-flow) and
 [decorators](claude/command_system.md#command-decorators).
