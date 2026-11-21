@@ -218,6 +218,20 @@ The sqldb plugin gives plugins SQLite databases, declared as plain data.
 - Storing plugin history and statistics
 - Querying stored data from other plugins through the API
 
+### 12. [Utils Plugin](utils_system.md)
+
+The utils plugin holds shared formatting, time and value-conversion APIs.
+
+**Key Concepts:**
+- Tables, columns and centered lines measured by display width
+- Time length parsing and formatting
+- Setting value conversion with `value.verify`
+
+**Primary Use Cases:**
+- Formatting command output
+- Showing uptimes and durations
+- Validating setting values
+
 ## System Integration
 
 ### How the Systems Work Together
@@ -297,7 +311,8 @@ bastproxy/
 │       ├── settings_system.md
 │       ├── timers_system.md
 │       ├── triggers_system.md
-│       └── sqldb_system.md
+│       ├── sqldb_system.md
+│       └── utils_system.md
 │
 └── data/                   # Runtime data
     ├── plugins/            # Plugin data
@@ -472,6 +487,7 @@ def _eventcb_modify_data(self):
 - **Record System**: `src/bastproxy/libs/records/`
 - **Network Data**: `src/bastproxy/libs/records/rtypes/networkdata.py`
 - **Logging**: `src/bastproxy/libs/logger.py` and `src/bastproxy/plugins/core/log/`
+- **Utils**: `src/bastproxy/plugins/core/utils/`
 
 ### Example Plugins
 

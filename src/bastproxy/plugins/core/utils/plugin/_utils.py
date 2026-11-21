@@ -319,11 +319,11 @@ def wrap_cell(text: str, width: int, tokenize: Callable[[str], list[tuple[str, s
 
 
 class UtilsPlugin(BasePlugin):
-    """a plugin to handle ansi colors."""
+    """A plugin with shared formatting, time and value-conversion APIs."""
 
     @AddAPI(
         "column.format",
-        description="formt the given list in evenly-spaced columns.",
+        description="format the given list in evenly-spaced columns.",
     )
     def _api_column_format(
         self, obj: list[Any], cols: int = 4, columnwise: bool = True, gap: int = 4
@@ -547,7 +547,7 @@ class UtilsPlugin(BasePlugin):
         if self.api("plugins.core.colors:colorcode.is.valid")(value):
             return value
 
-        raise ValueError
+        raise ValueError(f"{value!r} is not a valid color code")
 
     # verify a time to be military
     def verify_miltime(self, mtime: str) -> str:
