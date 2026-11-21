@@ -18,7 +18,7 @@ class PluginsPlugin(BasePlugin):
     """a plugin to debug other plugins."""
 
     @AddParser(description="dump the internals of a plugin")
-    @AddArgument("plugin", help="the plugin to inspect", default="")
+    @AddArgument("plugin", help="the plugin to inspect", default="", nargs="?")
     @AddArgument(
         "-o",
         "--object",
@@ -41,7 +41,7 @@ class PluginsPlugin(BasePlugin):
         )
 
     @AddParser(description="show internal plugin hooks")
-    @AddArgument("plugin", help="the plugin to show the hooks for", default="")
+    @AddArgument("plugin", help="the plugin to show the hooks for", default="", nargs="?")
     def _command_hooks(self) -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
@@ -77,7 +77,7 @@ class PluginsPlugin(BasePlugin):
         return CommandResult(True, tmsg)
 
     @AddParser(description="show plugin data summary")
-    @AddArgument("plugin", help="the plugin to show the summary for", default="")
+    @AddArgument("plugin", help="the plugin to show the summary for", default="", nargs="?")
     def _command_summary(self) -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
@@ -114,7 +114,7 @@ class PluginsPlugin(BasePlugin):
         return CommandResult(True, tmsg)
 
     @AddParser(description="show detailed plugin data in other plugins")
-    @AddArgument("plugin", help="the plugin to show the data for", default="")
+    @AddArgument("plugin", help="the plugin to show the data for", default="", nargs="?")
     def _command_detail(self) -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
@@ -151,7 +151,7 @@ class PluginsPlugin(BasePlugin):
         return CommandResult(True, tmsg)
 
     @AddParser(description="show the stats sections other plugins add for a plugin")
-    @AddArgument("plugin", help="the plugin to show the stats for", default="")
+    @AddArgument("plugin", help="the plugin to show the stats for", default="", nargs="?")
     def _command_stats(self) -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 

@@ -126,13 +126,12 @@ class RecordPlugin(BasePlugin):
         return CommandResult(True, tmsg)
 
     @AddParser(description="get a list of a specific type of record")
-    @AddArgument("recordtype", help="the type of record to list", default="")
+    @AddArgument("recordtype", help="the type of record to list", default="", nargs="?")
     @AddArgument(
         "-c",
         "--count",
         help="the # of items to return (default 10)",
         default=10,
-        nargs="?",
         type=int,
     )
     def _command_list(self) -> CommandResult:
