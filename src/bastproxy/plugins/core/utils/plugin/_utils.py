@@ -8,7 +8,6 @@
 # Standard Library
 import bisect
 import datetime
-import fnmatch
 import math
 import re
 import sys
@@ -619,24 +618,23 @@ class UtilsPlugin(BasePlugin):
         return f"{new_str}{filler_color_end}"
 
     @AddAPI("string.match.in.list", description="check a list for a match of arg")
-    def _api_string_match_in_list(self, arg: str, item_list: list[str]) -> list[str]:
-        """Check a list for a match of arg."""
+    def _api_string_match_in_list(self, arg: str, item_list: list[Any]) -> list[str]:
+        """Check a list for a match of arg, taking arg literally.
+
+        An exact match returns ``[arg]``. Otherwise the str items that start with arg are
+        returned, and if there are none, the str items that contain it. Wildcard characters
+        in arg have no special meaning.
+        """
         string_to_match = str(arg)
-        match = f"{string_to_match}*"
-        matches: dict[str, list[str]] = {"partofstring": [], "frontofstring": []}
         if arg in item_list or string_to_match in item_list:
             return [arg]
 
-        for i in item_list:
-            if fnmatch.fnmatch(i, match):
-                matches["frontofstring"].append(i)
-            elif isinstance(i, str) and string_to_match in i:
-                matches["partofstring"].append(i)
+        str_items: list[str] = [i for i in item_list if isinstance(i, str)]
+        front = [i for i in str_items if i.startswith(string_to_match)]
+        if front:
+            return front
 
-        if matches["frontofstring"]:
-            return matches["frontofstring"]
-
-        return matches["partofstring"]
+        return [i for i in str_items if string_to_match in i]
 
     @AddAPI("timelength.to.seconds", description="converts a time length to seconds")
     def _api_timelength_to_seconds(self, timel: str) -> int | None:
