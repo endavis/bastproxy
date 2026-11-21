@@ -6,7 +6,7 @@
 # By: Bast
 
 # Standard Library
-import stat
+import os
 from pathlib import Path
 from typing import Any
 
@@ -60,9 +60,12 @@ class SSC:
         """Set the secret."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         if args["value"]:
-            with Path(self.file_name).open("w", encoding="utf-8") as data_file:
+            # the file is created with mode 0600 and set to 0600 before any data is written
+            file_descriptor = os.open(self.file_name, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+            if hasattr(os, "fchmod"):
+                os.fchmod(file_descriptor, 0o600)
+            with os.fdopen(file_descriptor, "w", encoding="utf-8") as data_file:
                 data_file.write(args["value"])
-            Path(self.file_name).chmod(stat.S_IRUSR | stat.S_IWUSR)
             return CommandResult(True, [f"{self.desc} saved"])
 
         return CommandResult(True, [f"Please enter the {self.desc}"])
