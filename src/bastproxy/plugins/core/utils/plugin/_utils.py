@@ -318,12 +318,21 @@ class UtilsPlugin(BasePlugin):
             If False the items in the list will be printed row-wise.
         gap : int
             The number of spaces that should separate the longest column
-            item/s from the next column. This is the effective spacing
-            between columns based on the maximum len() of the list items.
+            item/s from the next column. Widths are display widths, so colour codes
+            take no room and wide characters take two columns.
+
+        An empty list gives an empty result, and ``cols`` below 1 is treated as 1.
         """
         list_of_strings = [str(item) for item in obj]
-        number_of_columns = min(cols, len(list_of_strings))
-        max_len = max(len(item) for item in list_of_strings)
+        if not list_of_strings:
+            return []
+        strip = self.api("plugins.core.colors:colorcode.strip")
+
+        def cell_width(item: str) -> int:
+            return display_width(strip(item))
+
+        number_of_columns = min(max(1, cols), len(list_of_strings))
+        max_len = max(cell_width(item) for item in list_of_strings)
         if columnwise:
             number_of_columns = math.ceil(float(len(list_of_strings)) / float(number_of_columns))
         plist = [
@@ -335,7 +344,7 @@ class UtilsPlugin(BasePlugin):
             if len(plist[-1]) != number_of_columns:
                 plist[-1].extend([""] * (len(list_of_strings) - len(plist[-1])))
             rows = zip(*plist, strict=False)
-        return ["".join([c.ljust(max_len + gap) for c in p]) for p in rows]
+        return ["".join([c + " " * (max_len + gap - cell_width(c)) for c in p]) for p in rows]
 
     @AddAPI("object.dump", description="dump an object as a string")
     def _api_object_dump(self, object: Any) -> str:
