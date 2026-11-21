@@ -526,3 +526,27 @@ async def test_send_from_enabled_handler_reaches_the_mud_on_each_connection(
             )
             assert results == [True] * count
             assert raised.count(MUD_EVENT + "_enabled") == count
+
+
+@pytest.mark.parametrize("option", [90, 102, 200])
+@pytest.mark.parametrize("login", [False, True])
+async def test_will_for_an_unclaimed_option_gets_dont(option: int, login: bool) -> None:
+    opt = bytes([option])
+    async with proxy_server(connections=True) as proxy, AsyncExitStack() as stack:
+        client = await join(stack, proxy, set(), login=login)
+        client.send(IAC + WILL + opt)
+        await client.wait_for(lambda: (DONT, opt) in client.commands)
+        await settle()
+        assert (DO, opt) not in client.commands
+        assert proxy.connections[0].writer.remote_option.enabled(opt) is False
+
+
+async def test_will_for_a_claimed_option_gets_dont() -> None:
+    PROTOCOLS.telopt.register(102, OWNER)
+    async with proxy_server(connections=True) as proxy, AsyncExitStack() as stack:
+        client = await join(stack, proxy, set(), login=True)
+        client.send(IAC + WILL + A102)
+        await client.wait_for(lambda: (DONT, A102) in client.commands)
+        await settle()
+        assert (DO, A102) not in client.commands
+        assert proxy.connections[0].writer.remote_option.enabled(A102) is False
