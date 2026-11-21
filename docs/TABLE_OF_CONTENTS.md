@@ -15,6 +15,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Doit Tasks Reference](development/doit-tasks-reference.md) - Complete reference for all doit automation tasks
 - [GitHub Repository Settings](development/github-repository-settings.md) - Complete reference for all GitHub repository settings the template expects
 - [Keeping Up to Date](template/updates.md) - Stay in sync with improvements to the pyproject-template
+- [Loop](client/loop.md) - Run a line a number of times, with the counter in the line, through aliases and variables
 - [Migration Guide](template/migration.md) - Migrate existing Python projects to use this template
 - [New Project Setup](template/new-project.md) - Create a new Python project from this template
 - [Substitutes](client/substitutes.md) - Rewrite text in MUD output before it reaches the client, keeping colour, with plain or regex matching
@@ -106,6 +107,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [GitHub Repository Settings](development/github-repository-settings.md) - Complete reference for all GitHub repository settings the template expects
 - [install_tools Framework](development/install-tools-framework.md) - Reusable framework for installing developer tools from GitHub releases or other URLs into ~/.local/bin
 - [Logging System](claude/logging_system.md) - How bastproxy code logs through standard-library loggers, how thresholds and handlers route messages, and how to migrate from LogRecord
+- [Loop](client/loop.md) - Run a line a number of times, with the counter in the line, through aliases and variables
 - [LSP Tool and Diagnostic Noise](development/ai/lsp-tool.md) - What the LSP tool gives an AI agent, why pyright diagnostics arrive stale, and the two opt-outs agents can flip on themselves
 - [Network Layer Analysis and Findings](claude/network_system_findings.md) - Audit of the network layer and its use of telnetlib3 - private API, deprecations, reimplemented features, patches, the 5.0.2 release, test coverage, the status of the open network issues and patterns, with defects and a patterns review
 - [Optional Extensions](development/extensions.md) - Additional tools and extensions for testing, security, and more
@@ -261,6 +263,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [install_tools Framework](development/install-tools-framework.md) - Reusable framework for installing developer tools from GitHub releases or other URLs into ~/.local/bin
 - [Keeping Up to Date](template/updates.md) - Stay in sync with improvements to the pyproject-template
 - [Logging System](claude/logging_system.md) - How bastproxy code logs through standard-library loggers, how thresholds and handlers route messages, and how to migrate from LogRecord
+- [Loop](client/loop.md) - Run a line a number of times, with the counter in the line, through aliases and variables
 - [LSP Tool and Diagnostic Noise](development/ai/lsp-tool.md) - What the LSP tool gives an AI agent, why pyright diagnostics arrive stale, and the two opt-outs agents can flip on themselves
 - [Migration Guide](template/migration.md) - Migrate existing Python projects to use this template
 - [Network Layer Analysis and Findings](claude/network_system_findings.md) - Audit of the network layer and its use of telnetlib3 - private API, deprecations, reimplemented features, patches, the 5.0.2 release, test coverage, the status of the open network issues and patterns, with defects and a patterns review

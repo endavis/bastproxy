@@ -104,6 +104,7 @@ nav:
   - Client Features:
       - Actions: client/actions.md
       - Aliases: client/aliases.md
+      - Loop: client/loop.md
       - Substitutes: client/substitutes.md
       - Variables: client/variables.md
   - Architecture:
