@@ -7,7 +7,11 @@ import pytest
 from bastproxy.libs.textwidth import display_width
 from bastproxy.plugins.core.utils.plugin._utils import UtilsPlugin, fit_column_widths, wrap_cell
 from tests.plugins.core.utils.test_utils_center_colored import _stub as center_stub
-from tests.plugins.core.utils.test_utils_output_table import LINELEN, make_utils_stub
+from tests.plugins.core.utils.test_utils_output_table import (
+    LINELEN,
+    _column_widths,
+    make_utils_stub,
+)
 
 _STUB = make_utils_stub()
 _TOKENIZE = _STUB.api("plugins.core.colors:colorcode.to.tokens")
@@ -92,7 +96,7 @@ def test_table_with_wide_cells_keeps_borders_aligned() -> None:
     plain = _render(data, columns)
 
     assert all(display_width(line) == LINELEN for line in plain)
-    assert columns[0]["width"] == display_width("日本語")
+    assert _column_widths(plain[2])[0] == display_width("日本語")
 
 
 def test_long_cjk_cell_wraps_inside_its_column() -> None:

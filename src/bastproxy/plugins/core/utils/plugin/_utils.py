@@ -652,14 +652,21 @@ class UtilsPlugin(BasePlugin):
         description="converts a list of dicts to a table with a header",
     )
     def _api_table_format(
-        self, table_name: str, data: Any, columns: list[dict[str, Any]], color: str = ""
+        self,
+        table_name: str,
+        data: Iterable[Any],
+        columns: list[dict[str, Any]],
+        color: str = "",
     ) -> list[str]:
         """Columns is a list of dicts.
 
         dict format:
             'name'  : string for the column name,
-            'key'   : dictionary key,
-            'width' : the width of the column.
+            'key'   : dictionary key.
+
+        The column width is computed, and the column dicts are not modified; a ``width`` key
+        passed in is ignored. ``data`` may be any iterable of rows. An empty ``columns`` gives
+        an empty result.
 
         Widths and padding ignore color codes, so colored cells stay aligned. When the rows
         are wider than the line length, data cells wrap inside their columns (at spaces, then
@@ -667,16 +674,18 @@ class UtilsPlugin(BasePlugin):
         labels wrap too (at spaces, then within a word, down to one column each); the table grows
         past the line length only when even that cannot fit.
         """
+        if not columns:
+            return []
+        rows = list(data)
         line_length_default: int = self.api("plugins.core.proxy:line.length.get")()
         output_color = color or self.api("plugins.core.settings:setting.get")(
             "plugins.core.commands", "output_subheader_color"
         )
-        temp_data = [{item["key"]: item["name"] for item in columns}, *list(data)]
+        temp_data = [{item["key"]: item["name"] for item in columns}, *rows]
         color_end = "@w"
         strip = self.api("plugins.core.colors:colorcode.strip")
         tokenize = self.api("plugins.core.colors:colorcode.to.tokens")
 
-        data = list(data)
         header_dict = {item["key"]: item["name"] for item in columns}
         count = len(columns)
         # the visible text of every cell, stripped once: the header row first, then the data
@@ -737,21 +746,19 @@ class UtilsPlugin(BasePlugin):
             header_word_mins,
             unit_mins,
         )
-        for column, width in zip(columns, widths, strict=True):
-            column["width"] = width
-
         separator = f" {output_color}|{color_end} "
 
         def build_line(item: Any) -> str:
             cells = []
-            for column in columns:
+            for column, width in zip(columns, widths, strict=True):
                 cell = str(item[column["key"]])
-                cells.append(cell + " " * (column["width"] - display_width(strip(cell))))
+                cells.append(cell + " " * (width - display_width(strip(cell))))
             return separator.join(cells)
 
         def build_rows(item: Any) -> list[str]:
             wrapped = [
-                wrap_cell(str(item[column["key"]]), column["width"], tokenize) for column in columns
+                wrap_cell(str(item[column["key"]]), width, tokenize)
+                for column, width in zip(columns, widths, strict=True)
             ]
             height = max(len(cell_lines) for cell_lines in wrapped)
             return [
@@ -765,7 +772,7 @@ class UtilsPlugin(BasePlugin):
             ]
 
         subheader_msgs = build_rows(header_dict)
-        data_msg = [row for item in data for row in build_rows(item)]
+        data_msg = [row for item in rows for row in build_rows(item)]
 
         # the table only grows past the line length when even one column per cell cannot fit
         line_length = max(line_length_default, sum(widths) + overhead)
