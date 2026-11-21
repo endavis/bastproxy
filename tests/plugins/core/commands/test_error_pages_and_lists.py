@@ -251,7 +251,7 @@ def test_command_list_single_command_shows_its_help() -> None:
 
 
 def _pass_through(line: str, settings: dict[str, Any]) -> MagicMock:
-    record = {"line": SimpleNamespace(line=line)}
+    record = {"line": SimpleNamespace(line=line, mask_log=False)}
     stub = _stub(
         {
             "plugins.core.events:event.current.record.get": lambda: record,
