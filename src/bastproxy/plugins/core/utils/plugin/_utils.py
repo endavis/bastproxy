@@ -431,23 +431,27 @@ class UtilsPlugin(BasePlugin):
         "number.to.readable",
         description="convert a number to a shorter readable number",
     )
-    def _api_number_to_readable(self, num: float, places: int = 2) -> Any:
-        """Convert a number to a shorter readable number."""
-        converted_string: str | float = ""
-        nform = f"%00.0{places}f"
+    def _api_number_to_readable(self, num: float, places: int = 2) -> str:
+        """Convert a number to a shorter readable string.
+
+        Zero is ``"0"`` and a magnitude under 1000 is its own text. Larger magnitudes are scaled
+        to K, M, B or T and shown with ``places`` decimals, such as ``"1.50 M"``. A value that
+        rounds up to 1000 of a unit moves up to the next one (999999 is ``"1.00 M"``). A negative
+        number keeps its sign.
+        """
         if not num:
-            return 0
-        if num >= 1000000000000:
-            converted_string = nform % (num / 1000000000000.0) + " T"  # trillion
-        elif num >= 1000000000:
-            converted_string = nform % (num / 1000000000.0) + " B"  # billion
-        elif num >= 1000000:
-            converted_string = nform % (num / 1000000.0) + " M"  # million
-        elif num >= 1000:
-            converted_string = nform % (num / 1000.0) + " K"  # thousand
-        else:
-            converted_string = num  # hundreds
-        return converted_string
+            return "0"
+        sign = "-" if num < 0 else ""
+        magnitude = abs(num)
+        if magnitude < 1000:
+            return f"{sign}{magnitude}"
+        scales = ((1e3, "K"), (1e6, "M"), (1e9, "B"), (1e12, "T"))
+        index = max(i for i, (scale, _) in enumerate(scales) if magnitude >= scale)
+        text = f"{magnitude / scales[index][0]:.{places}f}"
+        while index < len(scales) - 1 and float(text) >= 1000:
+            index += 1
+            text = f"{magnitude / scales[index][0]:.{places}f}"
+        return f"{sign}{text} {scales[index][1]}"
 
     @AddAPI(
         "seconds.to.dhms",
