@@ -101,6 +101,8 @@ validation:
 nav:
   - Home: index.md
   - Plugin Developer Guide: plugin-developer-guide.md
+  - Client Features:
+      - Variables: client/variables.md
   - Architecture:
       - Overview: claude/README.md
       - Data Flow: claude/data_flow.md
@@ -169,6 +171,7 @@ nav:
       - ADR-0013 Plugins are discovered from installed packages through the bastproxy.plugins entry-point group: decisions/0013-plugins-are-discovered-from-installed-packages-through-the-bastproxyplugins-entry-point-group.md
       - ADR-0014 Plugins add sqldb databases through database.add with plain-data definitions: decisions/0014-plugins-add-sqldb-databases-through-databaseadd-with-plain-data-definitions.md
       - ADR-0015 Settings are keyed per plugin and a name index resolves pset: decisions/0015-settings-are-keyed-per-plugin-and-a-name-index-resolves-pset.md
+      - "ADR-0016 User variables expand %{name} references on the input path": decisions/0016-user-variables-expand-name-references-on-the-input-path.md
       - ADR-9001 uv: decisions/9001-use-uv-for-package-management.md
       - ADR-9002 doit: decisions/9002-use-doit-for-task-automation.md
       - ADR-9003 ruff: decisions/9003-use-ruff-for-linting-and-formatting.md

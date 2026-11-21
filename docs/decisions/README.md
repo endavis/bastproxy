@@ -164,3 +164,4 @@ The Issue contains the full discussion; the ADR summarizes the outcome.
 | [0013](0013-plugins-are-discovered-from-installed-packages-through-the-bastproxyplugins-entry-point-group.md) | Plugins are discovered from installed packages through the bastproxy.plugins entry-point group | Accepted |
 | [0014](0014-plugins-add-sqldb-databases-through-databaseadd-with-plain-data-definitions.md) | Plugins add sqldb databases through database.add with plain-data definitions | Accepted |
 | [0015](0015-settings-are-keyed-per-plugin-and-a-name-index-resolves-pset.md) | Settings are keyed per plugin and a name index resolves pset | Accepted |
+| [0016](0016-user-variables-expand-name-references-on-the-input-path.md) | User variables expand %{name} references on the input path | Accepted |
