@@ -697,7 +697,7 @@ class ProxyPlugin(BasePlugin):
         cpu_percent = psutil.cpu_percent()
         virtual_memory = psutil.virtual_memory()
         cpu_count = psutil.cpu_count()
-        load_average = os.getloadavg()
+        load_average = psutil.getloadavg()
         net_if_addrs = psutil.net_if_addrs()
         column_width = 19
         process = psutil.Process(os.getpid())
@@ -815,9 +815,9 @@ class ProxyPlugin(BasePlugin):
                 {"name": "Mode", "key": "mode", "width": 5},
             ]
 
+            # psutil gives open files a mode only on Linux
             open_files_dicts = [
-                {"path": file.path, "mode": file.mode}
-                for file in open_files  # pyright: ignore[reportAttributeAccessIssue]
+                {"path": file.path, "mode": getattr(file, "mode", "n/a")} for file in open_files
             ]
 
             msg.extend(
