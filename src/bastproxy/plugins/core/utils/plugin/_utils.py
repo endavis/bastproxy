@@ -76,6 +76,30 @@ _TRUE_WORDS = frozenset({"true", "yes", "on", "1"})
 _FALSE_WORDS = frozenset({"false", "no", "off", "0"})
 
 
+def _fill_to_width(filler: str, width: int) -> str:
+    """Repeat ``filler`` to fill exactly ``width`` display columns.
+
+    Graphemes are kept while they fit. A wide grapheme that would run past the end is replaced
+    by a space. An empty filler, or a width of 0 or less, gives an empty string.
+    """
+    units = text_units(filler)
+    if width <= 0 or not any(unit_width for _, unit_width in units):
+        return ""
+    out: list[str] = []
+    used = 0
+    index = 0
+    while used < width:
+        unit, unit_width = units[index % len(units)]
+        index += 1
+        if used + unit_width <= width:
+            out.append(unit)
+            used += unit_width
+        else:
+            out.append(" ")
+            used += 1
+    return "".join(out)
+
+
 def to_bool(value: Any) -> bool:
     """Convert a bool, a 0/1 int or a true/false word to a bool, else raise ValueError."""
     if isinstance(value, bool):
@@ -527,11 +551,16 @@ class UtilsPlugin(BasePlugin):
 
     # verify a time to be military
     def verify_miltime(self, mtime: str) -> str:
-        """Verify a time like 0830 or 1850."""
-        try:
-            time.strptime(mtime, "%H%M")
-        except Exception as e:
-            raise ValueError from e
+        """Verify a time of exactly four ASCII digits, HHMM from 0000 to 2359."""
+        if not (
+            isinstance(mtime, str)
+            and len(mtime) == 4
+            and mtime.isascii()
+            and mtime.isdigit()
+            and int(mtime[:2]) < 24
+            and int(mtime[2:]) < 60
+        ):
+            raise ValueError(f"Cannot convert {mtime!r} to a time of four digits (HHMM)")
 
         return mtime
 
@@ -597,17 +626,17 @@ class UtilsPlugin(BasePlugin):
         length_difference = length - noncolored_string_length
         half_length = length_difference // 2
 
-        filler = filler_character * half_length
+        new_length = (half_length * 2) + noncolored_string_length
+        extra = max(0, length - new_length)
+
+        left_filler = _fill_to_width(filler_character, half_length)
+        right_filler = _fill_to_width(filler_character, max(0, half_length) + extra)
         filler_color_end = "@w" if filler_color else ""
 
         new_str = (
-            f"{filler_color}{filler}{filler_color_end}  {string_to_center}  {filler_color}{filler}"
+            f"{filler_color}{left_filler}{filler_color_end}  {string_to_center}  "
+            f"{filler_color}{right_filler}"
         )
-
-        new_length = (half_length * 2) + noncolored_string_length
-
-        if new_length < length:
-            new_str += filler_character * (length - new_length)
 
         if endcaps:
             new_str = self.api("plugins.core.utils:line.cap")(

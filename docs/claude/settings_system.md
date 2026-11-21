@@ -90,6 +90,7 @@ Supported setting types:
   (any case, surrounding spaces ignored). Anything else raises `ValueError`.
 - **list**: A list or tuple (copied to a list). A str is rejected.
 - **color**: Color codes (e.g., "@R", "@G")
+- **miltime**: A time of exactly four ASCII digits, HHMM from 0000 to 2359 (`0830`). Anything else raises `ValueError`.
 - **timelength**: Time duration values. An integer is seconds; otherwise parts such as `1d:2h:30m:40s`,
   in that unit order, any part optional, decimals allowed (`1.5h`). A negative or invalid value raises `ValueError`.
 - Any other callable is used as the converter (`vtype(value)`).
