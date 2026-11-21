@@ -277,9 +277,9 @@ class _CountingPattern:
     def __eq__(self, other: object) -> bool:
         return isinstance(other, _CountingPattern) and self._compiled == other._compiled
 
-    def match(self, text: str) -> Any:
+    def match(self, text: str, **kwargs: Any) -> Any:
         self._calls.append(text)
-        return self._compiled.match(text)
+        return self._compiled.match(text, **kwargs)
 
 
 def _spy(harness: Harness, *names: str) -> list[str]:
