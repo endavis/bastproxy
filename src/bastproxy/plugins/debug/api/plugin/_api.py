@@ -59,7 +59,7 @@ class APIPlugin(BasePlugin):
             )
 
         else:  # args <= 0
-            tmsg.append("Please provide an api to detail")
+            return CommandResult(False, ["Please provide an api to detail"])
 
         return CommandResult(True, tmsg)
 
@@ -114,6 +114,6 @@ class APIPlugin(BasePlugin):
             tmsg = self.dump_object_as_string(returnstuff)
         except Exception as e:
             exc_str = traceback.format_exception(e)
-            return CommandResult(True, ["Api returned an error:", *exc_str])
+            return CommandResult(False, ["Api returned an error:", *exc_str])
         else:
             return CommandResult(True, ["Api returned:", "", tmsg])

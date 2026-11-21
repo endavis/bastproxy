@@ -126,13 +126,12 @@ class RecordPlugin(BasePlugin):
         return CommandResult(True, tmsg)
 
     @AddParser(description="get a list of a specific type of record")
-    @AddArgument("recordtype", help="the type of record to list", default="")
+    @AddArgument("recordtype", help="the type of record to list", default="", nargs="?")
     @AddArgument(
         "-c",
         "--count",
         help="the # of items to return (default 10)",
         default=10,
-        nargs="?",
         type=int,
     )
     def _command_list(self) -> CommandResult:
@@ -170,14 +169,14 @@ class RecordPlugin(BasePlugin):
     @AddArgument(
         "-sd",
         "--show_data",
-        help="show data in updates",
+        help="hide data in updates",
         action="store_false",
         default=True,
     )
     @AddArgument(
         "-ss",
         "--show_stack",
-        help="show stack in updates",
+        help="hide the stack in updates",
         action="store_false",
         default=True,
     )
@@ -191,7 +190,7 @@ class RecordPlugin(BasePlugin):
     @AddArgument(
         "-iu",
         "--include_updates",
-        help="include_updates in the detail",
+        help="leave updates out of the detail",
         action="store_false",
         default=True,
     )
@@ -257,7 +256,8 @@ class RecordPlugin(BasePlugin):
             return CommandResult(True, ["No record id provided"])
 
         record = RMANAGER.get_record(args["uid"])
-        if not record:
+        # Records are list and can be empty, so check is None
+        if record is None:
             return CommandResult(True, [f"Record {args['uid']} not found"])
 
         child_records_formatted = RMANAGER.format_all_children(record)

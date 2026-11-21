@@ -18,7 +18,7 @@ class PluginsPlugin(BasePlugin):
     """a plugin to debug other plugins."""
 
     @AddParser(description="dump the internals of a plugin")
-    @AddArgument("plugin", help="the plugin to inspect", default="")
+    @AddArgument("plugin", help="the plugin to inspect", default="", nargs="?")
     @AddArgument(
         "-o",
         "--object",
@@ -33,15 +33,15 @@ class PluginsPlugin(BasePlugin):
         if not args["plugin"]:
             return CommandResult(False, ["Please enter a plugin id"])
 
-        if not self.api("libs.plugins.loader:plugin.id.is.valid")(args["plugin"]):
-            return CommandResult(True, [f"Plugin {args['plugin']} not found"])
+        if args["plugin"] not in self.api("libs.plugins.loader:plugin.list.loaded")():
+            return CommandResult(False, [f"Plugin {args['plugin']} is not loaded"])
 
         return CommandResult(
             True, self.api(f"{args['plugin']}:plugin.dump")(args["object"], args["detailed"])[1]
         )
 
     @AddParser(description="show internal plugin hooks")
-    @AddArgument("plugin", help="the plugin to show the hooks for", default="")
+    @AddArgument("plugin", help="the plugin to show the hooks for", default="", nargs="?")
     def _command_hooks(self) -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
@@ -52,6 +52,9 @@ class PluginsPlugin(BasePlugin):
 
         if not args["plugin"]:
             return CommandResult(False, ["Please enter a plugin name"])
+
+        if args["plugin"] not in self.api("libs.plugins.loader:plugin.list.loaded")():
+            return CommandResult(False, [f"Plugin {args['plugin']} is not loaded"])
 
         tmsg = []
 
@@ -74,7 +77,7 @@ class PluginsPlugin(BasePlugin):
         return CommandResult(True, tmsg)
 
     @AddParser(description="show plugin data summary")
-    @AddArgument("plugin", help="the plugin to show the summary for", default="")
+    @AddArgument("plugin", help="the plugin to show the summary for", default="", nargs="?")
     def _command_summary(self) -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
@@ -86,9 +89,12 @@ class PluginsPlugin(BasePlugin):
         if not args["plugin"]:
             return CommandResult(False, ["Please enter a plugin name"])
 
-        data = {}
-
         loaded_plugins = self.api("libs.plugins.loader:plugin.list.loaded")()
+
+        if args["plugin"] not in loaded_plugins:
+            return CommandResult(False, [f"Plugin {args['plugin']} is not loaded"])
+
+        data = {}
 
         for plugin in loaded_plugins:
             api = f"{plugin}:summary.get.for.plugin"
@@ -108,7 +114,7 @@ class PluginsPlugin(BasePlugin):
         return CommandResult(True, tmsg)
 
     @AddParser(description="show detailed plugin data in other plugins")
-    @AddArgument("plugin", help="the plugin to show the data for", default="")
+    @AddArgument("plugin", help="the plugin to show the data for", default="", nargs="?")
     def _command_detail(self) -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
@@ -120,9 +126,12 @@ class PluginsPlugin(BasePlugin):
         if not args["plugin"]:
             return CommandResult(False, ["Please enter a plugin name"])
 
-        data = {}
-
         loaded_plugins = self.api("libs.plugins.loader:plugin.list.loaded")()
+
+        if args["plugin"] not in loaded_plugins:
+            return CommandResult(False, [f"Plugin {args['plugin']} is not loaded"])
+
+        data = {}
 
         for plugin in loaded_plugins:
             api = f"{plugin}:detail.get.for.plugin"
@@ -142,7 +151,7 @@ class PluginsPlugin(BasePlugin):
         return CommandResult(True, tmsg)
 
     @AddParser(description="show the stats sections other plugins add for a plugin")
-    @AddArgument("plugin", help="the plugin to show the stats for", default="")
+    @AddArgument("plugin", help="the plugin to show the stats for", default="", nargs="?")
     def _command_stats(self) -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 

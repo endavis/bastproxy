@@ -56,7 +56,7 @@ def test_debug_plugins_requests_new_names(command: str, expected: str) -> None:
 def _fake_api(name: str, requested: list[str]) -> Any:
     requested.append(name)
     if name == "plugins.core.commands:command.current.args.get":
-        return lambda: {"plugin": "x"}
+        return lambda: {"plugin": "plugins.test.a"}
     if name == "libs.plugins.loader:plugin.list.loaded":
         return lambda: ["plugins.test.a"]
     if name == "libs.api:api.exists":
