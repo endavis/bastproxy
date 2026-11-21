@@ -570,6 +570,9 @@ def _eventcb_data(self) -> None:
   `telopt.send` and the frame reaches the MUD.
 - `telopt.send(option, payload)` sends to the MUD and `telopt.send.client(option, payload,
   client_id=None)` to logged-in clients that agreed. Both return `False` when nothing was sent, and log the reason at debug level.
+- Clients are offered the option when they log in (and at once when you register while they are
+  logged in). A client that has not logged in, or that asks for an option no plugin registered, is
+  answered `WONT`, and its subnegotiations for the option are discarded.
 - The MUD's subnegotiations are forwarded to clients that agreed. Turn that off with
   `telopt.forward.set(option, False)`. A client's subnegotiations are never sent to the MUD.
 - A reload keeps the MUD option on: unloading sends no `DONT`, and registering again raises

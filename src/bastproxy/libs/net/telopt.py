@@ -8,8 +8,10 @@
 
 A plugin registers an option number through ``libs.net.protocols:telopt.register``. On the MUD
 link the proxy then accepts the MUD's ``WILL`` with ``DO``, raises events for the option and sends
-subnegotiations the plugin asks for. On client links it offers ``WILL`` and forwards the MUD's
-subnegotiations to clients that agreed. The core never interprets the payloads.
+subnegotiations the plugin asks for. On client links it offers ``WILL`` to logged-in clients (at
+login, or when the plugin registers while they are connected) and forwards the MUD's
+subnegotiations to clients that agreed. A client that has not logged in, or that asks for an
+option no plugin claimed, is refused (#703). The core never interprets the payloads.
 
 ``RecordingTelnetWriter`` asks this manager (its ``telopt_hooks``) whether it claims an option; for
 a claimed option the writer answers and dispatches here and never calls telnetlib3. Every other
@@ -213,6 +215,10 @@ class TeloptManager:
             return False
         return reg.client if server else reg.mud
 
+    def client_logged_in(self, writer: Any) -> bool:
+        """True when the client link ``writer`` belongs to a client that has logged in."""
+        return getattr(writer, "link_id", None) in self._clients
+
     def on_enabled(self, writer: Any, opt: int, enabled: bool) -> None:
         """An option became enabled or disabled on a link."""
         if getattr(writer, "server", False):
@@ -315,8 +321,10 @@ class TeloptManager:
         for opt in enabled:
             self._raise_args(mud_disabled_event(opt), {"option": opt}, str(opt))
 
-    def client_ready(self, _conn: Any) -> None:
-        """A client logged in; its negotiation already happened, so nothing is sent."""
+    def client_ready(self, conn: Any) -> None:
+        """A client logged in: offer it ``WILL`` for every option a plugin owns for clients."""
+        for opt in self.client_options():
+            self._offer(conn.writer, opt)
 
     def client_gone(self, _conn: Any) -> None:
         """A client is gone; nothing to clean up."""
@@ -339,12 +347,19 @@ class TeloptManager:
             writer.iac(DO, key)
 
     def _offer_to_clients(self, opt: int) -> None:
-        """Send ``WILL`` to every attached client link that has not enabled ``opt``."""
+        """Send ``WILL`` to every logged-in client that has not enabled ``opt``."""
+        for conn in list(self._clients.values()):
+            self._offer(conn.writer, opt)
+
+    @staticmethod
+    def _offer(writer: Any, opt: int) -> None:
+        """Send ``WILL`` for ``opt`` unless the link is closing, has it on or already asked."""
         key = bytes([opt])
-        for writer in list(self._client_links):
-            if writer.is_closing() or writer.local_option.enabled(key):
-                continue
-            writer.iac(WILL, key)
+        if writer.is_closing() or writer.local_option.enabled(key):
+            return
+        if writer.pending_option.enabled(WILL + key):
+            return
+        writer.iac(WILL, key)
 
     # ------------------------------------------------------------------ registration
 
