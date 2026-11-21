@@ -392,6 +392,8 @@ plugin (`src/bastproxy/plugins/core/commands/plugin/_commands.py`):
   through to the MUD. `plugins.client.aliases` then rewrites or re-sends an alias line at priority 55, and
   `plugins.client.variables` expands `%{name}` references in the remaining lines at priority 60,
   after command handling; see [Aliases](client/aliases.md) and [Variables](client/variables.md).
+  `plugins.client.actions` runs a command from a trigger's match through
+  `plugins.core.commands:command.line.run`, so its parts take this same path; see [Actions](client/actions.md).
 
 Details: [command execution flow](claude/command_system.md#command-execution-flow) and
 [decorators](claude/command_system.md#command-decorators).

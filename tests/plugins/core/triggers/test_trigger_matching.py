@@ -401,3 +401,12 @@ def test_matchcolor_update_changes_sharing(harness: Harness) -> None:
     harness._api_trigger_update("b", {"matchcolor": False})
     assert harness.item("a").shared_pattern is True
     assert harness.item("b").shared_pattern is True
+
+
+def test_event_carries_raw_groups(harness: Harness) -> None:
+    """The raised args hold match.groups(): raw strings, None for a group that sat out."""
+    harness.add("g", r"^(\w+) (?P<n>\d+)(x)?", argtypes={"n": int})
+    harness.send("orc 12")
+    args = harness.raised[-1][1]
+    assert args["groups"] == ("orc", "12", None)
+    assert args["matches"] == {"n": 12}
