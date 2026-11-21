@@ -412,18 +412,25 @@ class PluginManager(BasePlugin):
                 [f"{args['plugin']} is not loaded; use #bp.core.pluginm.load {args['plugin']}"],
             )
 
-        self.api(f"{args['plugin']}:plugin.reloading.set")()
-
         plugins_to_load_setting = self.api("plugins.core.settings:setting.get")(
             self.plugin_id, "pluginstoload"
         )
         if not self.api("libs.plugins.loader:plugin.reload")(args["plugin"]):
+            if self.api("libs.plugins.loader:plugin.is.loaded")(args["plugin"]):
+                # the reload was refused or the unload failed; nothing changed
+                return CommandResult(
+                    False,
+                    [f"{args['plugin']} not reloaded and is still loaded, please check logs"],
+                )
             if args["plugin"] in plugins_to_load_setting:
                 plugins_to_load_setting.remove(args["plugin"])
                 self.api("plugins.core.settings:setting.set")(
                     self.plugin_id, "pluginstoload", plugins_to_load_setting
                 )
-            return CommandResult(False, [f"{args['plugin']} not reloaded, please check logs"])
+            return CommandResult(
+                False,
+                [f"{args['plugin']} was unloaded but not loaded again, please check logs"],
+            )
 
         # add the loaded plugins to the pluginstoload setting
         if args["plugin"] not in plugins_to_load_setting:

@@ -42,7 +42,7 @@ Key attributes:
 - **can_reload_f**: Whether the plugin can be unloaded or reloaded (checked by `plugin.unload`; a required plugin is also refused, see `PLUGIN_REQUIRED`)
 - **can_reset_f**: Whether the plugin can be reset
 - **reload_dependents_f**: Whether reloading the plugin also reloads the plugins that depend on it
-- **is_reloading_f**: Set by the `<plugin_id>:plugin.reloading.set` API (the `reload` command calls it); only then are `attributes_to_save_on_reload` cached
+- **is_reloading_f**: Set by `libs.plugins.loader:plugin.reload` once the reload is allowed (cleared again if the plugin cannot be unloaded); only then are `attributes_to_save_on_reload` cached
 - **attributes_to_save_on_reload**: List of attributes to preserve during reload (see [Reloading](#7-reloading))
 
 ### PluginLoader Class
@@ -415,7 +415,7 @@ by calling `plugin.state.save` on each.
 
 1. **Check**: if the plugin sets `reload_dependents_f`, every loaded plugin that depends on it (directly or transitively) is reloaded too. Nothing is unloaded unless all of them have `can_reload_f` set.
 
-2. **Unload**: dependents furthest first, then the plugin (see above). The `reload` command calls `<plugin_id>:plugin.reloading.set` first, which sets `is_reloading_f`; the attributes named in `attributes_to_save_on_reload` are only cached in that case.
+2. **Unload**: dependents furthest first, then the plugin (see above). Once the reload is allowed, the loader sets `is_reloading_f` on the plugin, and clears it if the unload fails; a refused reload leaves it unset. The attributes named in `attributes_to_save_on_reload` are only cached when it is set.
    ```python
    # In the plugin's __init__ or an __init__ plugin hook
    self.attributes_to_save_on_reload = ['some_state', 'other_data']

@@ -1075,6 +1075,10 @@ class PluginLoader:
         again with one load call so dependencies initialize before dependents.
         Plugins that were in ``pluginstoload`` are put back.
 
+        The plugin's ``is_reloading_f`` flag is set once the reload is allowed, and
+        cleared again if the plugin could not be unloaded. A refused reload leaves
+        it unset.
+
         Args:
             plugin_id: The ID of the plugin to reload.
 
@@ -1119,6 +1123,9 @@ class PluginLoader:
         )
         restore = [pid for pid in to_reload if pid in pluginstoload]
 
+        if instance:
+            instance.is_reloading_f = True
+
         unloaded: list[str] = []
         ok = True
         for pid in reversed(unload_order):
@@ -1126,6 +1133,10 @@ class PluginLoader:
                 ok = False
                 break
             unloaded.append(pid)
+
+        if instance and plugin_id not in unloaded:
+            # the plugin is still loaded, so it is not reloading
+            instance.is_reloading_f = False
 
         result = self.api("libs.plugins.loader:plugin.load")(unloaded, exit_on_error=False)
         if result["bad_plugins"]:
