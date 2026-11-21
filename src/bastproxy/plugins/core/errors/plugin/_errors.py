@@ -10,32 +10,52 @@
 # 3rd Party
 
 # Project
-import logging
 from typing import Any
 
 from bastproxy.libs.api import AddAPI
-from bastproxy.libs.logger import log_to
-from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
+from bastproxy.libs.logger import (
+    NOT_COLLECTED_ATTR,
+    add_error,
+    clear_errors,
+    get_errors,
+    get_logger,
+)
+from bastproxy.plugins._baseplugin import BasePlugin
 from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
 
-class ErrorPlugin(BasePlugin):
-    """a plugin to handle errors."""
+def format_errors(errors: list[dict[str, Any]]) -> list[str]:
+    """Format error entries, one block each, for the show command and the startup summary."""
+    msg: list[str] = []
+    for i in errors:
+        msg.extend(
+            (
+                "",
+                f"Time   : {i['timestamp']}",
+                f"Level  : {i['level']}",
+                f"Source : {i['source']}",
+                f"Error  : {i['msg']}",
+            )
+        )
+    return msg
 
-    @RegisterPluginHook("__init__")
-    def _phook_init_plugin(self) -> None:
-        """Initialize the instance."""
-        self.errors: list[dict[str, Any]] = []
+
+class ErrorPlugin(BasePlugin):
+    """a plugin to show the errors collected from the logging system."""
 
     @RegisterToEvent(event_name="ev_bastproxy_proxy_ready")
     def _eventcb_proxy_ready(self) -> None:
         """Show all errors that happened during startup."""
         if errors := self.api("plugins.core.errors:error.list")():
             msg = ["The following errors happened during startup:", "Proxy Errors"]
-            for i in errors:
-                msg.extend(("", f"Time  : {i['timestamp']}", f"Error : {i['msg']}"))
-            log_to([self.plugin_id, "mudproxy"], logging.ERROR, "%s", "\n".join(msg))
+            msg.extend(format_errors(errors))
+            # not collected again: the summary is logged at ERROR
+            get_logger(self.plugin_id).error(
+                "%s",
+                "\n".join(msg),
+                extra={"log_sources": (self.plugin_id, "mudproxy"), NOT_COLLECTED_ATTR: True},
+            )
 
     @AddAPI("error.add", description="add an error")
     def _api_error_add(self, timestamp: str, error: str) -> None:
@@ -43,7 +63,7 @@ class ErrorPlugin(BasePlugin):
 
         this function adds an error to the list
         """
-        self.errors.append({"timestamp": timestamp, "msg": error})
+        add_error(timestamp, error)
 
     @AddAPI("error.list", description="list all errors")
     def _api_error_list(self) -> list[dict[str, Any]]:
@@ -51,9 +71,10 @@ class ErrorPlugin(BasePlugin):
 
         this function has no arguments
 
-        this function returns the list of errors
+        this function returns a copy of the list of errors, each with timestamp, level,
+        source and msg
         """
-        return self.errors
+        return get_errors()
 
     @AddAPI("error.clear", description="clear all errors")
     def _api_error_clear(self) -> None:
@@ -63,7 +84,7 @@ class ErrorPlugin(BasePlugin):
 
         this function returns no values
         """
-        self.errors = []
+        clear_errors()
 
     @AddParser(description="show errors")
     @AddArgument("number", help="list the last <number> errors", default="-1", nargs="?")
@@ -82,12 +103,9 @@ class ErrorPlugin(BasePlugin):
             return CommandResult(False, msg)
 
         if errors := self.api("plugins.core.errors:error.list")():
-            if args and number > 0:
-                for i in errors[-number:]:
-                    msg.extend(("", f"Time  : {i['timestamp']}", f"Error : {i['msg']}"))
-            else:
-                for i in errors:
-                    msg.extend(("", f"Time   : {i['timestamp']}", f"Error  : {i['msg']}"))
+            if number > 0:
+                errors = errors[-number:]
+            msg.extend(format_errors(errors))
         else:
             msg.append("There are no errors")
         return CommandResult(True, msg)

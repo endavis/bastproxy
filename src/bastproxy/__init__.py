@@ -52,7 +52,7 @@ except ImportError:  # pragma: no cover - source tree without a build
 from bastproxy.libs import argp, timing
 from bastproxy.libs.api import API as BASEAPI
 from bastproxy.libs.asynch import run_asynch
-from bastproxy.libs.logger import get_logger
+from bastproxy.libs.logger import ERROR_BUFFER, get_logger
 from bastproxy.libs.plugins import reloadutils
 
 # Third Party
@@ -314,6 +314,10 @@ def main() -> None:
             level="INFO",
             format="%(asctime)s : %(levelname)-9s - %(name)-22s - %(message)s",
         )
+
+    # collect errors logged before plugins.core.log replaces the root handlers
+    if ERROR_BUFFER not in logging.getLogger().handlers:
+        logging.getLogger().addHandler(ERROR_BUFFER)
 
     mp = MudProxy()
 

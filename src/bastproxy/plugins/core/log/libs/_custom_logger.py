@@ -25,6 +25,7 @@ from typing import Any, TextIO, cast
 # Project
 from bastproxy.libs.api import API
 from bastproxy.libs.logger import (
+    ERROR_BUFFER,
     RECORD_LOG_BUFFER,
     RecordContextFilter,
     RecordIdFormatter,
@@ -331,6 +332,8 @@ def setup_loggers(log_level: int) -> None:
     logging.getLogger().addHandler(console_handler)
     logging.getLogger().addHandler(client_handler)
     logging.getLogger().addHandler(RECORD_LOG_BUFFER)
+    # no render or context filters: the buffer renders the message itself
+    logging.getLogger().addHandler(ERROR_BUFFER)
     logging.getLogger().addHandler(TypeCountHandler())
 
     if API.LOG_IN_UTC_TZ:
