@@ -1664,9 +1664,9 @@ class CommandsPlugin(BasePlugin):
             self.command_history_dict.sync()
             message.append("Command history cleared")
         else:
-            message.extend(
-                f"{self.command_history_data.index(i)} : {i}" for i in self.command_history_data
-            )
+            if not self.command_history_data:
+                return CommandResult(True, ["No commands in history"])
+            message.extend(f"{n} : {i}" for n, i in enumerate(self.command_history_data))
         return CommandResult(True, message)
 
     @RegisterPluginHook("uninitialize")
