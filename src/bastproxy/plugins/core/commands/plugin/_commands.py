@@ -851,6 +851,13 @@ class CommandsPlugin(BasePlugin):
         if not (event_record := self.api("plugins.core.events:event.current.record.get")()):
             return
 
+        # a line typed with echo off takes no part in the repeat-command check and is
+        # neither stored nor logged (#695)
+        if event_record["line"].mask_log:
+            self.api("plugins.core.settings:setting.set")(self.plugin_id, "cmdcount", 0)
+            self.api("plugins.core.settings:setting.set")(self.plugin_id, "lastcmd", "")
+            return
+
         original_command = event_record["line"].line
 
         # if the command is the same as the last command, do antispam checks
@@ -1371,7 +1378,12 @@ class CommandsPlugin(BasePlugin):
         line_show_in_history = input_show_in_history and event_record["showinhistory"]
         event_record["showinhistory"] = input_show_in_history
 
-        if line_show_in_history and not event_record["line"].internal:
+        # a line typed with echo off is not recorded in the history (#695)
+        if (
+            line_show_in_history
+            and not event_record["line"].internal
+            and not event_record["line"].mask_log
+        ):
             self.add_command_to_history(event_record["line"].line)
 
         self.current_input_event = None
