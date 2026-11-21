@@ -357,13 +357,15 @@ class UtilsPlugin(BasePlugin):
 
     @AddAPI("string.dedent", description="dedent a list of strings")
     def _api_string_dedent(self, list_of_strings: list[str]) -> list[str]:
-        """Dedent a list of strings."""
-        if len(list_of_strings) == 0:
-            return list_of_strings
-        new_data = [list_of_strings[0].lstrip()]
-        diff = len(list_of_strings[0]) - len(new_data[0])
-        new_data.extend(line[diff:] for line in list_of_strings[1:])
-        return new_data
+        """Dedent a list of strings by their common indentation.
+
+        The common indentation is the smallest indentation of the non-blank lines. It is removed
+        from each non-blank line, and a whitespace-only line becomes an empty string. The input
+        list is not modified.
+        """
+        indents = [len(line) - len(line.lstrip()) for line in list_of_strings if line.strip()]
+        common = min(indents, default=0)
+        return [line[common:] if line.strip() else "" for line in list_of_strings]
 
     @AddAPI(
         "timedelta.to.string",
