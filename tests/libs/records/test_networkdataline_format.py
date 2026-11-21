@@ -4,6 +4,8 @@ import pytest
 
 from bastproxy.libs.api import API
 from bastproxy.libs.records.rtypes.networkdata import NetworkDataLine
+from bastproxy.plugins.core.colors.libs._tokenizer import tokenize
+from bastproxy.plugins.core.colors.plugin._colors import _to_ansicode
 
 from .conftest import StandIns
 
@@ -42,7 +44,7 @@ def test_format_telnet_bytes_untouched(plugin_stand_ins: StandIns) -> None:
 def test_format_without_line_endings(plugin_stand_ins: StandIns) -> None:
     line = NetworkDataLine("hello", originated="mud", had_line_endings=False)
     line.format()
-    assert line.line == "ANSI(hello)"
+    assert line.line == "hello"
 
 
 @pytest.mark.parametrize(
@@ -172,3 +174,36 @@ def test_bytearray_assigned_to_locked_line_raises(plugin_stand_ins: StandIns) ->
     with pytest.raises(RuntimeError):
         line.line = bytearray(b"\xff\xfc\x01")  # type: ignore[assignment]
     assert line.line == b"\xff\xfb\x01"
+
+
+def test_format_mud_line_unchanged(plugin_stand_ins: StandIns) -> None:
+    text = "mail me at bob\x1b[0;31m@rhost and a||b"
+    line = NetworkDataLine(text, originated="mud")
+    line.format()
+    assert line.line == text + "\r\n"
+
+
+def test_format_mud_line_ignores_color(plugin_stand_ins: StandIns) -> None:
+    line = NetworkDataLine("hello", originated="mud", color="@r")
+    line.format()
+    assert line.line == "hello\r\n"
+
+
+def test_format_client_line_to_mud_fixes_separator(plugin_stand_ins: StandIns) -> None:
+    line = NetworkDataLine("a||b", originated="client")
+    line.format(to_mud=True)
+    assert line.line == "ANSI(a|b)\r\n"
+
+
+def test_format_substituted_mud_text_stays_literal(plugin_stand_ins: StandIns) -> None:
+    API("test718").add(
+        "plugins.core.colors",
+        "colorcode.to.ansicode",
+        lambda s: _to_ansicode(tokenize(s)),
+        force=True,
+    )
+    line = NetworkDataLine("original", originated="mud")
+    line.line = API("test718")(ANSICODE)("Said: bob@@rhost")
+    line.format()
+    assert line.line == "Said: bob@rhost\r\n"
+    assert "\x1b" not in line.line

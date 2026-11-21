@@ -340,17 +340,23 @@ class NetworkDataLine(TrackedRecordMixin, TrackedAttr):
         With ``to_mud`` an internal line gets only its line endings: the preamble
         and colour codes are for a client's display, and the MUD must receive the
         bare command (#555).
+
+        A MUD line gets only its line endings: its ``@`` and doubled separators
+        reach the client unchanged, and ``color`` does not apply to it (#718).
         """
         if self._line_locked:
             return
         if self.is_io:
+            if self.frommud:  # MUD text is already ANSI and is not proxy markup
+                self.add_line_endings()
+                return
             if self.internal:  # generated from the proxy
                 if to_mud:
                     self.add_line_endings()
                     return
                 if self.preamble:
                     self.add_preamble()
-            else:  # generated from a client
+            else:  # the line came from a client
                 self.fix_double_command_seperator()
 
             self.color_line()

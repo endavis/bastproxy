@@ -78,12 +78,21 @@ def test_process_exec_end_to_end(plugin_stand_ins: StandIns) -> None:
     assert modify.snapshot == ["from mud"]
     assert read.name == TO_CLIENT_DATA_READ
     assert plugin_stand_ins.sent_to_clients == [
-        ("u1", "ANSI(from mud)\r\n"),
+        ("u1", "from mud\r\n"),
         ("u1", b"\xff\xfb"),
         ("u1", "ANSI(@C#BP@w: internal)\r\n"),
     ]
-    assert read.snapshot == ["ANSI(from mud)\r\n", b"\xff\xfb", "ANSI(@C#BP@w: internal)\r\n"]
+    assert read.snapshot == ["from mud\r\n", b"\xff\xfb", "ANSI(@C#BP@w: internal)\r\n"]
     assert message.locked
+
+
+def test_process_mud_line_with_codes_reaches_client_unchanged(
+    plugin_stand_ins: StandIns,
+) -> None:
+    plugin_stand_ins.logged_in = {"u1"}
+    plugin_stand_ins.clients = ["u1"]
+    ProcessDataToClient(NetworkData([NetworkDataLine("bob@rhost a||b", originated="mud")]))()
+    assert plugin_stand_ins.sent_to_clients == [("u1", "bob@rhost a||b\r\n")]
 
 
 def test_process_exec_send_to_clients_false(plugin_stand_ins: StandIns) -> None:
