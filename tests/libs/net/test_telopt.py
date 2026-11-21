@@ -34,6 +34,7 @@ class FakeWriter:
     def __init__(self, enabled: bool = True, server: bool = False) -> None:
         self.remote_option = _Opts({bytes([102]): enabled})
         self.local_option = _Opts()
+        self.pending_option = _Opts()
         self.peer_offered: set[bytes] = set()
         self.server = server
         self.closing = False
@@ -333,13 +334,64 @@ def test_mud_disconnect_raises_disabled_for_enabled_options(isolated: FakeApi) -
     assert [e for e, _ in isolated.raised] == ["ev_libs.net.mud_telopt_102_disabled"]
 
 
-def test_will_offer_to_attached_clients_on_register() -> None:
+def _login(monkeypatch: pytest.MonkeyPatch, link: FakeWriter, uuid: str = "c1") -> MagicMock:
+    """Put a fake logged-in connection holding ``link`` into the manager's clients."""
+    link.link_id = uuid
+    conn = MagicMock()
+    conn.uuid = uuid
+    conn.writer = link
+    monkeypatch.setitem(PROTOCOLS.telopt._clients, uuid, conn)
+    return conn
+
+
+def test_will_offer_to_logged_in_clients_on_register(monkeypatch: pytest.MonkeyPatch) -> None:
+    link = FakeWriter(server=True)
+    link.remote_option.clear()
+    PROTOCOLS.telopt.attach(link)
+    _login(monkeypatch, link)
+    _call(REGISTER, 102, OWNER)
+    assert link.iacs == [(WILL, bytes([102]))]
+    assert PROTOCOLS.telopt.client_options() == [102]
+
+
+def test_no_offer_to_an_attached_client_that_has_not_logged_in() -> None:
     link = FakeWriter(server=True)
     link.remote_option.clear()
     PROTOCOLS.telopt.attach(link)
     _call(REGISTER, 102, OWNER)
+    assert link.iacs == []
+
+
+def test_client_ready_offers_registered_client_options(monkeypatch: pytest.MonkeyPatch) -> None:
+    _call(REGISTER, 102, OWNER)
+    _call(REGISTER, 90, OWNER, client=False)
+    link = FakeWriter(server=True)
+    conn = _login(monkeypatch, link)
+    PROTOCOLS.telopt.client_ready(conn)
     assert link.iacs == [(WILL, bytes([102]))]
-    assert PROTOCOLS.telopt.client_options() == [102]
+
+
+def test_client_ready_skips_closing_enabled_and_pending_links(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _call(REGISTER, 102, OWNER)
+    closing = FakeWriter(server=True)
+    closing.closing = True
+    enabled = FakeWriter(server=True)
+    enabled.local_option[bytes([102])] = True
+    pending = FakeWriter(server=True)
+    pending.pending_option[WILL + bytes([102])] = True
+    for i, link in enumerate((closing, enabled, pending)):
+        PROTOCOLS.telopt.client_ready(_login(monkeypatch, link, f"c{i}"))
+    assert closing.iacs == enabled.iacs == pending.iacs == []
+
+
+def test_client_logged_in_follows_the_manager_clients(monkeypatch: pytest.MonkeyPatch) -> None:
+    link = FakeWriter(server=True)
+    link.link_id = "c9"
+    assert PROTOCOLS.telopt.client_logged_in(link) is False
+    _login(monkeypatch, link, "c9")
+    assert PROTOCOLS.telopt.client_logged_in(link) is True
 
 
 ENABLED_102 = "ev_libs.net.mud_telopt_102_enabled"

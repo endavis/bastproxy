@@ -339,3 +339,104 @@ def test_builtin_option_sb_still_reaches_telnetlib3(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(writer, "_handle_sb_gmcp", spy, raising=False)
     writer.handle_subnegotiation(collections.deque([GMCP, b"x"]))
     spy.assert_called_once()
+
+
+# options negotiated only after login (#703) --------------------------------------
+
+
+class _Hooks:
+    """Stub hooks: option 102 is claimed for clients; ``logged_in`` says whether they logged in."""
+
+    def __init__(self, logged_in: bool, *, claimed: bool = True, fail: bool = False) -> None:
+        self.logged_in = logged_in
+        self.claimed = claimed
+        self.fail = fail
+        self.sbs: list[tuple[int, bytes]] = []
+
+    def claims(self, opt: int, *, server: bool) -> bool:
+        return self.claimed and server and opt == 102
+
+    def client_logged_in(self, _writer: Any) -> bool:
+        if self.fail:
+            msg = "hooks broke"
+            raise RuntimeError(msg)
+        return self.logged_in
+
+    def on_enabled(self, _writer: Any, _opt: int, _enabled: bool) -> None:
+        return None
+
+    def on_subnegotiation(self, _writer: Any, opt: int, payload: bytes) -> None:
+        self.sbs.append((opt, payload))
+
+
+def _server_writer(hooks: _Hooks | None) -> RecordingTelnetWriter:
+    writer = RecordingTelnetWriter(
+        MagicMock(), MagicMock(), fn_encoding=lambda **_k: "utf8", server=True
+    )
+    writer.telopt_hooks = hooks
+    writer.send_iac = MagicMock()  # type: ignore[method-assign]
+    writer.is_closing = lambda: False  # type: ignore[method-assign]
+    return writer
+
+
+@pytest.mark.parametrize("opt", [b"\x5a", b"\x66", b"\xc8"])
+def test_do_for_a_claimable_option_before_login_gets_wont(opt: bytes) -> None:
+    writer = _server_writer(_Hooks(logged_in=False))
+    assert writer.handle_do(opt) is False
+    writer.send_iac.assert_called_once_with(IAC + WONT + opt)  # type: ignore[attr-defined]
+    assert writer.local_option.enabled(opt) is False
+
+
+@pytest.mark.parametrize("opt", [b"\x5a", b"\x66", b"\xc8"])
+def test_do_for_an_unclaimed_option_after_login_gets_wont(opt: bytes) -> None:
+    writer = _server_writer(_Hooks(logged_in=True, claimed=False))
+    assert writer.handle_do(opt) is False
+    writer.send_iac.assert_called_once_with(IAC + WONT + opt)  # type: ignore[attr-defined]
+
+
+def test_do_for_a_claimed_option_after_login_is_accepted() -> None:
+    writer = _server_writer(_Hooks(logged_in=True))
+    assert writer.handle_do(b"\x66") is True
+    writer.send_iac.assert_called_once_with(IAC + WILL + b"\x66")  # type: ignore[attr-defined]
+    assert writer.local_option.enabled(b"\x66") is True
+
+
+def test_do_without_hooks_or_with_failing_hooks_counts_as_not_logged_in() -> None:
+    for hooks in (None, _Hooks(logged_in=True, fail=True)):
+        writer = _server_writer(hooks)
+        assert writer.handle_do(b"\x66") is False
+        assert writer.local_option.enabled(b"\x66") is False
+
+
+def test_a_claimable_sb_before_login_is_dropped_before_the_record(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    hooks = _Hooks(logged_in=False)
+    writer = _server_writer(hooks)
+    writer.local_option[b"\x66"] = True
+    buf = collections.deque([b"\x66", b"\x07", b"\x01"])
+    with caplog.at_level(logging.DEBUG, logger="bastproxy.libs.net.negotiation"):
+        writer.handle_subnegotiation(buf)
+    assert _records() == []
+    assert hooks.sbs == []
+    assert not buf
+    assert any("before the client logged in" in r.getMessage() for r in caplog.records)
+
+
+def test_a_claimed_sb_after_login_is_dispatched() -> None:
+    hooks = _Hooks(logged_in=True)
+    writer = _server_writer(hooks)
+    writer.local_option[b"\x66"] = True
+    writer.handle_subnegotiation(collections.deque([b"\x66", b"\x07", b"\x01"]))
+    assert hooks.sbs == [(102, b"\x07\x01")]
+    assert [r.command for r in _records()] == ["SB"]
+
+
+def test_a_builtin_sb_before_login_still_reaches_telnetlib3(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    writer = _server_writer(_Hooks(logged_in=False))
+    spy = MagicMock()
+    monkeypatch.setattr(writer, "_handle_sb_naws", spy, raising=False)
+    writer.handle_subnegotiation(collections.deque([NAWS, b"\x00\x50\x00\x18"]))
+    assert [r.command for r in _records()] == ["SB"]

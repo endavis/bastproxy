@@ -129,7 +129,11 @@ async def join(
     client = await proxy.connect(agree)
     stack.push_async_callback(client.close)
     if login:
-        proxy.login(len(proxy.connections) - 1)
+        conn = proxy.login(len(proxy.connections) - 1)
+        # options are offered at login: wait until the agreed ones are on
+        for opt in PROTOCOLS.telopt.client_options():
+            if bytes([opt]) in agree:
+                await wait_until(lambda opt=opt: conn.writer.local_option.enabled(bytes([opt])))  # type: ignore[misc]
     return client
 
 
@@ -293,7 +297,10 @@ async def test_a_new_client_is_offered_a_registered_option() -> None:
     PROTOCOLS.telopt.register(102, OWNER)
     async with proxy_server(connections=True) as proxy, AsyncExitStack() as stack:
         client = await join(stack, proxy, {A102}, login=False)
-        assert (WILL, A102) in client.commands
+        await settle()
+        assert (WILL, A102) not in client.commands
+        proxy.login(0)
+        await client.wait_for(lambda: (WILL, A102) in client.commands)
 
 
 async def test_no_offer_when_unregistered_or_not_for_clients() -> None:
@@ -307,9 +314,82 @@ async def test_no_offer_when_unregistered_or_not_for_clients() -> None:
         assert (WILL, A102) not in client.commands
 
 
-async def test_registering_offers_to_clients_already_connected() -> None:
+async def test_do_before_login_gets_wont_and_no_offer() -> None:
+    PROTOCOLS.telopt.register(102, OWNER)
+    async with proxy_server(connections=True) as proxy, AsyncExitStack() as stack:
+        client = await join(stack, proxy, set(), login=False)
+        client.send(IAC + DO + A102)
+        await client.wait_for(lambda: (WONT, A102) in client.commands)
+        await settle()
+        assert (WILL, A102) not in client.commands
+
+
+@pytest.mark.parametrize("option", [90, 102, 200])
+@pytest.mark.parametrize("login", [False, True])
+async def test_do_for_an_unclaimed_option_gets_wont(option: int, login: bool) -> None:
+    opt = bytes([option])
+    async with proxy_server(connections=True) as proxy, AsyncExitStack() as stack:
+        client = await join(stack, proxy, set(), login=login)
+        client.send(IAC + DO + opt)
+        await client.wait_for(lambda: (WONT, opt) in client.commands)
+        await settle()
+        assert (WILL, opt) not in client.commands
+
+
+async def test_a_claimed_option_is_offered_at_login() -> None:
+    PROTOCOLS.telopt.register(102, OWNER)
     async with proxy_server(connections=True) as proxy, AsyncExitStack() as stack:
         client = await join(stack, proxy, {A102}, login=False)
+        await settle()
+        assert (WILL, A102) not in client.commands
+        conn = proxy.login(0)
+        await client.wait_for(lambda: (WILL, A102) in client.commands)
+        await wait_until(lambda: conn.uuid in (PROTOCOLS.telopt.get(102) or {}).get("clients", []))
+
+
+async def test_a_do_before_login_does_not_stop_the_offer_at_login() -> None:
+    PROTOCOLS.telopt.register(102, OWNER)
+    async with proxy_server(connections=True) as proxy, AsyncExitStack() as stack:
+        client = await join(stack, proxy, {A102}, login=False)
+        client.send(IAC + DO + A102)
+        await client.wait_for(lambda: (WONT, A102) in client.commands)
+        conn = proxy.login(0)
+        await client.wait_for(lambda: (WILL, A102) in client.commands)
+        await wait_until(lambda: conn.writer.local_option.enabled(A102))
+
+
+async def test_a_subnegotiation_before_login_is_not_recorded(isolated: FakeApi) -> None:
+    PROTOCOLS.telopt.register(102, OWNER)
+    async with proxy_server(connections=True) as proxy, AsyncExitStack() as stack:
+        client = await join(stack, proxy, {A102}, login=False)
+        client.send(sb_frame(A102, bytes([7, 1])))
+        await settle()
+        link = proxy.connections[0].uuid
+        sb_records = [
+            r
+            for r in RMANAGER.records.get("TelnetNegotiation", {}).values()
+            if r.link == link and r.command == "SB" and r.option == "102"
+        ]
+        assert sb_records == []
+        assert isolated.raised == []
+        assert _telopt_records("received", link) == []
+
+
+async def test_a_late_claim_reaches_only_logged_in_clients() -> None:
+    async with proxy_server(connections=True) as proxy, AsyncExitStack() as stack:
+        in_client = await join(stack, proxy, {A102})
+        out_client = await join(stack, proxy, {A102}, login=False)
+        PROTOCOLS.telopt.register(102, OWNER)
+        await in_client.wait_for(lambda: (WILL, A102) in in_client.commands)
+        await settle()
+        assert (WILL, A102) not in out_client.commands
+        proxy.login(1)
+        await out_client.wait_for(lambda: (WILL, A102) in out_client.commands)
+
+
+async def test_registering_offers_to_clients_already_connected() -> None:
+    async with proxy_server(connections=True) as proxy, AsyncExitStack() as stack:
+        client = await join(stack, proxy, {A102})
         assert (WILL, A102) not in client.commands
         PROTOCOLS.telopt.register(102, OWNER)
         await client.wait_for(lambda: (WILL, A102) in client.commands)
