@@ -373,6 +373,7 @@ counts stayed in `saved_command_counts` (**verified**, `out-q2bbad.txt`).
 | Returns `CommandResult(True, "hi")` | one line: `hi` | `True` | a call |
 | Returns anything else (a tuple, a bool, `None`) | `Error running command: <cmd>`; ERROR log | `False`, reason `function returned an invalid result` | one error |
 | Bad or missing argument, unclosed quote | `@RError: ...`, a blank line, the help | `False`, reason `could not parse args` | not counted |
+| Arguments longer than 8192 characters | `@RError: arguments are longer than 8192 characters@w`; the command does not run and the line is not recorded in the history | `False`, reason `arguments too long` | not counted |
 | `-h` | the help | `True`, reason `help` | not counted |
 | Unknown command | the error page and the plugin's command list; the line is dropped | not run | not counted |
 
