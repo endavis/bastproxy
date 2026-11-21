@@ -125,9 +125,14 @@ class TaskItem:
         if asyncio.iscoroutine(self.func):
             self.coroutine = self.func
         elif callable(self.func):
-            self.coroutine = self.func()
+            result = self.func()
+            if not asyncio.iscoroutine(result):
+                msg = f"(Task) {self.name} : {func!r} did not return a coroutine, got {result!r}"
+                raise TypeError(msg)
+            self.coroutine = result
         else:
-            logger.error("(Task) %s : %s is not a coroutine or callable", self.name, func)
+            msg = f"(Task) {self.name} : {func!r} is not a coroutine or callable"
+            raise TypeError(msg)
 
     @property
     def done(self) -> bool:
@@ -222,7 +227,7 @@ class QueueManager:
     # add a task to the asyncio_tasks queue
     def _api_task_add(
         self, task: Awaitable | Callable, name: str, startstring: str = ""
-    ) -> TaskItem:
+    ) -> TaskItem | None:
         """Add a task to the asyncio tasks queue.
 
         This method adds a new task to the task queue for asynchronous execution.
@@ -236,13 +241,19 @@ class QueueManager:
                 is created. Defaults to ''.
 
         Returns:
-            TaskItem: The created TaskItem object.
+            TaskItem | None: The created TaskItem object, or None (with an error
+                logged and nothing queued) if the task is not a coroutine or a
+                callable returning a coroutine.
 
         Raises:
             None
 
         """
-        new_task = TaskItem(task, name, startstring)
+        try:
+            new_task = TaskItem(task, name, startstring)
+        except TypeError as e:
+            logger.error("(Task) %s : could not add task: %s", name, e)
+            return None
         self.task_queue.put_nowait(new_task)
         return new_task
 
@@ -267,7 +278,10 @@ class QueueManager:
         while True:
             task: TaskItem = await self.task_queue.get()
 
-            task.create()
+            try:
+                task.create()
+            except Exception:  # pylint: disable=broad-except
+                logger.exception("(Task) %s : could not create task", task.name)
 
             logger.debug("Tasks - %s", asyncio.all_tasks())
 
