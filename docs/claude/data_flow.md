@@ -289,20 +289,21 @@ An exception in a callback is caught and logged by `Event.raise_priority()`. The
 |-------|-----------|------------------------|----------------|
 | `ev_to_mud_data_modify` | `ProcessDataToMud` | `NetworkDataLine` (client I/O lines) | commands, watch, aliases, variables |
 | `ev_to_mud_data_read` | `SendDataDirectlyToMud` | `NetworkDataLine` (locked, after formatting) | triggers |
-| `ev_to_client_data_modify` | `ProcessDataToClient` | `NetworkDataLine` (MUD I/O lines) | triggers |
+| `ev_to_client_data_modify` | `ProcessDataToClient` | `NetworkDataLine` (MUD I/O lines) | triggers, substitutes |
 | `ev_to_client_data_read` | `SendDataDirectlyToClient` | `NetworkDataLine` (locked, after formatting) | none |
 
 `ev_to_mud_data_modify` also carries `showinhistory` and `client_id`. `ev_to_mud_data_read` carries `client_id`.
 
 ### Core listeners
 
-Commands, watch and triggers register at the default priority, 50. Aliases registers at 55 and variables at 60, so both run after commands, aliases first.
+Commands, watch and triggers register at the default priority, 50. Aliases registers at 55 and variables at 60, so both run after commands, aliases first. On `ev_to_client_data_modify`, substitutes registers at 60, after triggers.
 
 - **Commands** (`src/bastproxy/plugins/core/commands/plugin/_commands.py`, `_eventcb_check_for_command`): a line starting with the command prefix (`#bp`) is run as a proxy command, its `send` flag is cleared and the output is sent to the client. Other lines pass through. Lines not from the proxy are added to the command history when `showinhistory` is set.
 - **Watch** (`src/bastproxy/plugins/core/watch/plugin/_watch.py`, `_eventcb_check_command`): meant to match client input against registered watch regexes and raise a per-watch event. It skips lines that are not I/O (such as `COMMAND-TELNET`) and matches each regex against the line's text; the raised event's `data` argument is that text.
 - **Triggers** (`src/bastproxy/plugins/core/triggers/plugin/_triggers.py`, `_eventcb_check_trigger`): skips internal lines, matches `line.noansi` (MXP markup already stripped for lines with an `mxp_mode`) against one combined regex of all triggers, and raises the matching trigger events. Triggers can gag or change the line.
 - **Aliases** (`src/bastproxy/plugins/client/aliases/plugin/_aliases.py`, `_eventcb_expand_line`, priority 55): replaces the first word of a client line that is sent, not masked and not a command line, when it is an enabled alias. A single-line expansion rewrites the line in place. An expansion with the command separator or the command prefix sets `send` to False and goes back through `command.line.run`. See [Aliases](../client/aliases.md).
 - **Variables** (`src/bastproxy/plugins/client/variables/plugin/_variables.py`, `_eventcb_expand_line`, priority 60): expands `%{name}` references in client lines that are sent, not masked and not command lines. See [Variables](../client/variables.md).
+- **Substitutes** (`src/bastproxy/plugins/client/substitutes/plugin/_substitutes.py`, `_eventcb_substitute_line`, priority 60): rewrites matching text of MUD lines that are not internal, not gagged and not MXP, keeping colour codes. It runs after triggers, so triggers and actions see the original text. See [Substitutes](../client/substitutes.md).
 
 ## Data Flow Paths
 

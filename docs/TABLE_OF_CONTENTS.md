@@ -17,6 +17,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Keeping Up to Date](template/updates.md) - Stay in sync with improvements to the pyproject-template
 - [Migration Guide](template/migration.md) - Migrate existing Python projects to use this template
 - [New Project Setup](template/new-project.md) - Create a new Python project from this template
+- [Substitutes](client/substitutes.md) - Rewrite text in MUD output before it reaches the client, keeping colour, with plain or regex matching
 - [Template Management](template/manage.md) - Unified interface for creating projects, checking updates, and syncing
 - [Template Tools Reference](template/tools-reference.md) - Complete reference for all template tools in tools/pyproject_template/
 - [Using This Template](template/index.md) - Overview of using pyproject-template for your Python projects
@@ -44,6 +45,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [ADR-0016: User variables expand %{name} references on the input path](decisions/0016-user-variables-expand-name-references-on-the-input-path.md) - User variables are %{name} references expanded in one pass on ev_to_mud_data_modify at priority 60, with an API for aliases, actions and loop.
 - [ADR-0017: User aliases expand the first word on the input path at priority 55](decisions/0017-user-aliases-expand-the-first-word-on-the-input-path-at-priority-55.md) - Aliases expand the first word of client input at priority 55, in place or by re-sending, with %1-%9 and %* arguments and a depth bound of 10.
 - [ADR-0018: User actions substitute trigger groups into commands and escape matched text](decisions/0018-user-actions-substitute-trigger-groups-into-commands-and-escape-matched-text.md) - Actions put trigger groups into commands as %1-%9, %* and %<name>, and escape matched MUD text per part.
+- [ADR-0019: User substitutions rewrite MUD lines after triggers and keep colour codes](decisions/0019-user-substitutions-rewrite-mud-lines-after-triggers-and-keep-colour-codes.md) - Substitutions rewrite MUD lines at priority 60, after triggers, rebuilding colour codes token by token.
 - [ADR-9001: Use uv for package management](decisions/9001-use-uv-for-package-management.md) - Use uv for dependency management, virtual environments and package installation
 - [ADR-9002: Use doit for task automation](decisions/9002-use-doit-for-task-automation.md) - Use doit as the task runner for testing, linting, building and other routine operations
 - [ADR-9003: Use ruff for linting and formatting](decisions/9003-use-ruff-for-linting-and-formatting.md) - Use ruff as the one tool for linting and formatting, in place of flake8, black and isort
@@ -120,6 +122,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Settings System](claude/settings_system.md) - Per-plugin settings, persistence and change events
 - [Slash Commands and Workflows](development/ai/slash-commands.md) - Reference for the slash commands and dual-agent workflow this project ships with
 - [SQLite Database System](claude/sqldb_system.md) - How plugins store data in SQLite through the sqldb plugin
+- [Substitutes](client/substitutes.md) - Rewrite text in MUD output before it reaches the client, keeping colour, with plain or regex matching
 - [Template Tools Reference](template/tools-reference.md) - Complete reference for all template tools in tools/pyproject_template/
 - [Timers System](claude/timers_system.md) - Scheduling recurring and one-shot timers from plugins
 - [Tooling Roles and Architectural Boundaries](development/tooling-roles.md) - What each tool is for, who uses it, and where runtime code ends and dev tooling begins
@@ -194,6 +197,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [ADR-0016: User variables expand %{name} references on the input path](decisions/0016-user-variables-expand-name-references-on-the-input-path.md) - User variables are %{name} references expanded in one pass on ev_to_mud_data_modify at priority 60, with an API for aliases, actions and loop.
 - [ADR-0017: User aliases expand the first word on the input path at priority 55](decisions/0017-user-aliases-expand-the-first-word-on-the-input-path-at-priority-55.md) - Aliases expand the first word of client input at priority 55, in place or by re-sending, with %1-%9 and %* arguments and a depth bound of 10.
 - [ADR-0018: User actions substitute trigger groups into commands and escape matched text](decisions/0018-user-actions-substitute-trigger-groups-into-commands-and-escape-matched-text.md) - Actions put trigger groups into commands as %1-%9, %* and %<name>, and escape matched MUD text per part.
+- [ADR-0019: User substitutions rewrite MUD lines after triggers and keep colour codes](decisions/0019-user-substitutions-rewrite-mud-lines-after-triggers-and-keep-colour-codes.md) - Substitutions rewrite MUD lines at priority 60, after triggers, rebuilding colour codes token by token.
 - [ADR-9001: Use uv for package management](decisions/9001-use-uv-for-package-management.md) - Use uv for dependency management, virtual environments and package installation
 - [ADR-9002: Use doit for task automation](decisions/9002-use-doit-for-task-automation.md) - Use doit as the task runner for testing, linting, building and other routine operations
 - [ADR-9003: Use ruff for linting and formatting](decisions/9003-use-ruff-for-linting-and-formatting.md) - Use ruff as the one tool for linting and formatting, in place of flake8, black and isort
@@ -275,6 +279,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Settings System](claude/settings_system.md) - Per-plugin settings, persistence and change events
 - [Slash Commands and Workflows](development/ai/slash-commands.md) - Reference for the slash commands and dual-agent workflow this project ships with
 - [SQLite Database System](claude/sqldb_system.md) - How plugins store data in SQLite through the sqldb plugin
+- [Substitutes](client/substitutes.md) - Rewrite text in MUD output before it reaches the client, keeping colour, with plain or regex matching
 - [Template Management](template/manage.md) - Unified interface for creating projects, checking updates, and syncing
 - [Template Tools Reference](template/tools-reference.md) - Complete reference for all template tools in tools/pyproject_template/
 - [Timers System](claude/timers_system.md) - Scheduling recurring and one-shot timers from plugins
