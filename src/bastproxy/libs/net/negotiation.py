@@ -112,6 +112,10 @@ class TeloptHooks(Protocol):
         """True when ``opt`` is claimed for this kind of link."""
         ...
 
+    def client_logged_in(self, writer: Any) -> bool:
+        """True when the client link ``writer`` belongs to a client that has logged in."""
+        ...
+
     def on_enabled(self, writer: Any, opt: int, enabled: bool) -> None:
         """A claimed option was enabled or disabled on ``writer``'s link."""
         ...
@@ -181,6 +185,9 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
 
     # Answers for options a plugin claimed with ``telopt.register`` (#566); ``None`` claims none.
     # An SB for an unowned option outside BUILTIN_OPTIONS is dropped, not passed on (#586).
+    # On a client link a claimable option is negotiated only with a logged-in client: a ``DO``
+    # before login or for an unclaimed option gets ``WONT``, and an ``SB`` before login is
+    # discarded (#703).
     telopt_hooks: TeloptHooks | None = None
 
     # Called as ``(option)`` after a received ``DONT`` is handled; ``None`` means nobody listens.
@@ -250,6 +257,17 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
             logger.exception("Could not check whether option %s is claimed", name_option(opt))
             return False
 
+    def _client_logged_in(self) -> bool:
+        """True when this client link's client has logged in; a hooks failure counts as no."""
+        hooks = self.telopt_hooks
+        if hooks is None:
+            return False
+        try:
+            return bool(hooks.client_logged_in(self))
+        except Exception:
+            logger.exception("Could not check whether a client has logged in")
+            return False
+
     def _telopt_enabled(self, opt: bytes, enabled: bool) -> None:
         """Tell the hooks a claimed option changed state."""
         hooks = self.telopt_hooks
@@ -263,7 +281,12 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
     def handle_do(self, opt: bytes) -> bool:
         """Record a received DO, then let telnetlib3 answer."""
         self._record(Direction.RECEIVED, "DO", opt, b"", IAC + DO + opt)
-        if self.server and self._telopt_claims(opt):
+        if self.server and len(opt) == 1 and opt[0] not in BUILTIN_OPTIONS:
+            if not (self._telopt_claims(opt) and self._client_logged_in()):
+                # unclaimed, or the client has not logged in: refuse it (#703)
+                if not self.local_option.enabled(opt) and not self.is_closing():
+                    self.send_iac(IAC + WONT + opt)
+                return False
             # a claimed option: accept it, answering only when we did not offer it ourselves
             if not self.local_option.enabled(opt):
                 if not self.pending_option.enabled(WILL + opt) and not self.is_closing():
@@ -325,6 +348,19 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
         A claimed option goes to its plugin. An option outside ``BUILTIN_OPTIONS`` that no plugin
         owns is dropped with a debug log. Everything else goes to telnetlib3.
         """
+        if (
+            self.server
+            and buf
+            and len(buf[0]) == 1
+            and buf[0][0] not in BUILTIN_OPTIONS
+            and not self._client_logged_in()
+        ):
+            # options negotiated only after login: discard before it is recorded or dispatched
+            logger.debug(
+                "Dropped a subnegotiation: %s before the client logged in", name_option(buf[0])
+            )
+            buf.clear()
+            return
         try:
             items = list(buf)
             if items:

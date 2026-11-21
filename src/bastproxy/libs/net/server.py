@@ -139,10 +139,10 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
           every link (ADR-0001, #59, #60). A client receives nothing until it answers ``DO``
           and has logged in.
 
-        - ``WILL <option>`` for each option a plugin owns for clients (``telopt.register``,
-          #566); clients already connected are offered it when the plugin registers.
-
         Deliberately not sent:
+
+        - ``WILL <option>`` for each option a plugin owns for clients (``telopt.register``,
+          #566): the client is offered it when it logs in (``TeloptManager.client_ready``, #703).
 
         - ``WILL BINARY`` (and so no ``DO BINARY`` from telnetlib3, which follows an accepted
           ``WILL BINARY``): plain telnet in BINARY mode sends Enter as a bare LF and echoes it
@@ -171,8 +171,6 @@ class CustomTelnetServer(telnetlib3.TelnetServer):
         self.writer.iac(WILL, MSSP)
         self.writer.iac(WILL, MXP)
         self.writer.iac(WILL, EOR)
-        for option in PROTOCOLS.telopt.client_options():
-            self.writer.iac(WILL, bytes([option]))
         if self._mccp2_enabled and self.writer.get_extra_info("ssl_object") is None:
             self.writer.iac(WILL, MCCP2_COMPRESS)
             # redundant on telnetlib3 5.0.3, which accepts an offered MCCP3; kept explicit
