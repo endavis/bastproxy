@@ -450,3 +450,89 @@ def test_command_names_do_not_shadow_base_plugin_commands() -> None:
     assert {"set", "reset", "save", "help"} <= base_names
     assert own_names == {"add", "remove", "list", "enable", "disable", "show"}
     assert not own_names & base_names
+
+
+@pytest.mark.parametrize(
+    ("command", "groups", "expected"),
+    [
+        ("say %1{t}", ("x%",), "say x%%{t}"),
+        ("say %1%2", ("x%", "{t}"), "say x%%{t}"),
+        ("say %1", ("%{t}",), "say %%{t}"),
+        ("say %1", ("%%{t}",), "say %%%{t}"),
+        ("say %1 %{t}", ("a",), "say a %{t}"),
+        ("say %1%%{t}", ("a%",), "say a%%%{t}"),
+    ],
+)
+def test_reference_formed_from_matched_text_is_escaped(
+    command: str, groups: tuple[str, ...], expected: str
+) -> None:
+    """A %{ with a character from matched text is escaped; one in the command is not."""
+    assert _expand(command, groups) == [expected]
+
+
+@pytest.mark.parametrize("value", ["-d", "  -d", "--help"])
+def test_option_like_value_in_command_part_refuses(value: str) -> None:
+    """A value starting with - in a proxy command part refuses the firing."""
+    assert _expand("#bp.client.variables.add n %1", (value,)) is None
+
+
+def test_value_with_inner_dash_in_command_part_runs() -> None:
+    """Only a value that starts with - is refused."""
+    assert _expand("#bp.client.variables.add n %1", ("a -d",)) == [
+        "#bp.client.variables.add n 'a -d'"
+    ]
+
+
+def _expand_alias(command: str, groups: tuple[str, ...]) -> Any:
+    return expand_command(
+        command,
+        groups,
+        {},
+        "",
+        split_regex=SPLIT,
+        separator="|",
+        prefix="#bp",
+        is_alias=lambda word: word in {"bpa", "bpx"},
+    )
+
+
+@pytest.mark.parametrize(
+    ("command", "groups"),
+    [("%1", ("bpa",)), ("  %1 now", ("bpa",)), ("%1x", ("bp",)), ("%*", ("bpa z",))],
+)
+def test_alias_named_by_matched_text_refuses(command: str, groups: tuple[str, ...]) -> None:
+    """A MUD part whose first word comes from matched text and is an alias refuses."""
+    if command == "%*":
+        assert (
+            expand_command(
+                command,
+                (),
+                {},
+                groups[0],
+                split_regex=SPLIT,
+                separator="|",
+                prefix="#bp",
+                is_alias=lambda word: word == "bpa",
+            )
+            is None
+        )
+    else:
+        assert _expand_alias(command, groups) is None
+
+
+def test_alias_written_in_command_or_later_word_runs() -> None:
+    """An alias the action names itself, or matched text after the first word, runs."""
+    assert _expand_alias("bpa %1", ("x",)) == ["bpa x"]
+    assert _expand_alias("say %1", ("bpa",)) == ["say bpa"]
+
+
+def test_is_alias_without_aliases_plugin(tmp_path: Path) -> None:
+    """With the aliases API missing, no word is an alias."""
+    p = _plugin(tmp_path)
+    p.api.table["libs.api:api.exists"] = lambda location: False
+    assert p._is_alias("bpa") is False
+    p.api.table["libs.api:api.exists"] = lambda location: True
+    p.api.table["plugins.client.aliases:alias.is.enabled"] = lambda word: word == "bpa"
+    assert p._is_alias("bpa") is True
+    assert p._is_alias("look") is False
+    assert p._is_alias("") is False

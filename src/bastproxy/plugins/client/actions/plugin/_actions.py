@@ -35,14 +35,42 @@ def _clean(value: str, separator: str) -> str:
 
 
 def _escape_mud(value: str, separator: str) -> str:
-    """Escape matched text for a part that goes to the MUD."""
-    # %{ would be a variable reference and @ a colour code; keep both literal
-    return _clean(value, separator).replace("%{", "%%{").replace("@", "@@")
+    """Escape matched text for a part that goes to the MUD.
+
+    ``@`` is doubled so a colour code in MUD text reaches the MUD as typed. ``%{`` is
+    escaped later, over the whole part, because a reference can also form across
+    the edge of a value (see ``_escape_references``).
+    """
+    return _clean(value, separator).replace("@", "@@")
 
 
 def _escape_command(value: str, separator: str) -> str:
     """Escape matched text for a proxy command part: one shell-quoted argument."""
     return shlex.quote(_clean(value, separator))
+
+
+def _escape_references(segments: list[tuple[str, bool]]) -> str:
+    """Join text segments, escaping every ``%{`` that has a character from matched text.
+
+    Each segment is ``(text, from_match)``. A ``%{`` whose ``%`` or ``{`` came from
+    matched text becomes ``%%{``, which the variables plugin sends as a literal
+    ``%{``. A ``%{`` written in the action's command is left alone.
+    """
+    chars = [(char, from_match) for text, from_match in segments for char in text]
+    out: list[str] = []
+    for index, (char, from_match) in enumerate(chars):
+        if char == "%" and index + 1 < len(chars):
+            next_char, next_from_match = chars[index + 1]
+            if next_char == "{" and (from_match or next_from_match):
+                out.append("%")
+        out.append(char)
+    return "".join(out)
+
+
+def _first_word(text: str) -> str:
+    """Return the first whitespace-separated word of text, or an empty string."""
+    words = text.split(None, 1)
+    return words[0] if words else ""
 
 
 def expand_command(
@@ -54,24 +82,38 @@ def expand_command(
     split_regex: str | None,
     separator: str,
     prefix: str,
+    is_alias: Callable[[str], bool] | None = None,
 ) -> list[str] | None:
     """Split a stored command into parts and substitute the matched text in each.
 
     ``%1`` to ``%9`` are the numbered groups, ``%*`` is the whole line and
     ``%<name>`` a named group. ``%%`` before a reference makes it literal. A group
     that did not take part is empty. Substitution is one pass. Matched text is
-    escaped for the kind of part it lands in. Returns None, meaning nothing may
-    run, when a MUD-bound part would start with the command prefix after substitution.
+    escaped for the kind of part it lands in.
+
+    Returns None, meaning nothing may run, when matched text would decide what
+    runs instead of only filling in its text:
+
+    - a MUD-bound part would start with the command prefix;
+    - the first word of a MUD-bound part comes from matched text and is an alias
+      (``is_alias``);
+    - a value substituted into a proxy command part starts with ``-``, which the
+      command would read as an option.
     """
     parts = regex.split(split_regex, command) if split_regex else [command]
     result: list[str] = []
     for part in parts:
         is_command = part.lstrip().startswith(prefix)
         escape = _escape_command if is_command else _escape_mud
-
-        def _replace(match: re.Match[str], escape: Callable[[str, str], str] = escape) -> str:
+        segments: list[tuple[str, bool]] = []
+        option_like = False
+        position = 0
+        for match in ACTION_REF_RE.finditer(part):
+            segments.append((part[position : match.start()], False))
+            position = match.end()
             if match.group(1):
-                return "%" + match.group(2)
+                segments.append(("%" + match.group(2), False))
+                continue
             ref = match.group(2)
             if ref == "*":
                 value: Any = line
@@ -80,13 +122,42 @@ def expand_command(
             else:
                 index = int(ref) - 1
                 value = groups[index] if index < len(groups) else None
-            return escape("" if value is None else str(value), separator)
-
-        text = ACTION_REF_RE.sub(_replace, part)
-        if not is_command and text.lstrip().startswith(prefix):
+            text_value = "" if value is None else str(value)
+            if is_command and _clean(text_value, separator).lstrip().startswith("-"):
+                option_like = True
+            segments.append((escape(text_value, separator), True))
+        segments.append((part[position:], False))
+        if is_command:
+            if option_like:
+                return None
+            result.append("".join(text for text, _ in segments))
+            continue
+        text = _escape_references(segments)
+        if text.lstrip().startswith(prefix):
+            return None
+        if (
+            is_alias is not None
+            and _first_word_from_match(segments)
+            and is_alias(_first_word(text))
+        ):
             return None
         result.append(text)
     return result
+
+
+def _first_word_from_match(segments: list[tuple[str, bool]]) -> bool:
+    """Check if any character of the first word of the joined segments came from matched text."""
+    started = False
+    for text, from_match in segments:
+        for char in text:
+            if char.isspace():
+                if started:
+                    return False
+                continue
+            started = True
+            if from_match:
+                return True
+    return False
 
 
 class ActionsPlugin(BasePlugin):
@@ -326,6 +397,13 @@ class ActionsPlugin(BasePlugin):
         """
         return bool(self.groups.get(group, True))
 
+    def _is_alias(self, word: str) -> bool:
+        """Check if word is an enabled alias of the aliases plugin, when it is loaded."""
+        location = "plugins.client.aliases:alias.is.enabled"
+        if not word or not self.api("libs.api:api.exists")(location):
+            return False
+        return bool(self.api(location)(word))
+
     def _trigger_matched(self) -> None:
         """Run the command of the action whose trigger fired."""
         record = self.api("plugins.core.events:event.current.record.get")()
@@ -342,12 +420,13 @@ class ActionsPlugin(BasePlugin):
             split_regex=self.api.command_split_regex,
             separator=self.api.command_separator,
             prefix=self.api("plugins.core.commands:command.prefix.get")(),
+            is_alias=self._is_alias,
         )
         if parts is None:
             log_to(
                 [self.plugin_id],
                 logging.WARNING,
-                "action %s: matched text would start a proxy command, nothing was run",
+                "action %s: matched text would decide the command to run, nothing was run",
                 name,
             )
             return

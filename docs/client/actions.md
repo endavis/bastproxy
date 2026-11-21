@@ -45,10 +45,10 @@ MUD output is untrusted, so a template is trusted and a matched value is data.
 
 - The stored command is split on the separator into parts. Each part runs on its own, in order.
 - Every value loses CR and LF and has the separator doubled, so it never splits a line. A doubled separator reaches the MUD as one `|`.
-- In a part that goes to the MUD, `%{` in a value becomes `%%{` and `@` becomes `@@`, so a value is not a variable and not a colour code.
-- In a part that starts with the command prefix, each value is quoted as one argument, so it cannot add flags or arguments. Do not put quotes around a reference in such a part. A separator inside a value reaches the command doubled.
+- In a part that goes to the MUD, `@` in a value becomes `@@`, and any `%{` with a character from a value becomes `%%{`, including one formed where a value meets the command's text (a value ending in `%` before `{`). So a value is not a variable and not a colour code. A `%{name}` you write in the command is still expanded.
+- In a part that starts with the command prefix, each value is quoted as one argument, so it cannot add arguments. Do not put quotes around a reference in such a part. A separator inside a value reaches the command doubled. If a value starts with `-`, the command would read it as an option, so nothing runs and a warning names the action.
 - If a part that goes to the MUD would start with the command prefix after substitution, nothing runs and a warning names the action. A template part that starts with the prefix is allowed.
-- Aliases expand the first word of a MUD-bound part, and a value at the start of a part can be that word. Aliases are written by you, so this is not blocked.
+- Aliases expand the first word of a MUD-bound part. If that word comes from a value and is an enabled alias, nothing runs and a warning names the action. An alias you write as the first word of the command runs as usual.
 
 ## Multi-command order
 
