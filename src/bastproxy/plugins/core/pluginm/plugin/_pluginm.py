@@ -21,6 +21,22 @@ from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResul
 from bastproxy.plugins.core.events import RegisterToEvent
 
 
+def _full_plugin_id(name: str) -> str:
+    """Return a plugin id or package name with the ``plugins.`` prefix.
+
+    Args:
+        name: A plugin id or package, with or without the ``plugins.`` prefix.
+
+    Returns:
+        The name unchanged when it starts with ``plugins.``, otherwise the name
+        with ``plugins.`` in front (a leading ``.`` is dropped first).
+
+    """
+    if name.startswith("plugins."):
+        return name
+    return f"plugins.{name.removeprefix('.')}"
+
+
 def _package_description(plugin_info: PluginInfo) -> str:
     """Return the PACKAGE_DESCRIPTION of the package a plugin lives in.
 
@@ -99,8 +115,7 @@ class PluginManager(BasePlugin):
 
         """
         msg = []
-        if "plugins" not in package:
-            package = f"plugins{package}" if package.startswith(".") else f"plugins.{package}"
+        package = _full_plugin_id(package)
 
         loaded_plugins_by_id = self.api("libs.plugins.loader:plugin.list.loaded")()
         if plist := [
@@ -232,16 +247,24 @@ class PluginManager(BasePlugin):
             self.plugin_id, "pluginstoload"
         )
 
-        plugins_to_load = []
+        plugins_to_load: list[str] = []
+        seen: set[str] = set()
 
-        for plugin in plugins_to_load_setting[:]:
+        for plugin in plugins_to_load_setting:
+            if plugin in seen:
+                get_logger(self.plugin_id).debug(
+                    "plugin %s is listed more than once to load at startup, skipping the repeat",
+                    plugin,
+                )
+                continue
+            seen.add(plugin)
+
             if not self.api("libs.plugins.loader:plugin.exists")(plugin):
                 get_logger(self.plugin_id).error(
                     "plugin %s was marked to load at startup "
                     "and no longer exists, removing from startup",
                     plugin,
                 )
-                plugins_to_load_setting.remove(plugin)
                 continue
 
             if self.api("libs.plugins.loader:plugin.is.loaded")(plugin):
@@ -250,7 +273,6 @@ class PluginManager(BasePlugin):
                     "and is already loaded, removing from startup",
                     plugin,
                 )
-                plugins_to_load_setting.remove(plugin)
                 continue
 
             if self.api("libs.plugins.loader:plugin.info.get")(plugin).is_dev:
@@ -259,18 +281,17 @@ class PluginManager(BasePlugin):
                     "and is a dev plugin, removing from startup",
                     plugin,
                 )
-                plugins_to_load_setting.remove(plugin)
                 continue
 
             plugins_to_load.append(plugin)
 
         self.api("plugins.core.settings:setting.set")(
-            self.plugin_id, "pluginstoload", plugins_to_load_setting
+            self.plugin_id, "pluginstoload", plugins_to_load
         )
 
-        if plugins_to_load_setting:
+        if plugins_to_load:
             get_logger(self.plugin_id).info("Loading other plugins")
-            self.api("libs.plugins.loader:plugin.load")(plugins_to_load_setting)
+            self.api("libs.plugins.loader:plugin.load")(plugins_to_load)
             get_logger(self.plugin_id).info("Finished loading other plugins")
 
     @RegisterToEvent(event_name="ev_plugins.core.proxy_shutdown")
@@ -301,13 +322,14 @@ class PluginManager(BasePlugin):
           Load a plugin
           @CUsage@w: load @Yplugin@w
             @Yplugin@w    = the id of the plugin to load,
-                            example: core.example.timerex.
+                            example: debug.records
+                            (plugins.debug.records works too).
 
         will load the plugin and all of its dependencies
         """
         args = self.api("plugins.core.commands:command.current.args.get")()
 
-        plugin_id = args["plugin"]
+        plugin_id = _full_plugin_id(args["plugin"]) if args["plugin"] else ""
 
         if not plugin_id:
             return CommandResult(False, ["No plugin specified"])
@@ -318,7 +340,7 @@ class PluginManager(BasePlugin):
         not_loaded_plugins_by_id = self.api("libs.plugins.loader:plugin.list.not.loaded")()
 
         if plugin_id and plugin_id not in not_loaded_plugins_by_id:
-            return CommandResult(True, [f"Plugin {plugin_id} not found"])
+            return CommandResult(False, [f"Plugin {plugin_id} not found"])
 
         plugin_response = self.api("libs.plugins.loader:plugin.load")([plugin_id])
 
@@ -341,10 +363,15 @@ class PluginManager(BasePlugin):
             plugins_to_load_setting = self.api("plugins.core.settings:setting.get")(
                 self.plugin_id, "pluginstoload"
             )
-            plugins_to_load_setting.extend(plugin_response["loaded_plugins"])
-            self.api("plugins.core.settings:setting.set")(
-                self.plugin_id, "pluginstoload", plugins_to_load_setting
-            )
+            added = [
+                loaded_id
+                for loaded_id in dict.fromkeys(plugin_response["loaded_plugins"])
+                if loaded_id not in plugins_to_load_setting
+            ]
+            if added:
+                self.api("plugins.core.settings:setting.set")(
+                    self.plugin_id, "pluginstoload", [*plugins_to_load_setting, *added]
+                )
 
         if plugin_response["bad_plugins"]:
             tmsg.extend(
@@ -363,17 +390,18 @@ class PluginManager(BasePlugin):
         unload a plugin
         @CUsage@w: unload @Yplugin@w
           @Yplugin@w    = the id of the plugin to unload,
-                          example: example.timerex.
+                          example: debug.records
+                          (plugins.debug.records works too).
         """
         args = self.api("plugins.core.commands:command.current.args.get")()
 
-        plugin_id = args["plugin"]
+        plugin_id = _full_plugin_id(args["plugin"]) if args["plugin"] else ""
 
         if not plugin_id:
             return CommandResult(False, ["No plugin specified"])
 
         if not self.api("libs.plugins.loader:plugin.is.loaded")(plugin_id):
-            return CommandResult(True, [f"Plugin {plugin_id} is not loaded"])
+            return CommandResult(False, [f"Plugin {plugin_id} is not loaded"])
 
         if self.api("libs.plugins.loader:plugin.info.get")(plugin_id).is_required:
             return CommandResult(False, [f"Plugin {plugin_id} is required and cannot be unloaded"])
@@ -399,31 +427,40 @@ class PluginManager(BasePlugin):
         reload a plugin
         @CUsage@w: reload @Yplugin@w
           @Yplugin@w    = the id of the plugin to reload,
-                          example: example.timerex.
+                          example: debug.records
+                          (plugins.debug.records works too).
         """
         args = self.api("plugins.core.commands:command.current.args.get")()
+        args = {**args, "plugin": _full_plugin_id(args["plugin"]) if args["plugin"] else ""}
 
         if not self.api("libs.plugins.loader:plugin.id.is.valid")(args["plugin"]):
-            return CommandResult(True, [f"{args['plugin']} is not a valid plugin id"])
+            return CommandResult(False, [f"{args['plugin']} is not a valid plugin id"])
 
         if not self.api("libs.plugins.loader:plugin.is.loaded")(args["plugin"]):
             return CommandResult(
-                True,
+                False,
                 [f"{args['plugin']} is not loaded; use #bp.core.pluginm.load {args['plugin']}"],
             )
-
-        self.api(f"{args['plugin']}:plugin.reloading.set")()
 
         plugins_to_load_setting = self.api("plugins.core.settings:setting.get")(
             self.plugin_id, "pluginstoload"
         )
         if not self.api("libs.plugins.loader:plugin.reload")(args["plugin"]):
+            if self.api("libs.plugins.loader:plugin.is.loaded")(args["plugin"]):
+                # the reload was refused or the unload failed; nothing changed
+                return CommandResult(
+                    False,
+                    [f"{args['plugin']} not reloaded and is still loaded, please check logs"],
+                )
             if args["plugin"] in plugins_to_load_setting:
                 plugins_to_load_setting.remove(args["plugin"])
                 self.api("plugins.core.settings:setting.set")(
                     self.plugin_id, "pluginstoload", plugins_to_load_setting
                 )
-            return CommandResult(False, [f"{args['plugin']} not reloaded, please check logs"])
+            return CommandResult(
+                False,
+                [f"{args['plugin']} was unloaded but not loaded again, please check logs"],
+            )
 
         # add the loaded plugins to the pluginstoload setting
         if args["plugin"] not in plugins_to_load_setting:

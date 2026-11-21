@@ -206,7 +206,7 @@ def _command_stub(is_required: bool, unload_result: bool = True) -> tuple[MagicM
 
     def api(name: str) -> Any:
         return {
-            "plugins.core.commands:command.current.args.get": lambda: {"plugin": "p.x"},
+            "plugins.core.commands:command.current.args.get": lambda: {"plugin": "plugins.p.x"},
             "libs.plugins.loader:plugin.is.loaded": lambda _pid: True,
             "libs.plugins.loader:plugin.info.get": lambda _pid: info,
             "libs.plugins.loader:plugin.unload": unload,
@@ -222,11 +222,13 @@ def _command_stub(is_required: bool, unload_result: bool = True) -> tuple[MagicM
 def test_unload_command_refuses_required_plugin() -> None:
     stub, unload = _command_stub(is_required=True)
     result = PluginManager._command_unload(stub)
-    assert result == CommandResult(False, ["Plugin p.x is required and cannot be unloaded"])
+    assert result == CommandResult(False, ["Plugin plugins.p.x is required and cannot be unloaded"])
     unload.assert_not_called()
 
 
 def test_unload_command_unloads_non_required_plugin() -> None:
     stub, unload = _command_stub(is_required=False)
-    assert PluginManager._command_unload(stub) == CommandResult(True, ["Plugin p.x unloaded"])
-    unload.assert_called_once_with("p.x")
+    assert PluginManager._command_unload(stub) == CommandResult(
+        True, ["Plugin plugins.p.x unloaded"]
+    )
+    unload.assert_called_once_with("plugins.p.x")

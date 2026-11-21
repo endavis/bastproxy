@@ -35,7 +35,7 @@ def test_reload_unloaded_plugin_returns_message_and_does_nothing() -> None:
     result = PluginManager._command_reload(stub)
     ok = result.success
     msgs = result.message
-    assert ok is True
+    assert ok is False
     assert msgs == [f"{PLUGIN_ID} is not loaded; use #bp.core.pluginm.load {PLUGIN_ID}"]
     funcs[f"{PLUGIN_ID}:plugin.reloading.set"].assert_not_called()
     funcs["libs.plugins.loader:plugin.reload"].assert_not_called()
@@ -50,5 +50,5 @@ def test_reload_loaded_plugin_still_reloads() -> None:
     msgs = result.message
     assert ok is True
     assert msgs == [f"{PLUGIN_ID} reloaded"]
-    funcs[f"{PLUGIN_ID}:plugin.reloading.set"].assert_called_once_with()
+    funcs[f"{PLUGIN_ID}:plugin.reloading.set"].assert_not_called()
     funcs["libs.plugins.loader:plugin.reload"].assert_called_once_with(PLUGIN_ID)
