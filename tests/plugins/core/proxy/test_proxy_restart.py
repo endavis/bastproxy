@@ -1,5 +1,6 @@
 """Tests that the restart command tells the client once (#575) and rejects bad delays (#577)."""
 
+import asyncio
 from typing import Any
 from unittest.mock import MagicMock, patch
 
@@ -84,3 +85,54 @@ def test_restart_api_schedules_the_given_delay() -> None:
         ProxyPlugin._api_proxy_restart(stub, 3)
 
     assert timers[0][2] == 3
+
+
+def _restart_stub() -> tuple[MagicMock, list[str], list[Any]]:
+    stub = MagicMock()
+    stub.plugin_id = "plugins.core.proxy"
+    calls: list[str] = []
+    tasks: list[Any] = []
+
+    def api(name: str) -> Any:
+        if name == "plugins.core.pluginm:plugin.state.save.all":
+            return lambda: calls.append("save")
+        if name == "plugins.core.proxy:proxy.shutdown":
+            return lambda: calls.append("shutdown")
+        if name == "libs.asynch:task.add":
+            return lambda *a: tasks.append(a)
+        return MagicMock()
+
+    stub.api.side_effect = api
+    return stub, calls, tasks
+
+
+def test_timer_restart_does_not_block_the_event_loop() -> None:
+    stub, calls, tasks = _restart_stub()
+
+    with (
+        patch("time.sleep", side_effect=AssertionError("blocking sleep")),
+        patch("os.execv") as execv,
+    ):
+        ProxyPlugin.timer_restart(stub)
+
+    assert calls == ["save", "shutdown"]
+    assert len(tasks) == 1
+    assert tasks[0][1] == "Restart Task"
+    assert tasks[0][0] == stub._restart_task
+    assert execv.call_count == 0
+
+
+def test_restart_task_sleeps_before_exec() -> None:
+    order: list[str] = []
+
+    async def fake_sleep(delay: float) -> None:
+        order.append(f"sleep {delay}")
+
+    with (
+        patch("asyncio.sleep", fake_sleep),
+        patch("os.execv", side_effect=lambda *_a: order.append("execv")) as execv,
+    ):
+        asyncio.run(ProxyPlugin._restart_task(MagicMock()))
+
+    assert order == ["sleep 5", "execv"]
+    assert execv.call_count == 1
