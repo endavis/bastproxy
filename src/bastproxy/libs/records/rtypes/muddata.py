@@ -12,10 +12,49 @@ import re
 
 # 3rd Party
 # Project
+from bastproxy.libs.context import capturing_resends, resend_anchor, resend_capture
 from bastproxy.libs.records.enums import UpdateFlag
 from bastproxy.libs.records.events import TO_MUD_DATA_MODIFY, TO_MUD_DATA_READ
 from bastproxy.libs.records.rtypes.base import BaseRecord
 from bastproxy.libs.records.rtypes.networkdata import NetworkData, NetworkDataLine
+
+
+class PendingMudSends:
+    """Sends held back while an input is being processed, keyed to the input line they replace."""
+
+    def __init__(self, message: NetworkData) -> None:
+        """Keep the message whose lines anchor the held sends."""
+        self.message = message
+        self.open = True
+        self._after: list[tuple[object, list[SendDataDirectlyToMud]]] = []
+        self._tail: list[SendDataDirectlyToMud] = []
+
+    def add(self, anchor: object, send: "SendDataDirectlyToMud") -> None:
+        """Hold ``send`` until after ``anchor``, or after all lines when it is not one of them."""
+        for line in self.message:
+            if line is anchor:
+                for held_line, sends in self._after:
+                    if held_line is line:
+                        sends.append(send)
+                        return
+                self._after.append((line, [send]))
+                return
+        self._tail.append(send)
+
+    def after(self, line: NetworkDataLine) -> list["SendDataDirectlyToMud"]:
+        """Return the sends held for ``line`` in arrival order."""
+        for held_line, sends in self._after:
+            if held_line is line:
+                return list(sends)
+        return []
+
+    def tail(self) -> list["SendDataDirectlyToMud"]:
+        """Return the sends with no matching line."""
+        return list(self._tail)
+
+    def close(self) -> None:
+        """Stop accepting held sends."""
+        self.open = False
 
 
 class ProcessDataToMud(BaseRecord):
@@ -111,20 +150,36 @@ class ProcessDataToMud(BaseRecord):
         """Process the data before sending to the mud."""
         # If the line came from a client and it is not a telnet command,
         # pass each line through the event system to allow plugins to modify it
+        outer = resend_capture.get()
+        anchor = resend_anchor.get()
         self.seperate_commands()
+        pending = PendingMudSends(self.message)
 
-        if data_for_event := [line for line in self.message if line.fromclient and line.is_io]:
-            self.api("plugins.core.events:event.raise")(
-                self.modify_data_event_name,
-                event_args={
-                    "showinhistory": self.show_in_history,
-                    "client_id": self.client_id,
-                },
-                data_list=data_for_event,
-                key_name="line",
-            )
+        try:
+            with capturing_resends(pending):
+                if data_for_event := [
+                    line for line in self.message if line.fromclient and line.is_io
+                ]:
+                    self.api("plugins.core.events:event.raise")(
+                        self.modify_data_event_name,
+                        event_args={
+                            "showinhistory": self.show_in_history,
+                            "client_id": self.client_id,
+                        },
+                        data_list=data_for_event,
+                        key_name="line",
+                    )
+        finally:
+            pending.close()
 
-        SendDataDirectlyToMud(self.message, client_id=self.client_id, parent=self)()
+        send = SendDataDirectlyToMud(
+            self.message, client_id=self.client_id, parent=self, pending=pending
+        )
+        if outer is not None and outer.open:
+            outer.add(anchor, send)
+            self.addupdate(UpdateFlag.INFO, "send held for the input line it replaces", extra={})
+        else:
+            send()
 
 
 class SendDataDirectlyToMud(BaseRecord):
@@ -135,6 +190,9 @@ class SendDataDirectlyToMud(BaseRecord):
     The message format is NetworkData instance
 
     line endings will be added to each line of io before sending to the mud
+
+    ``pending`` holds the sends of records nested in the input being processed. They run
+    right after the line they replace, or after all lines when none matches (#714).
     """
 
     READ_EVENT = TO_MUD_DATA_READ
@@ -144,9 +202,12 @@ class SendDataDirectlyToMud(BaseRecord):
         message: "NetworkData",
         client_id: str | None = None,
         parent: BaseRecord | None = None,
+        *,
+        pending: "PendingMudSends | None" = None,
     ) -> None:
         """Initialize the class."""
         super().__init__(parent=parent)
+        self.pending = pending
         self.message = message
         self.message.parent = self
         self.message.add_parent(self)
@@ -171,10 +232,16 @@ class SendDataDirectlyToMud(BaseRecord):
             if line.send:
                 line.format(to_mud=True)
         self.message.lock()
-        if mud_connection := self.api("plugins.core.proxy:mud.connection.get")():
-            for line in self.message:
-                if line.send:
-                    mud_connection.send_to(line)
+        mud_connection = self.api("plugins.core.proxy:mud.connection.get")()
+        for line in self.message:
+            if mud_connection and line.send:
+                mud_connection.send_to(line)
+            if self.pending:
+                for held in self.pending.after(line):
+                    held()
+        if self.pending:
+            for held in self.pending.tail():
+                held()
 
         # pass each line through the event system to allow plugins to see what
         # data is being sent to the mud

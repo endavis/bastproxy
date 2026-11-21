@@ -190,3 +190,25 @@ def test_alias_to_proxy_command(plugin_stand_ins: StandIns, tmp_path: Path) -> N
     assert wired.dispatched == ["#bp.client.aliases.list"]
     assert wired.sent == []
     assert wired.history == ["al"]
+
+
+@pytest.mark.usefixtures("split_regex")
+def test_resent_alias_keeps_its_place_in_a_separated_input(
+    plugin_stand_ins: StandIns, tmp_path: Path
+) -> None:
+    """`say hi|port` sends `say hi`, then the lines `port` expands to (#714)."""
+    wired = _wire(plugin_stand_ins, tmp_path)
+    wired.aliases._api_alias_add("port", "stand|look")
+    _type("say hi|port")
+    assert wired.sent == ["say hi", "stand", "look"]
+
+
+@pytest.mark.usefixtures("split_regex")
+def test_resent_alias_in_the_middle_keeps_its_place(
+    plugin_stand_ins: StandIns, tmp_path: Path
+) -> None:
+    """`look|go|score` sends the lines `go` expands to between `look` and `score` (#714)."""
+    wired = _wire(plugin_stand_ins, tmp_path)
+    wired.aliases._api_alias_add("go", "stand|kill orc")
+    _type("look|go|score")
+    assert wired.sent == ["look", "stand", "kill orc", "score"]

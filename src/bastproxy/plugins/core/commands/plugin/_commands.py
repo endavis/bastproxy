@@ -19,7 +19,7 @@ from bastproxy.libs import argp
 # 3rd Party
 # Project
 from bastproxy.libs.api import AddAPI
-from bastproxy.libs.context import get_command_args, output_to_client
+from bastproxy.libs.context import get_command_args, output_to_client, resending_in_place_of
 from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.persistentdict import PersistentDict
 from bastproxy.libs.records import (
@@ -679,11 +679,18 @@ class CommandsPlugin(BasePlugin):
         and the MUD command queue and trigger echo handling apply. The line is owned
         by the calling plugin, and runs for the client whose input is being handled,
         if any.
+
+        A line run while an input line is being handled is sent in that line's place,
+        after the input's earlier lines and before its later ones.
         """
         owner_id = self.api("libs.api:caller.owner.get")()
         event_record = self.api("plugins.core.events:event.current.record.get")()
         client_id = event_record.get("client_id") if event_record else None
-        execute_line(line, owner_id=owner_id, client_id=client_id, show_in_history=show_in_history)
+        anchor = event_record.get("line") if event_record else None
+        with resending_in_place_of(anchor):
+            execute_line(
+                line, owner_id=owner_id, client_id=client_id, show_in_history=show_in_history
+            )
 
     @AddAPI("command.run", description="run a command and return the output")
     def _api_command_run(

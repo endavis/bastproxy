@@ -35,7 +35,7 @@ An expansion that contains the command separator (`stand|kill %1`) or starts wit
 
 Type the separator doubled when you add such an alias: `#bp.client.aliases.add port stand||look||say %*`. A typed line is split on a single separator before the command runs, so a single `|` would end the `add` command there. The `add` command stores `stand|look|say %*`. The `alias.add` API stores the expansion exactly as it is passed, so a plugin passes the single separator.
 
-Limitation: a re-sent expansion reaches the MUD as soon as it runs, while the other lines of the same typed input are sent after. In `stand|port x`, where `port` expands to several commands, the `port` lines are sent before `stand`. A single-line alias keeps its place.
+A re-sent expansion takes the alias line's place. In `stand|port x`, where `port` expands to several commands, `stand` is sent first, then the `port` lines (#714).
 
 ## Lines that are not expanded
 

@@ -55,7 +55,7 @@ The inner loop receives `get %1.item 1.bag` on the first outer pass, so it sends
 
 ## Ordering
 
-The passes run as soon as the command runs. In `stand|#bp.client.loop.run 2 kill`, both `kill` lines reach the MUD before `stand`, as for alias re-sends. This is tracked in [#714](https://github.com/endavis/bastproxy/issues/714).
+The passes take the loop command's place. `stand|#bp.client.loop.run 2 kill` sends `stand`, then both `kill` lines, as for alias re-sends (#714).
 
 ## Notes
 

@@ -313,7 +313,7 @@ For `+` prefixes use stdlib argparse: `@AddParser` stores its kwargs and the com
 ### Command Execution
 - `plugins.core.commands:command.current.args.get` - Get parsed args for current command
 - `plugins.core.commands:command.format` - Get formatted command string
-- `plugins.core.commands:command.line.run` - `(line, *, show_in_history=False)`: run a line as if the user typed it; `#bp` commands run, other text goes to the MUD, the command separator splits it (#564)
+- `plugins.core.commands:command.line.run` - `(line, *, show_in_history=False)`: run a line as if the user typed it; `#bp` commands run, other text goes to the MUD, the command separator splits it (#564); a line run while an input line is handled is sent in that line's place (#714)
 - `plugins.core.commands:command.run` - Run a command programmatically; returns `(success, messages)`
 - `plugins.core.commands:output.line.length.get` - Get the line length for formatting: the current client's width (`plugins.core.proxy:line.length.get`) minus the output indent
 

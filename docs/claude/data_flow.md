@@ -301,7 +301,7 @@ Commands, watch and triggers register at the default priority, 50. Aliases regis
 - **Commands** (`src/bastproxy/plugins/core/commands/plugin/_commands.py`, `_eventcb_check_for_command`): a line starting with the command prefix (`#bp`) is run as a proxy command, its `send` flag is cleared and the output is sent to the client. Other lines pass through. Lines not from the proxy are added to the command history when `showinhistory` is set.
 - **Watch** (`src/bastproxy/plugins/core/watch/plugin/_watch.py`, `_eventcb_check_command`): meant to match client input against registered watch regexes and raise a per-watch event. It skips lines that are not I/O (such as `COMMAND-TELNET`) and matches each regex against the line's text; the raised event's `data` argument is that text.
 - **Triggers** (`src/bastproxy/plugins/core/triggers/plugin/_triggers.py`, `_eventcb_check_trigger`): skips internal lines, matches `line.noansi` (MXP markup already stripped for lines with an `mxp_mode`) against one combined regex of all triggers, and raises the matching trigger events. Triggers can gag or change the line.
-- **Aliases** (`src/bastproxy/plugins/client/aliases/plugin/_aliases.py`, `_eventcb_expand_line`, priority 55): replaces the first word of a client line that is sent, not masked and not a command line, when it is an enabled alias. A single-line expansion rewrites the line in place. An expansion with the command separator or the command prefix sets `send` to False and goes back through `command.line.run`. See [Aliases](../client/aliases.md).
+- **Aliases** (`src/bastproxy/plugins/client/aliases/plugin/_aliases.py`, `_eventcb_expand_line`, priority 55): replaces the first word of a client line that is sent, not masked and not a command line, when it is an enabled alias. A single-line expansion rewrites the line in place. An expansion with the command separator or the command prefix sets `send` to False and goes back through `command.line.run`, and the re-sent lines are sent in the alias line's place (#714). See [Aliases](../client/aliases.md).
 - **Variables** (`src/bastproxy/plugins/client/variables/plugin/_variables.py`, `_eventcb_expand_line`, priority 60): expands `%{name}` references in client lines that are sent, not masked and not command lines. See [Variables](../client/variables.md).
 - **Substitutes** (`src/bastproxy/plugins/client/substitutes/plugin/_substitutes.py`, `_eventcb_substitute_line`, priority 60): rewrites matching text of MUD lines that are not internal, not gagged and not MXP, keeping colour codes. It runs after triggers, so triggers and actions see the original text. See [Substitutes](../client/substitutes.md).
 
@@ -319,9 +319,14 @@ Commands, watch and triggers register at the default priority, 50. Aliases regis
          └─ SendDataDirectlyToMud(...)()
               ├─ lock message; per line: format() → "say hello\r\n", lock()
               ├─ MudConnection.send_to(line)     → send_queue
+              │    └─ after each line: the sends held for it (a nested ProcessDataToMud
+              │       from command.line.run during the modify event), each as its own
+              │       SendDataDirectlyToMud
               └─ raise ev_to_mud_data_read
   MudConnection.mud_write                       writer.write(line.line), was_sent = True
 ```
+
+A `ProcessDataToMud` created while another one's modify event runs (through `command.line.run`) processes its line at once but holds its send back. It hands the send to the enclosing record, keyed to the input line it came from (the anchor, read from the current event record by `command.line.run`). The enclosing record's `SendDataDirectlyToMud` runs the held sends right after that line, whether or not the line itself was sent, in arrival order. A held send with no anchor, or one that is not a line of the enclosing record, runs after all its lines. Lines sent outside input processing (timers, actions fired from MUD output, plugin start-up) send at once (#714).
 
 ### MUD output to clients
 
