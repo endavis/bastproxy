@@ -1433,15 +1433,11 @@ class PluginLoader:
 
         logger.debug("_api_plugin_id_match: psplit = %r", psplit)
 
-        if len(psplit) not in [2, 3]:
+        if len(psplit) != 2:
             return PluginIdMatch()
 
-        if len(psplit) == 2:
-            tmp_package = f"plugins.{psplit[0]}"
-            tmp_plugin = psplit[1]
-        else:
-            tmp_package = f"plugins.{psplit[1]}"
-            tmp_plugin = psplit[2]
+        tmp_package = f"plugins.{psplit[0]}"
+        tmp_plugin = psplit[1]
 
         logger.debug(
             "_api_plugin_id_match: tmp_package = %r, tmp_plugin = %r", tmp_package, tmp_plugin
