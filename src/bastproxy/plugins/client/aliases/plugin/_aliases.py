@@ -214,6 +214,31 @@ class AliasesPlugin(BasePlugin):
         """
         return bool(self.groups.get(group, True))
 
+    @AddAPI(
+        "alias.expansion.is.resent",
+        description="check if the alias expansion of a line is sent back through the input path",
+    )
+    def _api_alias_expansion_is_resent(self, line: str) -> bool:
+        """Check if expanding the aliases at the start of a line re-sends the result.
+
+        @Yline@w   = the line, as it would be typed
+
+        This function returns True when the line starts with an enabled alias whose
+        expansion, following any chain of aliases, contains the command separator or
+        starts with the command prefix. Such an expansion is sent back through the
+        input path, so its parts are split and proxy commands in it run. It returns
+        False for a line that starts with the command prefix, a line whose first
+        word is not an alias, and a chain that would stop at the depth limit.
+        Session hits are not counted.
+        """
+        command_prefix = self.api("plugins.core.commands:command.prefix.get")()
+        if line.lstrip().startswith(command_prefix):
+            return False
+        outcome, _text, _depth, _name = self._expand_chain(
+            line, 0, command_prefix, count_hits=False
+        )
+        return outcome == "resend"
+
     @AddParser(description="add an alias or change its expansion")
     @AddArgument("-g", "--group", help="the group of the alias", default="")
     @AddArgument("-d", "--disabled", help="add the alias disabled", action="store_true")
@@ -378,28 +403,46 @@ class AliasesPlugin(BasePlugin):
         text = line.line
         if text.lstrip().startswith(command_prefix):
             return
-        depth = self._resend_depth
-        last_name = ""
+        outcome, text, depth, name = self._expand_chain(
+            text, self._resend_depth, command_prefix, count_hits=True
+        )
+        if outcome == "stop":
+            self._stop(event_record, name)
+        elif outcome == "resend":
+            self._resend(event_record, text, name, depth)
+        elif outcome == "inplace":
+            line.line = text
+            event_record.addupdate(UpdateFlag.MODIFY, f"alias {name} expanded", savedata=False)
+
+    def _expand_chain(
+        self, text: str, depth: int, command_prefix: str, *, count_hits: bool
+    ) -> tuple[str, str, int, str]:
+        """Expand the alias at the start of text, following a chain of aliases.
+
+        Returns ``(outcome, text, depth, name)``. The outcome is ``"none"`` when the
+        first word is not an enabled alias, ``"inplace"`` when the result is one line
+        to send, ``"resend"`` when the result contains the command separator or
+        starts with the command prefix, and ``"stop"`` when the chain went past
+        ``MAX_DEPTH``. ``name`` is the last alias expanded, or the one that stopped.
+        """
+        name = ""
+        outcome = "none"
         while True:
             parts = text.lstrip().split(None, 1)
             if not parts or not self._api_alias_is_enabled(parts[0]):
-                break
+                return outcome, text, depth, name
             name = parts[0]
             if depth >= MAX_DEPTH:
-                self._stop(event_record, name)
-                return
+                return "stop", text, depth, name
             depth += 1
-            last_name = name
-            self.session_hits[name] = self.session_hits.get(name, 0) + 1
+            outcome = "inplace"
+            if count_hits:
+                self.session_hits[name] = self.session_hits.get(name, 0) + 1
             text = substitute_arguments(
                 self.aliases[name]["expansion"], parts[1] if len(parts) > 1 else ""
             )
             if text.lstrip().startswith(command_prefix) or self._has_separator(text):
-                self._resend(event_record, text, name, depth)
-                return
-        if last_name:
-            line.line = text
-            event_record.addupdate(UpdateFlag.MODIFY, f"alias {last_name} expanded", savedata=False)
+                return "resend", text, depth, name
 
     def _resend(self, event_record: Any, text: str, name: str, depth: int) -> None:
         """Send the expansion back through the input path and drop the typed line."""

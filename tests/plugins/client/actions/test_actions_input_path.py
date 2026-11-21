@@ -95,6 +95,7 @@ def _wire(stand_ins: StandIns, tmp_path: Path) -> Wired:
         "plugins.core.events:event.current.record.get": lambda: current.get("record"),
         "libs.api:caller.owner.get": lambda: "plugins.client.actions",
         "plugins.core.commands:command.prefix.get": lambda: "#bp",
+        "libs.api:api.exists": lambda location: False,
     }
     commands.api = _Api(shared)
 

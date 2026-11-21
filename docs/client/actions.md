@@ -49,6 +49,7 @@ MUD output is untrusted, so a template is trusted and a matched value is data.
 - In a part that starts with the command prefix, each value is quoted as one argument, so it cannot add arguments. Do not put quotes around a reference in such a part. A separator inside a value reaches the command doubled. If a value starts with `-`, the command would read it as an option, so nothing runs and a warning names the action.
 - If a part that goes to the MUD would start with the command prefix after substitution, nothing runs and a warning names the action. A template part that starts with the prefix is allowed.
 - Aliases expand the first word of a MUD-bound part. If that word comes from a value and is an enabled alias, nothing runs and a warning names the action. An alias you write as the first word of the command runs as usual.
+- An alias you write as the first word runs as usual, unless the part holds matched text and the alias's expansion is re-sent: it contains the separator or starts with the command prefix, directly or through a chain of aliases. A re-sent expansion splits the matched text and passes it to proxy commands without the quoting above, so nothing runs and a warning names the action. `k %1`, with `k` = `kill %1`, runs; `n %1`, with `n` = `#bp.client.variables.add note %*`, does not. Write the `#bp` command in the action itself instead, where the matched text is quoted.
 
 ## Multi-command order
 

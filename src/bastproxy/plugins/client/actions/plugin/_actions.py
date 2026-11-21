@@ -83,6 +83,7 @@ def expand_command(
     separator: str,
     prefix: str,
     is_alias: Callable[[str], bool] | None = None,
+    alias_resends: Callable[[str], bool] | None = None,
 ) -> list[str] | None:
     """Split a stored command into parts and substitute the matched text in each.
 
@@ -97,6 +98,9 @@ def expand_command(
     - a MUD-bound part would start with the command prefix;
     - the first word of a MUD-bound part comes from matched text and is an alias
       (``is_alias``);
+    - a MUD-bound part holds matched text and starts with an alias whose expansion
+      is re-sent through the input path (``alias_resends``), where the matched text
+      would be split or reach a proxy command unescaped;
     - a value substituted into a proxy command part starts with ``-``, which the
       command would read as an option.
     """
@@ -139,6 +143,12 @@ def expand_command(
             is_alias is not None
             and _first_word_from_match(segments)
             and is_alias(_first_word(text))
+        ):
+            return None
+        if (
+            alias_resends is not None
+            and any(value and from_match for value, from_match in segments)
+            and alias_resends(text)
         ):
             return None
         result.append(text)
@@ -404,6 +414,13 @@ class ActionsPlugin(BasePlugin):
             return False
         return bool(self.api(location)(word))
 
+    def _alias_resends(self, text: str) -> bool:
+        """Check if the aliases plugin would re-send the expansion of text, when it is loaded."""
+        location = "plugins.client.aliases:alias.expansion.is.resent"
+        if not self.api("libs.api:api.exists")(location):
+            return False
+        return bool(self.api(location)(text))
+
     def _trigger_matched(self) -> None:
         """Run the command of the action whose trigger fired."""
         record = self.api("plugins.core.events:event.current.record.get")()
@@ -421,6 +438,7 @@ class ActionsPlugin(BasePlugin):
             separator=self.api.command_separator,
             prefix=self.api("plugins.core.commands:command.prefix.get")(),
             is_alias=self._is_alias,
+            alias_resends=self._alias_resends,
         )
         if parts is None:
             log_to(

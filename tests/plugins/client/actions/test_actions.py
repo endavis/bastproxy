@@ -60,6 +60,7 @@ def _plugin(tmp_path: Path, args: dict[str, Any] | None = None) -> Any:
     plugin.record = None
     table: dict[str, Callable[..., Any]] = {
         "plugins.core.commands:command.prefix.get": lambda: "#bp",
+        "libs.api:api.exists": lambda location: False,
         "plugins.core.commands:command.current.args.get": lambda: args,
         "plugins.core.colors:colorcode.escape": lambda s: s.replace("@", "@@"),
         "plugins.core.events:event.current.record.get": lambda: plugin.record,
@@ -536,3 +537,39 @@ def test_is_alias_without_aliases_plugin(tmp_path: Path) -> None:
     assert p._is_alias("bpa") is True
     assert p._is_alias("look") is False
     assert p._is_alias("") is False
+
+
+def _expand_resends(command: str, groups: tuple[str, ...]) -> Any:
+    return expand_command(
+        command,
+        groups,
+        {},
+        "",
+        split_regex=SPLIT,
+        separator="|",
+        prefix="#bp",
+        alias_resends=lambda text: text.lstrip().startswith("n "),
+    )
+
+
+def test_matched_text_into_a_resent_alias_refuses() -> None:
+    """Matched text in a part whose alias is re-sent refuses the firing."""
+    assert _expand_resends("n %1", ("x -d",)) is None
+    assert _expand_resends("  n say %1", ("x",)) is None
+
+
+def test_resent_alias_without_matched_text_runs() -> None:
+    """A re-sent alias with no matched text, or an empty value, runs as written."""
+    assert _expand_resends("n fixed", ()) == ["n fixed"]
+    assert _expand_resends("n %1", ("",)) == ["n "]
+    assert _expand_resends("k %1", ("orc",)) == ["k orc"]
+
+
+def test_alias_resends_without_aliases_plugin(tmp_path: Path) -> None:
+    """With the aliases API missing, nothing is re-sent; with it, its answer is used."""
+    p = _plugin(tmp_path)
+    assert p._alias_resends("n x") is False
+    p.api.table["libs.api:api.exists"] = lambda location: True
+    p.api.table["plugins.client.aliases:alias.expansion.is.resent"] = lambda text: text == "n x"
+    assert p._alias_resends("n x") is True
+    assert p._alias_resends("k x") is False
