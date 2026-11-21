@@ -72,21 +72,23 @@ class Callback:
         """Generate a hash for the callback.
 
         This method generates a unique hash for the callback instance based on its
-        function, owner ID, and name. The creation time is left out so that registering
+        function, owner ID, and name, hashed as a tuple so that swapping the owner ID
+        and name gives a different hash. The creation time is left out so that registering
         the same function for the same owner twice yields equal callbacks.
 
         Returns:
             int: The generated hash value.
 
         """
-        return hash(self.func) + hash(self.owner_id) + hash(self.name)
+        return hash((self.func, self.owner_id, self.name))
 
     def __eq__(self, other_function: Any) -> bool:
         """Check equality between this callback and another function or callback.
 
         This method checks if the given function or callback is equal to this callback
-        instance. It compares the hash values if the other object is a Callback
-        instance, or directly compares the functions if the other object is a callable.
+        instance. It compares the (func, owner_id, name) tuples if the other object
+        is a Callback instance, or directly compares the functions if the other
+        object is a callable.
 
         Args:
             other_function: The function or callback to compare against this callback.
@@ -96,7 +98,11 @@ class Callback:
 
         """
         if isinstance(other_function, Callback):
-            return hash(self) == hash(other_function)
+            return (self.func, self.owner_id, self.name) == (
+                other_function.func,
+                other_function.owner_id,
+                other_function.name,
+            )
 
         return callable(other_function) and other_function == self.func
 

@@ -219,7 +219,8 @@ class SimpleQueue:
         """Get the last X items from the queue.
 
         This method returns the last X items from the queue, where X is specified
-        by the count parameter.
+        by the count parameter. A count of 0 returns an empty list, and a count
+        larger than the queue size returns every item.
 
         Args:
             count: The number of items to retrieve from the end of the queue.
@@ -234,6 +235,8 @@ class SimpleQueue:
         if count < 0:
             msg = "Count must be non-negative"
             raise ValueError(msg)
+        if count == 0:
+            return []
         return self.items[-count:]
 
     def get_by_id(self, item_id: str) -> Any:
