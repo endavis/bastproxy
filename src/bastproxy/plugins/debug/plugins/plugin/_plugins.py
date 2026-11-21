@@ -33,8 +33,8 @@ class PluginsPlugin(BasePlugin):
         if not args["plugin"]:
             return CommandResult(False, ["Please enter a plugin id"])
 
-        if not self.api("libs.plugins.loader:plugin.id.is.valid")(args["plugin"]):
-            return CommandResult(True, [f"Plugin {args['plugin']} not found"])
+        if args["plugin"] not in self.api("libs.plugins.loader:plugin.list.loaded")():
+            return CommandResult(False, [f"Plugin {args['plugin']} is not loaded"])
 
         return CommandResult(
             True, self.api(f"{args['plugin']}:plugin.dump")(args["object"], args["detailed"])[1]
@@ -52,6 +52,9 @@ class PluginsPlugin(BasePlugin):
 
         if not args["plugin"]:
             return CommandResult(False, ["Please enter a plugin name"])
+
+        if args["plugin"] not in self.api("libs.plugins.loader:plugin.list.loaded")():
+            return CommandResult(False, [f"Plugin {args['plugin']} is not loaded"])
 
         tmsg = []
 
@@ -86,9 +89,12 @@ class PluginsPlugin(BasePlugin):
         if not args["plugin"]:
             return CommandResult(False, ["Please enter a plugin name"])
 
-        data = {}
-
         loaded_plugins = self.api("libs.plugins.loader:plugin.list.loaded")()
+
+        if args["plugin"] not in loaded_plugins:
+            return CommandResult(False, [f"Plugin {args['plugin']} is not loaded"])
+
+        data = {}
 
         for plugin in loaded_plugins:
             api = f"{plugin}:summary.get.for.plugin"
@@ -120,9 +126,12 @@ class PluginsPlugin(BasePlugin):
         if not args["plugin"]:
             return CommandResult(False, ["Please enter a plugin name"])
 
-        data = {}
-
         loaded_plugins = self.api("libs.plugins.loader:plugin.list.loaded")()
+
+        if args["plugin"] not in loaded_plugins:
+            return CommandResult(False, [f"Plugin {args['plugin']} is not loaded"])
+
+        data = {}
 
         for plugin in loaded_plugins:
             api = f"{plugin}:detail.get.for.plugin"
