@@ -6,14 +6,15 @@
 # By: Bast
 """Context variables that say what the proxy is running right now.
 
-Four things used to live in shared mutable state: the record being executed, the events
-being raised, the arguments of the command being run and the client its output goes to. Each is
+Six things used to live in shared mutable state: the record being executed, the events
+being raised, the arguments of the command being run, the client its output goes to, the capture
+that holds re-sent lines back and the input line a re-sent line takes the place of. Each is
 now a context variable that a
 context manager sets for the duration of the work and resets with its token, also when the
 work raises. Reading one costs a dictionary lookup and needs no API call.
 
 Asyncio copies the current context into every task. ``fresh_context()`` gives a task a context
-with the four variables reset, so a task spawned while a record, event or command is running
+with the six variables reset, so a task spawned while a record, event or command is running
 does not inherit it. See ``docs/claude/record_system.md``.
 """
 
@@ -26,6 +27,7 @@ from typing import Any
 __all__ = [
     "active_record",
     "active_records",
+    "capturing_resends",
     "command_args",
     "event_stack",
     "fresh_context",
@@ -34,6 +36,9 @@ __all__ = [
     "output_client",
     "output_to_client",
     "raised_event",
+    "resend_anchor",
+    "resend_capture",
+    "resending_in_place_of",
     "running_command",
 ]
 
@@ -52,6 +57,14 @@ command_args: contextvars.ContextVar[Mapping[str, Any] | None] = contextvars.Con
 # The id of the client whose command is running, or None when there is no single target.
 output_client: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "bastproxy_output_client", default=None
+)
+# The capture of the innermost ProcessDataToMud whose modify event is running, or None.
+resend_capture: contextvars.ContextVar[Any | None] = contextvars.ContextVar(
+    "bastproxy_resend_capture", default=None
+)
+# The input line that a line re-sent during its handling takes the place of, or None.
+resend_anchor: contextvars.ContextVar[Any | None] = contextvars.ContextVar(
+    "bastproxy_resend_anchor", default=None
 )
 
 
@@ -95,6 +108,26 @@ def output_to_client(client_id: str | None) -> Iterator[None]:
         output_client.reset(token)
 
 
+@contextmanager
+def capturing_resends(capture: Any) -> Iterator[None]:
+    """Set the capture that holds back re-sent lines while the block runs."""
+    token = resend_capture.set(capture)
+    try:
+        yield
+    finally:
+        resend_capture.reset(token)
+
+
+@contextmanager
+def resending_in_place_of(line: Any) -> Iterator[None]:
+    """Set the input line that re-sent lines take the place of while the block runs."""
+    token = resend_anchor.set(line)
+    try:
+        yield
+    finally:
+        resend_anchor.reset(token)
+
+
 def get_output_client() -> str | None:
     """Return the id of the client the running command's output goes to, or None."""
     return output_client.get()
@@ -107,7 +140,7 @@ def get_command_args() -> Mapping[str, Any]:
 
 
 def fresh_context() -> contextvars.Context:
-    """Return a copy of the current context with the four variables reset.
+    """Return a copy of the current context with the six variables reset.
 
     Pass it as ``context=`` when creating a task so the task starts with no active record,
     no event stack and no command args.
@@ -117,4 +150,6 @@ def fresh_context() -> contextvars.Context:
     ctx.run(event_stack.set, ())
     ctx.run(command_args.set, None)
     ctx.run(output_client.set, None)
+    ctx.run(resend_capture.set, None)
+    ctx.run(resend_anchor.set, None)
     return ctx

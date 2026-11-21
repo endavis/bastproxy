@@ -128,3 +128,27 @@ async def test_task_item_does_not_inherit_output_client() -> None:
         task = item.create(loop=asyncio.get_running_loop())
     await task
     assert seen == [None]
+
+
+def test_resend_variables_default_none_nest_and_reset() -> None:
+    from bastproxy.libs.context import (
+        capturing_resends,
+        fresh_context,
+        resend_anchor,
+        resend_capture,
+        resending_in_place_of,
+    )
+
+    assert resend_capture.get() is None
+    assert resend_anchor.get() is None
+    with capturing_resends("a"), resending_in_place_of("l1"):
+        with capturing_resends("b"), resending_in_place_of("l2"):
+            assert (resend_capture.get(), resend_anchor.get()) == ("b", "l2")
+            ctx = fresh_context()
+            assert ctx.run(resend_capture.get) is None
+            assert ctx.run(resend_anchor.get) is None
+        assert (resend_capture.get(), resend_anchor.get()) == ("a", "l1")
+    with pytest.raises(RuntimeError), capturing_resends("a"), resending_in_place_of("l"):
+        raise RuntimeError("x")
+    assert resend_capture.get() is None
+    assert resend_anchor.get() is None

@@ -53,7 +53,7 @@ MUD output is untrusted, so a template is trusted and a matched value is data.
 
 ## Multi-command order
 
-Parts run through `command.line.run`. A part that is itself re-sent can reach the MUD before the others, as described in [Aliases](aliases.md#multi-command-and-bp-expansions). This is tracked in #714.
+Parts run through `command.line.run`. A part that is itself re-sent keeps its place among the others, as described in [Aliases](aliases.md#multi-command-and-bp-expansions) (#714).
 
 ## Echo loops
 

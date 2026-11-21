@@ -192,3 +192,33 @@ def test_execute_runs_when_the_current_event_record_has_no_client_id(
             "show_in_history": False,
         }
     ]
+
+
+def test_line_run_sets_anchor_to_current_record_line(
+    monkeypatch: pytest.MonkeyPatch, plugin_stand_ins: StandIns
+) -> None:
+    from bastproxy.libs.context import resend_anchor
+
+    seen: list[Any] = []
+    monkeypatch.setattr(
+        commands_module, "execute_line", lambda *args, **kwargs: seen.append(resend_anchor.get())
+    )
+    line = NetworkDataLine("x", originated="client")
+    stub, _ = _wire(plugin_stand_ins, [])
+    stub.api = lambda name: {
+        "plugins.core.events:event.current.record.get": lambda: {"line": line},
+        "libs.api:caller.owner.get": lambda: "o",
+    }[name]
+    _execute(stub, "look")
+    stub.api = lambda name: {
+        "plugins.core.events:event.current.record.get": lambda: {"client_id": "c"},
+        "libs.api:caller.owner.get": lambda: "o",
+    }[name]
+    _execute(stub, "look")
+    stub.api = lambda name: {
+        "plugins.core.events:event.current.record.get": lambda: None,
+        "libs.api:caller.owner.get": lambda: "o",
+    }[name]
+    _execute(stub, "look")
+    assert seen == [line, None, None]
+    assert resend_anchor.get() is None

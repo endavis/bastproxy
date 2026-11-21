@@ -31,7 +31,7 @@ Issue #708 asks for user aliases. Actions (#709) and loop (#711) need the same a
 
 ## Rationale
 
-Priority 55 keeps ADR-0016's contract as written: the history holds the typed line and a rewrite below 60 is expanded. Rewriting in place keeps the order of lines for the common single-line alias. Only re-sending can split on the separator and run `#bp` commands, because the commands plugin has already run. A re-sent expansion is sent as soon as it runs, so in `stand|port x`, where `port` expands to several commands, the `port` lines reach the MUD before `stand`. `command.line.run` already behaves this way, and fixing it means changing `ProcessDataToMud`, which is outside #708.
+Priority 55 keeps ADR-0016's contract as written: the history holds the typed line and a rewrite below 60 is expanded. Rewriting in place keeps the order of lines for the common single-line alias. Only re-sending can split on the separator and run `#bp` commands, because the commands plugin has already run. Re-sent lines are sent in the alias line's place by `ProcessDataToMud` (#714), so in `stand|port x` the `port` lines follow `stand`. See [Data Flow](../claude/data_flow.md).
 
 ## Related Issues
 

@@ -594,7 +594,8 @@ Details: [data flow](claude/data_flow.md#custom-telnet-options-566-adr-0012) and
 
 To run a `#bp` command or send a MUD command, call `command.line.run`. The line goes through the
 same path as typed input: the command separator splits it, and the MUD command queue and trigger
-echo handling apply.
+echo handling apply. A line run while an input line is being handled is sent in that
+line's place, after the input's earlier lines and before its later ones.
 
 ```python
     def _on_connect(self) -> None:

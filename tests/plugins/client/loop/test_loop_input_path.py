@@ -206,3 +206,13 @@ def test_nested_loop_through_the_input_path(plugin_stand_ins: StandIns, tmp_path
         "get 2.item 3.bag",
     ]
     assert wired.loop._total == 0
+
+
+@pytest.mark.usefixtures("split_regex")
+def test_loop_passes_take_the_loop_commands_place(
+    plugin_stand_ins: StandIns, tmp_path: Path
+) -> None:
+    """`stand|#bp.client.loop.run 2 kill %1` sends `stand`, then both passes (#714)."""
+    wired = _wire(plugin_stand_ins, tmp_path)
+    _type("stand|#bp.client.loop.run 2 kill %1")
+    assert wired.sent == ["stand", "kill 1", "kill 2"]

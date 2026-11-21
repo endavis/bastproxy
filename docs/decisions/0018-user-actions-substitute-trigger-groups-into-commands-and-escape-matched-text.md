@@ -30,7 +30,7 @@ Issue #709 asks for user actions: commands that run when a line of MUD output ma
 
 ## Rationale
 
-Re-matching in the plugin would duplicate the trigger plugin's timeout and colour handling, so the event carries the groups instead. Escaping by the kind of part keeps each template part trusted and each value data. An alias can still expand a value at the start of a MUD part, because aliases are user-authored; this is documented, not blocked. Ordering of several parts follows `command.line.run` (issue #714).
+Re-matching in the plugin would duplicate the trigger plugin's timeout and colour handling, so the event carries the groups instead. Escaping by the kind of part keeps each template part trusted and each value data. An alias can still expand a value at the start of a MUD part, because aliases are user-authored; this is documented, not blocked. Re-sent parts keep their place in the order of several parts, through `command.line.run` (issue #714).
 
 ## Related Issues
 
