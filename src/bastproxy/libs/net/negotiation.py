@@ -187,7 +187,7 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
     # An SB for an unowned option outside BUILTIN_OPTIONS is dropped, not passed on (#586).
     # On a client link a claimable option is negotiated only with a logged-in client: a ``DO``
     # before login or for an unclaimed option gets ``WONT``, and an ``SB`` before login is
-    # discarded (#703).
+    # discarded (#703). A client's ``WILL`` for such an option is answered ``DONT`` (#705).
     telopt_hooks: TeloptHooks | None = None
 
     # Called as ``(option)`` after a received ``DONT`` is handled; ``None`` means nobody listens.
@@ -322,6 +322,14 @@ class RecordingTelnetWriter(TelnetWriterUnicode):
         """Record a received WILL, then let telnetlib3 answer."""
         self._record(Direction.RECEIVED, "WILL", opt, b"", IAC + WILL + opt)
         self.peer_offered.add(opt)
+        if self.server and len(opt) == 1 and opt[0] not in BUILTIN_OPTIONS:
+            # the proxy never uses a claimable option from the client side (a claimed one is
+            # our local option, offered with WILL): refuse it, before and after login (#705).
+            # Every WILL is answered, as RFC 1143 does for an option it does not agree to.
+            if not self.is_closing():
+                self.send_iac(IAC + DONT + opt)
+            self.remote_option[opt] = False
+            return
         if not self.server and self._telopt_claims(opt):
             # a claimed option: accept it with DO unless our own DO is what the MUD answered
             if not self.remote_option.enabled(opt):

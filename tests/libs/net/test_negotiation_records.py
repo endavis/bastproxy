@@ -440,3 +440,43 @@ def test_a_builtin_sb_before_login_still_reaches_telnetlib3(
     monkeypatch.setattr(writer, "_handle_sb_naws", spy, raising=False)
     writer.handle_subnegotiation(collections.deque([NAWS, b"\x00\x50\x00\x18"]))
     assert [r.command for r in _records()] == ["SB"]
+
+
+# a client's WILL for a claimable option (#705) -----------------------------------
+
+
+@pytest.mark.parametrize("opt", [b"\x5a", b"\x66", b"\xc8"])
+@pytest.mark.parametrize("logged_in", [False, True])
+@pytest.mark.parametrize("claimed", [False, True])
+def test_will_for_a_claimable_option_gets_dont(opt: bytes, logged_in: bool, claimed: bool) -> None:
+    writer = _server_writer(_Hooks(logged_in=logged_in, claimed=claimed))
+    writer.handle_will(opt)
+    writer.send_iac.assert_called_once_with(IAC + DONT + opt)  # type: ignore[attr-defined]
+    assert writer.remote_option.enabled(opt) is False
+    assert writer.remote_option.get(opt) is False
+
+
+def test_a_repeated_will_for_a_refused_option_is_refused_again() -> None:
+    writer = _server_writer(_Hooks(logged_in=True))
+    writer.handle_will(b"\x66")
+    writer.handle_will(b"\x66")
+    assert writer.send_iac.call_args_list == [  # type: ignore[attr-defined]
+        ((IAC + DONT + b"\x66",),),
+        ((IAC + DONT + b"\x66",),),
+    ]
+    assert writer.remote_option.get(b"\x66") is False
+
+
+def test_will_on_a_closing_link_is_not_answered() -> None:
+    writer = _server_writer(_Hooks(logged_in=True))
+    writer.is_closing = lambda: True  # type: ignore[method-assign]
+    writer.handle_will(b"\x66")
+    writer.send_iac.assert_not_called()  # type: ignore[attr-defined]
+    assert writer.remote_option.enabled(b"\x66") is False
+
+
+def test_will_for_a_builtin_option_still_goes_to_telnetlib3() -> None:
+    writer = _server_writer(_Hooks(logged_in=True))
+    writer.handle_will(NAWS)
+    writer.send_iac.assert_called_once_with(IAC + DO + NAWS)  # type: ignore[attr-defined]
+    assert writer.remote_option.enabled(NAWS) is True
