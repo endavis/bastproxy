@@ -1,1 +1,1 @@
-PACKAGEDESCRIPTION = "Plugins to test things"
+PACKAGE_DESCRIPTION = "Plugins to test things"
