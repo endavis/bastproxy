@@ -169,14 +169,14 @@ class RecordPlugin(BasePlugin):
     @AddArgument(
         "-sd",
         "--show_data",
-        help="show data in updates",
+        help="hide data in updates",
         action="store_false",
         default=True,
     )
     @AddArgument(
         "-ss",
         "--show_stack",
-        help="show stack in updates",
+        help="hide the stack in updates",
         action="store_false",
         default=True,
     )
@@ -190,7 +190,7 @@ class RecordPlugin(BasePlugin):
     @AddArgument(
         "-iu",
         "--include_updates",
-        help="include_updates in the detail",
+        help="leave updates out of the detail",
         action="store_false",
         default=True,
     )
