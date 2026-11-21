@@ -326,7 +326,7 @@ For each directory found, it creates a `PluginInfo` object and extracts metadata
 3. **Initialization** (each plugin, dependencies first): `initialize()` runs the `after_load`
    hooks. Its last base hook (priority 91) flags the plugin loaded, adds the
    `ev_<plugin_id>_loaded` and `ev_<plugin_id>_unloaded` events and, unless the proxy is
-   starting up, raises `ev_<plugin_id>_loaded` and `ev_plugin_loaded`.
+   starting up, raises `ev_plugin_loaded` and then `ev_<plugin_id>_loaded`. The load command raises neither.
 
 A plugin that fails any pass is reported in `bad_plugins`, and so is everything that depends
 on it. A failed load runs the same subsystem cleanup as an unload: the loader raises
@@ -771,11 +771,11 @@ class Plugin(BasePlugin):
 ## Events
 
 ### Plugin Lifecycle Events
-- `ev_plugin_loaded` - A plugin was loaded (raised at the end of `initialize`, not at startup)
+- `ev_plugin_loaded` - A plugin was loaded (raised at the end of `initialize`, before `ev_<plugin_id>_loaded`; at startup `pluginm` raises it for every loaded plugin first, then raises every `ev_<plugin_id>_loaded`, in two passes)
 - `ev_plugin_unloaded` - A plugin was unloaded (subsystems remove the plugin's data on this)
 - `ev_plugin_save` - Plugins should save their state
 - `ev_plugin_reset` - A plugin should reset to defaults
-- `ev_<plugin_id>_loaded`, `ev_<plugin_id>_unloaded`, `ev_<plugin_id>_savestate` - Per-plugin versions
+- `ev_<plugin_id>_loaded`, `ev_<plugin_id>_unloaded`, `ev_<plugin_id>_savestate` - Per-plugin versions (`ev_<plugin_id>_loaded` is raised once per load, reload and startup, after `ev_plugin_loaded`; at startup after it for all plugins)
 - `ev_bastproxy.libs.plugins.loader_post_startup_plugins_loaded` - Raised once after the startup load
 
 ## Best Practices

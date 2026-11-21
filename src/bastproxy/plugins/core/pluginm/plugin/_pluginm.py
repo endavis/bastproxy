@@ -346,12 +346,6 @@ class PluginManager(BasePlugin):
 
         tmsg: list[str] = []
         if plugin_response["loaded_plugins"]:
-            for plugin_id in plugin_response["loaded_plugins"]:
-                self.api("plugins.core.events:event.raise")(f"ev_{plugin_id}_loaded")
-                self.api("plugins.core.events:event.raise")(
-                    f"ev_{self.plugin_id}_plugin_loaded",
-                    event_args={"plugin_id": plugin_id},
-                )
             tmsg.extend(
                 (
                     "Loaded the following plugins",
@@ -472,18 +466,22 @@ class PluginManager(BasePlugin):
 
     @RegisterToEvent(event_name="ev_plugins.core.events_all_events_registered", priority=1)
     def _eventcb_all_events_registered(self) -> None:
-        """This resends all the different plugin initialization events,.
+        """This resends the plugin loaded events in two passes.
 
-        saves all plugin states, and adds the save plugin timer.
+        ev_plugin_loaded is raised for every loaded plugin first, so every plugin's
+        callbacks are registered. Then ev_<plugin_id>_loaded is raised for every
+        loaded plugin, so each listener sees it once. It also saves all plugin
+        states, and adds the save plugin timer.
         """
         self._load_other_plugins_after_core_and_client_plugins()
 
         loaded_plugins = self.api("libs.plugins.loader:plugin.list.loaded")()
         for plugin_id in loaded_plugins:
-            self.api("plugins.core.events:event.raise")(f"ev_{plugin_id}_loaded")
             self.api("plugins.core.events:event.raise")(
                 "ev_plugin_loaded", event_args={"plugin_id": plugin_id}
             )
+        for plugin_id in loaded_plugins:
+            self.api("plugins.core.events:event.raise")(f"ev_{plugin_id}_loaded")
 
         self.api(f"{self.plugin_id}:plugin.state.save.all")()
         self.api("plugins.core.timers:timer.add")(
