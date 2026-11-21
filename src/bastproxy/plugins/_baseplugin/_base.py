@@ -394,10 +394,12 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
         )
 
         if not self.api.startup:
-            self.api("plugins.core.events:event.raise")(f"ev_{self.plugin_id}_loaded")
+            # ev_plugin_loaded first: the events plugin registers this plugin's
+            # callbacks (including its own ev_<id>_loaded ones) in that handler
             self.api("plugins.core.events:event.raise")(
                 "ev_plugin_loaded", event_args={"plugin_id": self.plugin_id}
             )
+            self.api("plugins.core.events:event.raise")(f"ev_{self.plugin_id}_loaded")
 
     def _eventcb_baseplugin_disconnect(self) -> None:
         """re-register to character active event on disconnect."""

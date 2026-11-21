@@ -135,7 +135,7 @@ def _eventcb_handle_data(self):
     # Process the event data
 ```
 
-The decorator marks the function with event registration metadata. The events plugin registers the decorated `_eventcb_*` methods of every loaded plugin once, when the post-startup event is raised, and afterwards on `ev_plugin_loaded` for each plugin that loads. Before the post-startup event the `ev_plugin_loaded` callback returns without registering, since that event covers the plugins loaded so far; once it has run, plugins loaded later in startup (the `pluginstoload` plugins) register on `ev_plugin_loaded` even though the proxy is still starting up. Registering a function again replaces its earlier registration, so a repeated `ev_plugin_loaded` does not duplicate it.
+The decorator marks the function with event registration metadata. The events plugin registers the decorated `_eventcb_*` methods of every loaded plugin once, when the post-startup event is raised, and afterwards on `ev_plugin_loaded` for each plugin that loads. Before the post-startup event the `ev_plugin_loaded` callback returns without registering, since that event covers the plugins loaded so far; once it has run, plugins loaded later in startup (the `pluginstoload` plugins) register on `ev_plugin_loaded` even though the proxy is still starting up. Registering a function again replaces its earlier registration, so a repeated `ev_plugin_loaded` does not duplicate it. `ev_<plugin_id>_loaded` is raised right after `ev_plugin_loaded`, because the plugin's own callbacks for it are registered in that handler; it is raised once per load, reload and startup. At startup `pluginm` does this in two passes, `ev_plugin_loaded` for every loaded plugin and then `ev_<plugin_id>_loaded` for every loaded plugin, so a listener in a plugin later in the list is registered before an earlier plugin's event is raised.
 
 A callback can also be registered at runtime, with the priority under the keyword `prio`:
 
@@ -437,6 +437,7 @@ The long history is in the records manager (`RMANAGER` keeps a `ProcessRaisedEve
 
 ### Core Events
 - `ev_plugin_loaded` - A plugin was loaded (payload: `plugin_id`)
+- `ev_<plugin_id>_loaded` - That plugin finished loading; raised once, after `ev_plugin_loaded`
 - `ev_plugin_unloaded` - A plugin was unloaded (payload: `plugin_id`)
 - `ev_{plugin_id}_stats` and `ev_plugin_stats` - Raised by `plugin.stats.get` (payload: `plugin_id`, `stats`); callbacks add sections to `stats`. The first is per plugin, the second is raised for every plugin
 - `ev_plugin_save` - A plugin should save its state
