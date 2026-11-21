@@ -815,9 +815,9 @@ class ProxyPlugin(BasePlugin):
                 {"name": "Mode", "key": "mode", "width": 5},
             ]
 
+            # psutil gives open files a mode only on Linux
             open_files_dicts = [
-                {"path": file.path, "mode": file.mode}
-                for file in open_files  # pyright: ignore[reportAttributeAccessIssue]
+                {"path": file.path, "mode": getattr(file, "mode", "n/a")} for file in open_files
             ]
 
             msg.extend(
