@@ -287,7 +287,7 @@ An exception in a callback is caught and logged by `Event.raise_priority()`. The
 
 | Event | Raised by | `event_record["line"]` | Core listeners |
 |-------|-----------|------------------------|----------------|
-| `ev_to_mud_data_modify` | `ProcessDataToMud` | `NetworkDataLine` (client I/O lines) | commands, watch |
+| `ev_to_mud_data_modify` | `ProcessDataToMud` | `NetworkDataLine` (client I/O lines) | commands, watch, variables |
 | `ev_to_mud_data_read` | `SendDataDirectlyToMud` | `NetworkDataLine` (locked, after formatting) | triggers |
 | `ev_to_client_data_modify` | `ProcessDataToClient` | `NetworkDataLine` (MUD I/O lines) | triggers |
 | `ev_to_client_data_read` | `SendDataDirectlyToClient` | `NetworkDataLine` (locked, after formatting) | none |
@@ -296,11 +296,12 @@ An exception in a callback is caught and logged by `Event.raise_priority()`. The
 
 ### Core listeners
 
-All three register at the default priority, 50.
+Commands, watch and triggers register at the default priority, 50. Variables registers at 60, so it runs after commands.
 
 - **Commands** (`src/bastproxy/plugins/core/commands/plugin/_commands.py`, `_eventcb_check_for_command`): a line starting with the command prefix (`#bp`) is run as a proxy command, its `send` flag is cleared and the output is sent to the client. Other lines pass through. Lines not from the proxy are added to the command history when `showinhistory` is set.
 - **Watch** (`src/bastproxy/plugins/core/watch/plugin/_watch.py`, `_eventcb_check_command`): meant to match client input against registered watch regexes and raise a per-watch event. It skips lines that are not I/O (such as `COMMAND-TELNET`) and matches each regex against the line's text; the raised event's `data` argument is that text.
 - **Triggers** (`src/bastproxy/plugins/core/triggers/plugin/_triggers.py`, `_eventcb_check_trigger`): skips internal lines, matches `line.noansi` (MXP markup already stripped for lines with an `mxp_mode`) against one combined regex of all triggers, and raises the matching trigger events. Triggers can gag or change the line.
+- **Variables** (`src/bastproxy/plugins/client/variables/plugin/_variables.py`, `_eventcb_expand_line`, priority 60): expands `%{name}` references in client lines that are sent, not masked and not command lines. See [Variables](../client/variables.md).
 
 ## Data Flow Paths
 

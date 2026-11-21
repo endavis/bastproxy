@@ -18,6 +18,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Template Management](template/manage.md) - Unified interface for creating projects, checking updates, and syncing
 - [Template Tools Reference](template/tools-reference.md) - Complete reference for all template tools in tools/pyproject_template/
 - [Using This Template](template/index.md) - Overview of using pyproject-template for your Python projects
+- [Variables](client/variables.md) - Store named values and use them in the lines you type with %{name} references
 <!-- END:audience=users -->
 
 ### For Contributors
@@ -37,6 +38,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [ADR-0013: Plugins are discovered from installed packages through the bastproxy.plugins entry-point group](decisions/0013-plugins-are-discovered-from-installed-packages-through-the-bastproxyplugins-entry-point-group.md) - Installed packages register plugins in the bastproxy.plugins entry-point group; the entry name sets the plugin ID, and bundled beats user beats installed.
 - [ADR-0014: Plugins add sqldb databases through database.add with plain-data definitions](decisions/0014-plugins-add-sqldb-databases-through-databaseadd-with-plain-data-definitions.md) - A plugin gets a sqldb database from plugins.core.sqldb:database.add with dicts for tables and migrations, instead of subclassing Sqldb and calling postinit.
 - [ADR-0015: Settings are keyed per plugin and a name index resolves pset](decisions/0015-settings-are-keyed-per-plugin-and-a-name-index-resolves-pset.md) - Settings are keyed by plugin and name, so plugins may reuse a name, and a name index resolves a bare pset only when one plugin owns the name.
+- [ADR-0016: User variables expand %{name} references on the input path](decisions/0016-user-variables-expand-name-references-on-the-input-path.md) - User variables are %{name} references expanded in one pass on ev_to_mud_data_modify at priority 60, with an API for aliases, actions and loop.
 - [ADR-9001: Use uv for package management](decisions/9001-use-uv-for-package-management.md) - Use uv for dependency management, virtual environments and package installation
 - [ADR-9002: Use doit for task automation](decisions/9002-use-doit-for-task-automation.md) - Use doit as the task runner for testing, linting, building and other routine operations
 - [ADR-9003: Use ruff for linting and formatting](decisions/9003-use-ruff-for-linting-and-formatting.md) - Use ruff as the one tool for linting and formatting, in place of flake8, black and isort
@@ -118,6 +120,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Triggers System](claude/triggers_system.md) - Regex matching on MUD output that raises events for plugins to handle
 - [Triggers System Analysis and Findings](claude/triggers_system_findings.md) - Audit of the triggers plugin - how a MUD line reaches a trigger, state consistency, failure handling, cost, test coverage, docs accuracy, patterns and a design assessment with alternatives measured
 - [Utils Plugin](claude/utils_system.md) - The formatting, time and value-conversion APIs of plugins.core.utils
+- [Variables](client/variables.md) - Store named values and use them in the lines you type with %{name} references
 <!-- END:audience=contributors -->
 
 ### For AI Agents
@@ -181,6 +184,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [ADR-0013: Plugins are discovered from installed packages through the bastproxy.plugins entry-point group](decisions/0013-plugins-are-discovered-from-installed-packages-through-the-bastproxyplugins-entry-point-group.md) - Installed packages register plugins in the bastproxy.plugins entry-point group; the entry name sets the plugin ID, and bundled beats user beats installed.
 - [ADR-0014: Plugins add sqldb databases through database.add with plain-data definitions](decisions/0014-plugins-add-sqldb-databases-through-databaseadd-with-plain-data-definitions.md) - A plugin gets a sqldb database from plugins.core.sqldb:database.add with dicts for tables and migrations, instead of subclassing Sqldb and calling postinit.
 - [ADR-0015: Settings are keyed per plugin and a name index resolves pset](decisions/0015-settings-are-keyed-per-plugin-and-a-name-index-resolves-pset.md) - Settings are keyed by plugin and name, so plugins may reuse a name, and a name index resolves a bare pset only when one plugin owns the name.
+- [ADR-0016: User variables expand %{name} references on the input path](decisions/0016-user-variables-expand-name-references-on-the-input-path.md) - User variables are %{name} references expanded in one pass on ev_to_mud_data_modify at priority 60, with an API for aliases, actions and loop.
 - [ADR-9001: Use uv for package management](decisions/9001-use-uv-for-package-management.md) - Use uv for dependency management, virtual environments and package installation
 - [ADR-9002: Use doit for task automation](decisions/9002-use-doit-for-task-automation.md) - Use doit as the task runner for testing, linting, building and other routine operations
 - [ADR-9003: Use ruff for linting and formatting](decisions/9003-use-ruff-for-linting-and-formatting.md) - Use ruff as the one tool for linting and formatting, in place of flake8, black and isort
@@ -269,6 +273,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Triggers System Analysis and Findings](claude/triggers_system_findings.md) - Audit of the triggers plugin - how a MUD line reaches a trigger, state consistency, failure handling, cost, test coverage, docs accuracy, patterns and a design assessment with alternatives measured
 - [Using This Template](template/index.md) - Overview of using pyproject-template for your Python projects
 - [Utils Plugin](claude/utils_system.md) - The formatting, time and value-conversion APIs of plugins.core.utils
+- [Variables](client/variables.md) - Store named values and use them in the lines you type with %{name} references
 <!-- END:all -->
 
 ---
