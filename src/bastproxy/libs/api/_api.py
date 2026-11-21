@@ -97,6 +97,9 @@ class API:  # sourcery skip: upper-camel-case-classes
     # the proxy plugin
     command_split_regex: str | None = None
 
+    # the configured command separator, set by the proxy plugin with the regex
+    command_separator: str = "|"
+
     # flag to set the character active flag for connecting.
     # set this after the mud has been connected to and
     # is available for active commands to be sent
