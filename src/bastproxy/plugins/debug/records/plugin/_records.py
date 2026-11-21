@@ -256,7 +256,8 @@ class RecordPlugin(BasePlugin):
             return CommandResult(True, ["No record id provided"])
 
         record = RMANAGER.get_record(args["uid"])
-        if not record:
+        # Records are list and can be empty, so check is None
+        if record is None:
             return CommandResult(True, [f"Record {args['uid']} not found"])
 
         child_records_formatted = RMANAGER.format_all_children(record)
