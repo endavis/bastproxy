@@ -129,6 +129,39 @@ def test_prompt_close_after_finish() -> None:
     assert _feed(stub, "next").send is True
 
 
+def test_finish_on_prompt_line_closes_window() -> None:
+    stub = _hide_stub()
+    _queue(stub)
+    assert _feed(stub, "Name : x").send is False
+    _feed(stub, "<prompt>", prompt=True)
+    _finish(stub)  # called while the prompt is still being processed
+    assert stub._hide_open is None
+    assert _feed(stub, "tell").send is True
+
+
+def test_finish_on_non_prompt_line_waits_for_prompt() -> None:
+    stub = _hide_stub()
+    stub._prompts_seen = True
+    _queue(stub)
+    assert _feed(stub, "Name : x").send is False
+    _finish(stub)
+    assert stub._hide_open is not None
+    assert _feed(stub, "<prompt>", prompt=True).send is False
+    assert _feed(stub, "tell").send is True
+
+
+def test_prompt_hidden_before_finish_on_later_line_waits() -> None:
+    stub = _hide_stub()
+    _queue(stub)
+    assert _feed(stub, "Name : x").send is False
+    assert _feed(stub, "<prompt>", prompt=True).send is False
+    assert _feed(stub, "more").send is False
+    _finish(stub)
+    assert stub._hide_open is not None
+    assert _feed(stub, "<prompt>", prompt=True).send is False
+    assert _feed(stub, "tell").send is True
+
+
 def test_no_prompt_marking_closes_at_finish() -> None:
     stub = _hide_stub()
     _queue(stub)

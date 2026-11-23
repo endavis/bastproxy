@@ -60,6 +60,7 @@ def _stub() -> tuple[MagicMock, list[str]]:
     stub.timing_uid = None
     stub._hide_armed = None
     stub._hide_open = None
+    stub._hide_prompt_window = None
     stub._prompts_seen = False
     raised: list[str] = []
 
