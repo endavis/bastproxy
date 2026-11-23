@@ -262,7 +262,11 @@ class AliasesPlugin(BasePlugin):
         if self.api(f"{self.plugin_id}:alias.add")(
             name, expansion, args["group"], not args["disabled"]
         ):
-            return CommandResult(True, [f"alias {name} set"])
+            messages = [f"alias {name} set"]
+            warning = self._separator_warning(expansion)
+            if warning:
+                messages.append(warning)
+            return CommandResult(True, messages)
         return CommandResult(
             False,
             [
@@ -270,6 +274,26 @@ class AliasesPlugin(BasePlugin):
                 "start with the command prefix or contain the command separator, the group "
                 "letters, digits and underscores, and the expansion cannot contain a line break"
             ],
+        )
+
+    def _separator_warning(self, expansion: str) -> str:
+        """Return a warning when the expansion uses a separator other than the proxy's.
+
+        The warning is empty when the expansion has the configured command separator
+        or none of the common separators.
+        """
+        separator = self.api.command_separator
+        if not separator or separator in expansion:
+            return ""
+        found = next((char for char in (";", "|") if char != separator and char in expansion), "")
+        if not found:
+            return ""
+        typed = expansion.replace(found, separator * 2)
+        return (
+            f"warning: the expansion contains '{found}' but the command separator is "
+            f"'{separator}', so it is sent as one line. To separate commands, add it as "
+            f'"{typed}" (the separator doubled when typed), or change the separator with '
+            "the cmdseperator setting of plugins.core.proxy"
         )
 
     @AddParser(description="remove an alias")
