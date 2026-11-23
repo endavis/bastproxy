@@ -75,6 +75,8 @@ class MUDCmdsPlugin(BasePlugin):
         self.timing_uid: str | None = None
         self._hide_armed: HideWindow | None = None
         self._hide_open: HideWindow | None = None
+        # the window that hid the prompt line now being processed (#740)
+        self._hide_prompt_window: HideWindow | None = None
         self._prompts_seen = False
 
         self.reload_dependents_f = True
@@ -346,6 +348,8 @@ class MUDCmdsPlugin(BasePlugin):
             self._hide_open = None
         if self._hide_armed and (ctype is None or self._hide_armed.ctype == ctype):
             self._hide_armed = None
+        if self._hide_prompt_window and (ctype is None or self._hide_prompt_window.ctype == ctype):
+            self._hide_prompt_window = None
 
     @RegisterToEvent(event_name="ev_libs.net.mud_muddisconnect")
     def _eventcb_hide_disconnect(self) -> None:
@@ -356,6 +360,7 @@ class MUDCmdsPlugin(BasePlugin):
     @RegisterToEvent(event_name="event_t_plugins.core.triggers_beall")
     def _eventcb_hide_line(self) -> None:
         """Hide the lines of a queued command's reply while its window is open."""
+        self._hide_prompt_window = None
         if not (event_record := self.api("plugins.core.events:event.current.record.get")()):
             return
         line = event_record["line"]
@@ -384,6 +389,9 @@ class MUDCmdsPlugin(BasePlugin):
         window.count += 1
         if (window.end and window.end.search(line.noansi)) or (window.finished and is_prompt):
             self._hide_open = None
+        elif is_prompt:
+            # a finish during this same prompt line closes the window there
+            self._hide_prompt_window = window
 
     def _arm_hide(self, cmdt: QueuedCommand) -> None:
         """Arm a hide window for a command the queue is sending, if its type hides."""
@@ -408,7 +416,7 @@ class MUDCmdsPlugin(BasePlugin):
         if window is None or window.ctype != cmdt.ctype or window.cmd != cmdt.cmd:
             return
         window.finished = True
-        if window.end is None and not self._prompts_seen:
+        if window.end is None and (not self._prompts_seen or self._hide_prompt_window is window):
             self._hide_open = None
 
     def _finish_timing(self) -> None:

@@ -648,7 +648,8 @@ sends is hidden; a command the user types never is.
   before it, such as tells, are shown.
 - `hide_end` is the regex for the last line, which is hidden too.
 - Without `hide_end`, the window closes at the first prompt line after `command.finish`, and that
-  prompt is hidden. When no prompt has been seen on the link (nothing marks prompts), it closes
+  prompt is hidden. A `command.finish` called while that prompt line is itself being processed
+  (from a trigger or an all-lines callback) closes the window on that prompt. When no prompt has been seen on the link (nothing marks prompts), it closes
   at `command.finish`.
 - `hide_max` (an int of at least 1, default 500) caps the hidden lines. Past it the window closes,
   a warning names the type, and the line is shown.
