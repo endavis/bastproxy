@@ -138,12 +138,15 @@ imported again.
 The `pluginm` plugin has the commands:
 
 ```text
-#bp.core.pluginm.load <plugin>
+#bp.core.pluginm.load <plugin> [<plugin> ...]
 #bp.core.pluginm.unload <plugin>
 #bp.core.pluginm.reload <plugin>
 ```
 
-`<plugin>` is the plugin id without the `plugins.` prefix, for example `core.help`. Three
+`<plugin>` is the plugin id without the `plugins.` prefix, for example `core.help`. `load` takes
+any number of plugins, and a package name such as `aardwolf` loads every `plugins.aardwolf.*`
+plugin that is not loaded, in one call and with dependencies. A partial name matches nothing.
+`unload` and `reload` take one plugin. Three
 attributes of the plugin instance change what a reload does; their defaults are set in
 `src/bastproxy/plugins/_baseplugin/_base.py`:
 
