@@ -36,6 +36,23 @@ class MudCmdType:
     beforef: Callable[[], None] | None = None
     afterf: Callable[[], None] | None = None
     timeout: int | None = None
+    hide_output: bool = False
+    hide_start: str | None = None
+    hide_end: str | None = None
+    hide_max: int = 500
+
+
+@dataclass(slots=True)
+class HideWindow:
+    """The state of hiding one command's output."""
+
+    ctype: str
+    cmd: str
+    start: re.Pattern[str]
+    end: re.Pattern[str] | None
+    max_lines: int
+    count: int = 0
+    finished: bool = False
 
 
 @dataclass(slots=True)
@@ -56,6 +73,9 @@ class MUDCmdsPlugin(BasePlugin):
         self.cmds: dict[str, MudCmdType] = {}
         self.current_command: QueuedCommand | None = None
         self.timing_uid: str | None = None
+        self._hide_armed: HideWindow | None = None
+        self._hide_open: HideWindow | None = None
+        self._prompts_seen = False
 
         self.reload_dependents_f = True
 
@@ -122,6 +142,7 @@ class MUDCmdsPlugin(BasePlugin):
         self.api("plugins.core.events:event.raise")(
             f"cmd_{cmdt.ctype}_timeout", {"cmd": cmdt.cmd, "seconds": seconds}
         )
+        self._close_hide(cmdt.ctype)
         self.current_command = None
         self.sendnext()
 
@@ -165,6 +186,7 @@ class MUDCmdsPlugin(BasePlugin):
             get_logger(self.plugin_id).debug("_api_type_remove - %s not found", cmdtype)
             return
         del self.cmds[cmdtype]
+        self._close_hide(cmdtype)
         self.queue = [queued for queued in self.queue if queued.ctype != cmdtype]
         if self.current_command and self.current_command.ctype == cmdtype:
             self._cancel_timeout()
@@ -197,8 +219,18 @@ class MUDCmdsPlugin(BasePlugin):
                 Defaults to the command_timeout setting. When the command does not
                 finish in time, the queue logs a warning, finishes it without running
                 afterf, raises cmd_<type>_timeout and sends the next command.
+            hide_output: bool, False by default. When True, the output of a command
+                the queue sent is hidden from the client. A typed command is never
+                hidden.
+            hide_start: regex for the first line of the reply. Defaults to regex.
+            hide_end: regex for the last line of the reply, which is hidden too.
+                Without it the window closes at the first prompt line after
+                command.finish, or at command.finish when no prompt has been seen.
+            hide_max: line cap, an int of at least 1, 500 by default. Past it the
+                window closes, a warning is logged and the line is shown.
 
         A regex that does not compile is logged as an error and nothing is added.
+        An invalid hide_* value is logged as an error and nothing is added.
         """
         try:
             re.compile(regex)
@@ -221,6 +253,12 @@ class MUDCmdsPlugin(BasePlugin):
                 timeout,
             )
             return
+        hide_output = kwargs.get("hide_output", False)
+        hide_start = kwargs.get("hide_start")
+        hide_end = kwargs.get("hide_end")
+        hide_max = kwargs.get("hide_max", 500)
+        if not self._valid_hide_args(cmdtype, hide_output, hide_start, hide_end, hide_max):
+            return
         owner = kwargs.get("owner") or self.api("libs.api:caller.owner.get")(
             ignore_owner_list=[self.plugin_id]
         )
@@ -235,6 +273,10 @@ class MUDCmdsPlugin(BasePlugin):
                 beforef=beforef,
                 afterf=afterf,
                 timeout=timeout,
+                hide_output=hide_output,
+                hide_start=hide_start,
+                hide_end=hide_end,
+                hide_max=hide_max,
             )
 
             self.api("plugins.core.events:event.add")(
@@ -261,6 +303,114 @@ class MUDCmdsPlugin(BasePlugin):
                 },
             )
 
+    def _valid_hide_args(
+        self, cmdtype: str, hide_output: Any, hide_start: Any, hide_end: Any, hide_max: Any
+    ) -> bool:
+        """Check the hide_* arguments of type.add, logging an error for a bad one."""
+        logger = get_logger(self.plugin_id)
+        if not isinstance(hide_output, bool):
+            logger.error(
+                "_api_type_add - command type %s has an invalid hide_output %r, it must be a bool",
+                cmdtype,
+                hide_output,
+            )
+            return False
+        for name, value in (("hide_start", hide_start), ("hide_end", hide_end)):
+            if value is None:
+                continue
+            try:
+                re.compile(value)
+            except (re.error, TypeError):
+                logger.error(
+                    "_api_type_add - command type %s has an invalid %s %r, "
+                    "it must be a regex that compiles",
+                    cmdtype,
+                    name,
+                    value,
+                    exc_info=True,
+                )
+                return False
+        if isinstance(hide_max, bool) or not isinstance(hide_max, int) or hide_max < 1:
+            logger.error(
+                "_api_type_add - command type %s has an invalid hide_max %r, "
+                "it must be an int of at least 1",
+                cmdtype,
+                hide_max,
+            )
+            return False
+        return True
+
+    def _close_hide(self, ctype: str | None = None) -> None:
+        """Drop the open and armed hide windows, only those of ctype when given."""
+        if self._hide_open and (ctype is None or self._hide_open.ctype == ctype):
+            self._hide_open = None
+        if self._hide_armed and (ctype is None or self._hide_armed.ctype == ctype):
+            self._hide_armed = None
+
+    @RegisterToEvent(event_name="ev_libs.net.mud_muddisconnect")
+    def _eventcb_hide_disconnect(self) -> None:
+        """The MUD link closed: drop hide windows and forget prompts seen."""
+        self._close_hide()
+        self._prompts_seen = False
+
+    @RegisterToEvent(event_name="event_t_plugins.core.triggers_beall")
+    def _eventcb_hide_line(self) -> None:
+        """Hide the lines of a queued command's reply while its window is open."""
+        if not (event_record := self.api("plugins.core.events:event.current.record.get")()):
+            return
+        line = event_record["line"]
+        if line.internal:
+            return
+        is_prompt = bool(getattr(line, "is_prompt", False))
+        if is_prompt:
+            self._prompts_seen = True
+        window = self._hide_open
+        if window is None:
+            armed = self._hide_armed
+            if armed is None or not armed.start.search(line.noansi):
+                return
+            self._hide_armed = None
+            self._hide_open = window = armed
+        if window.count + 1 > window.max_lines:
+            get_logger(self.plugin_id).warning(
+                "hiding the output of command type %s reached its cap of %s lines, "
+                "showing the rest",
+                window.ctype,
+                window.max_lines,
+            )
+            self._hide_open = None
+            return
+        line.send = False
+        window.count += 1
+        if (window.end and window.end.search(line.noansi)) or (window.finished and is_prompt):
+            self._hide_open = None
+
+    def _arm_hide(self, cmdt: QueuedCommand) -> None:
+        """Arm a hide window for a command the queue is sending, if its type hides."""
+        ctype = self.cmds.get(cmdt.ctype)
+        if ctype is None or not ctype.hide_output:
+            return
+        self._hide_armed = HideWindow(
+            ctype=cmdt.ctype,
+            cmd=cmdt.cmd,
+            start=re.compile(ctype.hide_start or ctype.regex),
+            end=re.compile(ctype.hide_end) if ctype.hide_end else None,
+            max_lines=ctype.hide_max,
+        )
+
+    def _finish_hide(self, cmdt: QueuedCommand) -> None:
+        """A command finished: close its window now or at the next prompt."""
+        armed = self._hide_armed
+        if armed is not None and armed.ctype == cmdt.ctype and armed.cmd == cmdt.cmd:
+            # the reply never opened it, so there is nothing to hide
+            self._hide_armed = None
+        window = self._hide_open
+        if window is None or window.ctype != cmdt.ctype or window.cmd != cmdt.cmd:
+            return
+        window.finished = True
+        if window.end is None and not self._prompts_seen:
+            self._hide_open = None
+
     def _finish_timing(self) -> None:
         """Finish the timer started for the current command, if any."""
         if self.timing_uid:
@@ -282,6 +432,7 @@ class MUDCmdsPlugin(BasePlugin):
             beforef()
 
         self.current_command = cmdt
+        self._arm_hide(cmdt)
         self.api("plugins.core.events:event.raise")(f"cmd_{self.current_command.ctype}_send")
         self._start_timeout(cmdt)
         SendDataDirectlyToMud(NetworkData(cmd))()
@@ -305,6 +456,7 @@ class MUDCmdsPlugin(BasePlugin):
 
             self._cancel_timeout()
             self._finish_timing()
+            self._finish_hide(self.current_command)
             self.api("plugins.core.events:event.raise")(
                 f"cmd_{self.current_command.ctype}_completed"
             )
@@ -342,6 +494,7 @@ class MUDCmdsPlugin(BasePlugin):
         if self.current_command:
             self._cancel_timeout()
             self._finish_timing()
+            self._close_hide()
             self.current_command = None
             self.sendnext()
 

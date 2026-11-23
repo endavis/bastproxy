@@ -20,7 +20,19 @@ PID = "plugins.test.a"
 def test_mudcmdtype_fields_defaults_and_slots() -> None:
     """MudCmdType has the documented fields, None callbacks and slots."""
     fields = [f.name for f in dataclasses.fields(MudCmdType)]
-    assert fields == ["cmd", "regex", "ctype", "owner", "beforef", "afterf", "timeout"]
+    assert fields == [
+        "cmd",
+        "regex",
+        "ctype",
+        "owner",
+        "beforef",
+        "afterf",
+        "timeout",
+        "hide_output",
+        "hide_start",
+        "hide_end",
+        "hide_max",
+    ]
     rec = MudCmdType(cmd="c", regex="^a$", ctype="t", owner=PID)
     assert rec.beforef is None
     assert rec.afterf is None
@@ -46,6 +58,9 @@ def _stub() -> tuple[MagicMock, list[str]]:
     stub.queue = []
     stub.current_command = None
     stub.timing_uid = None
+    stub._hide_armed = None
+    stub._hide_open = None
+    stub._prompts_seen = False
     raised: list[str] = []
 
     def api(name: str) -> Any:
@@ -59,6 +74,10 @@ def _stub() -> tuple[MagicMock, list[str]]:
     stub.sendnext = lambda: MUDCmdsPlugin.sendnext(stub)
     stub.checkinqueue = lambda c: MUDCmdsPlugin.checkinqueue(stub, c)
     stub._finish_timing = lambda: MUDCmdsPlugin._finish_timing(stub)
+    stub._valid_hide_args = lambda *a: MUDCmdsPlugin._valid_hide_args(stub, *a)
+    stub._arm_hide = lambda c: MUDCmdsPlugin._arm_hide(stub, c)
+    stub._finish_hide = lambda c: MUDCmdsPlugin._finish_hide(stub, c)
+    stub._close_hide = lambda c=None: MUDCmdsPlugin._close_hide(stub, c)
     return stub, raised
 
 
