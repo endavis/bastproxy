@@ -8,6 +8,7 @@
 """manages all plugins."""
 
 # Standard Library
+from collections.abc import Callable
 from importlib import import_module
 from typing import Any
 
@@ -35,6 +36,58 @@ def _full_plugin_id(name: str) -> str:
     if name.startswith("plugins."):
         return name
     return f"plugins.{name.removeprefix('.')}"
+
+
+def _package_matches(prefix: str, ids: list[str]) -> list[str]:
+    """Return the ids that live in the package ``prefix``.
+
+    Args:
+        prefix: A package name with the ``plugins.`` prefix.
+        ids: The plugin ids to search.
+
+    Returns:
+        The ids that start with ``prefix`` followed by a dot, so matching is on
+        whole id parts. An id equal to ``prefix`` is not a match.
+
+    """
+    return [pid for pid in ids if pid.startswith(f"{prefix}.")]
+
+
+def _resolve_load_names(
+    names: list[str],
+    is_loaded: Callable[[str], bool],
+    not_loaded: list[str],
+) -> tuple[list[str], list[str], list[str]]:
+    """Sort the names given to the load command.
+
+    Args:
+        names: Plugin ids or package names, with or without ``plugins.``.
+        is_loaded: Returns True when a plugin id is loaded.
+        not_loaded: The ids of the plugins that are not loaded.
+
+    Returns:
+        A tuple of ``(to_load, already_loaded, not_found)``, each without repeats
+        and in the order the names were given.
+
+    """
+    to_load: list[str] = []
+    already_loaded: list[str] = []
+    not_found: list[str] = []
+    for name in names:
+        full = _full_plugin_id(name)
+        if is_loaded(full):
+            already_loaded.append(full)
+        elif full in not_loaded:
+            to_load.append(full)
+        elif matches := _package_matches(full, not_loaded):
+            to_load.extend(matches)
+        else:
+            not_found.append(full)
+    return (
+        list(dict.fromkeys(to_load)),
+        list(dict.fromkeys(already_loaded)),
+        list(dict.fromkeys(not_found)),
+    )
 
 
 def _package_description(plugin_info: PluginInfo) -> str:
@@ -309,40 +362,50 @@ class PluginManager(BasePlugin):
         for plugin_id in self.api("libs.plugins.loader:plugin.list.loaded")():
             self.api(f"{plugin_id}:plugin.state.save")()
 
-    @AddParser(description="load a plugin")
+    @AddParser(description="load plugins or a package")
     @AddArgument(
         "plugin",
-        help="the plugin to load, don't include the .py",
-        default="",
-        nargs="?",
+        help="the plugins or packages to load, don't include the .py",
+        default=[],
+        nargs="*",
     )
     def _command_load(self) -> CommandResult:
         """@G%(name)s@w - @B%(cmdname)s@w.
 
-          Load a plugin
-          @CUsage@w: load @Yplugin@w
-            @Yplugin@w    = the id of the plugin to load,
-                            example: debug.records
+          Load plugins or a whole package
+          @CUsage@w: load @Yplugin@w [@Yplugin@w ...]
+            @Yplugin@w    = the id of a plugin or the name of a package,
+                            example: aardwolf.connect statdb
+                            or: aardwolf
                             (plugins.debug.records works too).
 
-        will load the plugin and all of its dependencies
+        A package name loads all of its plugins that are not loaded, matching
+        whole parts of the id. A package whose plugins are all loaded, or a
+        partial name, is reported as not found.
+        Will load the plugins and all of their dependencies.
         """
         args = self.api("plugins.core.commands:command.current.args.get")()
 
-        plugin_id = _full_plugin_id(args["plugin"]) if args["plugin"] else ""
+        raw = args["plugin"]
+        names = [raw] if isinstance(raw, str) else list(raw)
+        names = [name for name in names if name]
 
-        if not plugin_id:
+        if not names:
             return CommandResult(False, ["No plugin specified"])
 
-        if self.api("libs.plugins.loader:plugin.is.loaded")(plugin_id):
-            return CommandResult(True, [f"Plugin {plugin_id} is already loaded"])
+        to_load, already_loaded, not_found = _resolve_load_names(
+            names,
+            self.api("libs.plugins.loader:plugin.is.loaded"),
+            self.api("libs.plugins.loader:plugin.list.not.loaded")(),
+        )
 
-        not_loaded_plugins_by_id = self.api("libs.plugins.loader:plugin.list.not.loaded")()
+        extra = [f"Plugin {pid} is already loaded" for pid in already_loaded]
+        extra.extend(f"Plugin {pid} not found" for pid in not_found)
 
-        if plugin_id and plugin_id not in not_loaded_plugins_by_id:
-            return CommandResult(False, [f"Plugin {plugin_id} not found"])
+        if not to_load:
+            return CommandResult(bool(already_loaded), extra)
 
-        plugin_response = self.api("libs.plugins.loader:plugin.load")([plugin_id])
+        plugin_response = self.api("libs.plugins.loader:plugin.load")(to_load)
 
         tmsg: list[str] = []
         if plugin_response["loaded_plugins"]:
@@ -374,6 +437,7 @@ class PluginManager(BasePlugin):
                     "   " + ", ".join(plugin_response["bad_plugins"]),
                 )
             )
+        tmsg.extend(extra)
         return CommandResult(True, tmsg)
 
     @AddParser(description="unload a plugin")
