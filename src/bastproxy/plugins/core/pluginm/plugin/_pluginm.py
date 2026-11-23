@@ -409,12 +409,8 @@ class PluginManager(BasePlugin):
 
         tmsg: list[str] = []
         if plugin_response["loaded_plugins"]:
-            tmsg.extend(
-                (
-                    "Loaded the following plugins",
-                    "   " + ", ".join(plugin_response["loaded_plugins"]),
-                )
-            )
+            tmsg.append("Loaded the following plugins")
+            tmsg.extend("   " + pid for pid in plugin_response["loaded_plugins"])
 
             # add the loaded plugins to the pluginstoload setting
             plugins_to_load_setting = self.api("plugins.core.settings:setting.get")(
@@ -431,12 +427,8 @@ class PluginManager(BasePlugin):
                 )
 
         if plugin_response["bad_plugins"]:
-            tmsg.extend(
-                (
-                    "Failed to load the following plugins, please check the logs",
-                    "   " + ", ".join(plugin_response["bad_plugins"]),
-                )
-            )
+            tmsg.append("Failed to load the following plugins, please check the logs")
+            tmsg.extend("   " + pid for pid in plugin_response["bad_plugins"])
         tmsg.extend(extra)
         return CommandResult(True, tmsg)
 

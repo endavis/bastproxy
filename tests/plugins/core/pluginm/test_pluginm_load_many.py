@@ -91,6 +91,29 @@ def test_failed_plugin_reported_and_others_saved() -> None:
     assert store == [AARD[0], AARD[2]]
 
 
+def test_loaded_plugins_one_per_line() -> None:
+    stub, _store, _load = _stub(["aardwolf"], list(AARD))
+    result = PluginManager._command_load(stub)
+    assert result.message == [
+        "Loaded the following plugins",
+        "   " + AARD[0],
+        "   " + AARD[1],
+        "   " + AARD[2],
+    ]
+
+
+def test_failed_plugins_one_per_line() -> None:
+    stub, _store, _load = _stub(["aardwolf"], list(AARD), bad={AARD[0], AARD[2]})
+    result = PluginManager._command_load(stub)
+    assert result.message == [
+        "Loaded the following plugins",
+        "   " + AARD[1],
+        "Failed to load the following plugins, please check the logs",
+        "   " + AARD[0],
+        "   " + AARD[2],
+    ]
+
+
 def test_repeated_names_load_once() -> None:
     stub, _store, load = _stub(["aardwolf", "aardwolf.a"], list(AARD))
     PluginManager._command_load(stub)
