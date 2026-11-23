@@ -184,6 +184,42 @@ def test_command_add_stores_doubled_separator_single(tmp_path: Path) -> None:
     assert p.aliases["p"]["expansion"] == "stand|look|say %*"
 
 
+def _add_messages(tmp_path: Path, expansion: list[str], separator: str = "|") -> list[str]:
+    """Run the add command with the given separator and return its messages."""
+    args = {"name": "oa", "expansion": expansion, "group": "", "disabled": False}
+    p = _plugin(tmp_path, args)
+    p.api.command_separator = separator
+    result = p._command_add()
+    assert result.success is True
+    assert "oa" in p.aliases
+    return [str(m) for m in result.message]
+
+
+def test_command_add_warns_on_semicolon_with_pipe_separator(tmp_path: Path) -> None:
+    """A ``;`` expansion adds the alias and warns with the doubled-separator form."""
+    messages = _add_messages(tmp_path, ["od;oe;on"])
+    assert messages[0] == "alias oa set"
+    assert len(messages) == 2
+    assert "';'" in messages[1]
+    assert "'|'" in messages[1]
+    assert '"od||oe||on"' in messages[1]
+    assert "cmdseperator" in messages[1]
+
+
+def test_command_add_warns_on_pipe_with_semicolon_separator(tmp_path: Path) -> None:
+    """With ``;`` as the separator, ``|`` warns and ``;`` does not."""
+    warned = _add_messages(tmp_path, ["od|oe"], ";")
+    assert len(warned) == 2
+    assert '"od;;oe"' in warned[1]
+    assert _add_messages(tmp_path, ["od;;oe"], ";") == ["alias oa set"]
+
+
+@pytest.mark.parametrize("expansion", [["od||oe"], ["kill", "%1"], ["say", "hi;", "there||x"]])
+def test_command_add_no_warning(tmp_path: Path, expansion: list[str]) -> None:
+    """The configured separator or no separator-like character gives no warning."""
+    assert _add_messages(tmp_path, expansion) == ["alias oa set"]
+
+
 def test_api_add_keeps_expansion_literal(tmp_path: Path) -> None:
     """The API stores what the caller passes; only the typed command unescapes."""
     p = _plugin(tmp_path)
