@@ -1455,9 +1455,18 @@ class CommandsPlugin(BasePlugin):
             f"Available Commands in {plugin_id.replace('plugins.', '')}"
         )
 
+        # `set` only does something for a plugin with a visible setting (every plugin has a
+        # hidden `_version`), so leave it out of the list otherwise. The command stays registered.
+        has_settings = any(
+            not info.hidden
+            for info in self.api("plugins.core.settings:setting.list")(plugin_id).values()
+        )
+
         groups: dict[str, list[CommandClass]] = {}
         for i in sorted(commands.keys()):
             if i != "default":
+                if i == "set" and commands[i].group == "Base" and not has_settings:
+                    continue
                 if commands[i].group not in groups:
                     groups[commands[i].group] = []
 

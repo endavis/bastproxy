@@ -17,6 +17,8 @@ def _stub() -> MagicMock:
             return lambda plugin_id: True
         if name.endswith("setting.get"):
             return lambda plugin_id, key: "@C"
+        if name.endswith("setting.list"):
+            return lambda plugin_id: {}
         if name.endswith("output.header.format"):
             return lambda text: [text]
         if name.endswith("current.args.get"):

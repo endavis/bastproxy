@@ -15,6 +15,7 @@ def _stub(handlers: dict[str, Callable[..., Any]] | None = None) -> MagicMock:
     """Build a plugin stub whose api returns `handlers[name]` or a no-op returning []."""
     table: dict[str, Callable[..., Any]] = {
         "plugins.core.settings:setting.get": lambda _pid, _key: "@w",
+        "plugins.core.settings:setting.list": lambda _pid: {},
         f"{PID}:output.header.format": lambda title: [f"HEADER {title}"],
         "plugins.core.proxy:line.length.get": lambda: 80,
         "plugins.core.utils:line.cap": lambda *_a, **_k: "CAP",
