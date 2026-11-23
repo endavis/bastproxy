@@ -20,7 +20,7 @@ PID = "plugins.test.a"
 def test_mudcmdtype_fields_defaults_and_slots() -> None:
     """MudCmdType has the documented fields, None callbacks and slots."""
     fields = [f.name for f in dataclasses.fields(MudCmdType)]
-    assert fields == ["cmd", "regex", "ctype", "owner", "beforef", "afterf"]
+    assert fields == ["cmd", "regex", "ctype", "owner", "beforef", "afterf", "timeout"]
     rec = MudCmdType(cmd="c", regex="^a$", ctype="t", owner=PID)
     assert rec.beforef is None
     assert rec.afterf is None
