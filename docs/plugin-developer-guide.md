@@ -612,6 +612,27 @@ line's place, after the input's earlier lines and before its later ones.
 
 Details: [command system](claude/command_system.md#command-execution).
 
+## Queuing MUD commands
+
+To send a MUD command one at a time and know when its output ends, register a type with
+`plugins.core.mudcmds:type.add`, queue it with `command.queue`, and call `command.finish` when
+your end trigger matches.
+
+```python
+    def _add_types(self) -> None:
+        self.api("plugins.core.mudcmds:type.add")(
+            "whois", "whois", r"^Name\s+:", afterf=self._whois_done, timeout=10
+        )
+```
+
+The queue sends the next command only after the current one finishes. If the end is never seen,
+the queue waits `command_timeout` seconds (a `plugins.core.mudcmds` setting, default 5; the real
+wait is up to a second longer, since timers use whole-second slots), logs a warning naming the
+command, its type and plugin, finishes it and sends the next one. `type.add` takes `timeout=<int
+of at least 1>` to override the setting for one type. On a timeout `afterf` and
+`cmd_<type>_completed` do not run, because the output was not read. The `cmd_<type>_timeout`
+event is raised with `cmd` and `seconds`, so register to it to turn off trigger groups.
+
 ## Waiting for output
 
 To send a command and then use the MUD's answer, ask the triggers plugin to wait for it. Event

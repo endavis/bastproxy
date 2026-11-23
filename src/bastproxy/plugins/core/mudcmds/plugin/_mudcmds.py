@@ -10,6 +10,7 @@ import logging
 import re
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import partial
 from typing import Any
 
 from bastproxy.libs.api import AddAPI
@@ -18,6 +19,7 @@ from bastproxy.libs.logger import get_logger, log_to
 # 3rd Party
 # Project
 from bastproxy.libs.records import NetworkData, SendDataDirectlyToMud
+from bastproxy.libs.validators import int_range
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
@@ -33,6 +35,7 @@ class MudCmdType:
     owner: str
     beforef: Callable[[], None] | None = None
     afterf: Callable[[], None] | None = None
+    timeout: int | None = None
 
 
 @dataclass(slots=True)
@@ -55,6 +58,72 @@ class MUDCmdsPlugin(BasePlugin):
         self.timing_uid: str | None = None
 
         self.reload_dependents_f = True
+
+    @RegisterPluginHook("after_load")
+    def _phook_initialize(self) -> None:
+        """Add the command timeout setting."""
+        self.api("plugins.core.settings:setting.add")(
+            self.plugin_id,
+            "command_timeout",
+            5,
+            int,
+            "seconds to wait for a command to finish before the queue finishes it and "
+            "sends the next one; a command type can set its own",
+            validator=int_range(1, label="command timeout"),
+        )
+
+    @property
+    def _timeout_timer_name(self) -> str:
+        """Name of the timer that watches the current command."""
+        return f"{self.plugin_id}_command_timeout"
+
+    def _timeout_seconds(self, cmdtype: str) -> int:
+        """Seconds to wait for a command of the type: its own limit, else the setting."""
+        if cmdtype in self.cmds and (own := self.cmds[cmdtype].timeout) is not None:
+            return own
+        seconds: int = self.api("plugins.core.settings:setting.get")(
+            self.plugin_id, "command_timeout"
+        )
+        return seconds
+
+    def _start_timeout(self, cmdt: QueuedCommand) -> None:
+        """Start the one-time timer that finishes the command if it never does."""
+        self.api("plugins.core.timers:timer.add")(
+            self._timeout_timer_name,
+            partial(self._command_timed_out, cmdt),
+            self._timeout_seconds(cmdt.ctype),
+            onetime=True,
+            plugin_id=self.plugin_id,
+        )
+
+    def _cancel_timeout(self) -> None:
+        """Remove the timeout timer if it exists."""
+        if self.api("plugins.core.timers:timer.exists")(self._timeout_timer_name):
+            self.api("plugins.core.timers:timer.remove")(self._timeout_timer_name)
+
+    def _command_timed_out(self, cmdt: QueuedCommand) -> None:
+        """Finish a command whose end was never seen, then send the next one.
+
+        afterf and the completed event are not run, since the output was not read.
+        The cmd_<type>_timeout event lets the owning plugin clean up.
+        """
+        if self.current_command is not cmdt:
+            return
+        seconds = self._timeout_seconds(cmdt.ctype)
+        get_logger(self.plugin_id).warning(
+            "command %r (type %s, plugin %s) did not finish in %s seconds, "
+            "finishing it and sending the next command",
+            cmdt.cmd,
+            cmdt.ctype,
+            cmdt.plugin,
+            seconds,
+        )
+        self._finish_timing()
+        self.api("plugins.core.events:event.raise")(
+            f"cmd_{cmdt.ctype}_timeout", {"cmd": cmdt.cmd, "seconds": seconds}
+        )
+        self.current_command = None
+        self.sendnext()
 
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self) -> None:
@@ -98,6 +167,7 @@ class MUDCmdsPlugin(BasePlugin):
         del self.cmds[cmdtype]
         self.queue = [queued for queued in self.queue if queued.ctype != cmdtype]
         if self.current_command and self.current_command.ctype == cmdtype:
+            self._cancel_timeout()
             self._finish_timing()
             self.current_command = None
             self.sendnext()
@@ -123,6 +193,10 @@ class MUDCmdsPlugin(BasePlugin):
                 plugin, found with libs.api:caller.owner.get.
             beforef: function to call before the command is sent
             afterf: function to call after the command completes
+            timeout: seconds to wait for the command to finish, an int of at least 1.
+                Defaults to the command_timeout setting. When the command does not
+                finish in time, the queue logs a warning, finishes it without running
+                afterf, raises cmd_<type>_timeout and sends the next command.
 
         A regex that does not compile is logged as an error and nothing is added.
         """
@@ -134,6 +208,17 @@ class MUDCmdsPlugin(BasePlugin):
                 cmdtype,
                 regex,
                 exc_info=True,
+            )
+            return
+        timeout = kwargs.get("timeout")
+        if timeout is not None and (
+            isinstance(timeout, bool) or not isinstance(timeout, int) or timeout < 1
+        ):
+            get_logger(self.plugin_id).error(
+                "_api_type_add - command type %s has an invalid timeout %r, "
+                "it must be an int of at least 1",
+                cmdtype,
+                timeout,
             )
             return
         owner = kwargs.get("owner") or self.api("libs.api:caller.owner.get")(
@@ -149,6 +234,7 @@ class MUDCmdsPlugin(BasePlugin):
                 owner=owner,
                 beforef=beforef,
                 afterf=afterf,
+                timeout=timeout,
             )
 
             self.api("plugins.core.events:event.add")(
@@ -162,6 +248,17 @@ class MUDCmdsPlugin(BasePlugin):
                 self.cmds[cmdtype].owner,
                 description=[f"event for the command {self.cmds[cmdtype].ctype} completing"],
                 arg_descriptions={"None": None},
+            )
+            self.api("plugins.core.events:event.add")(
+                f"cmd_{cmdtype}_timeout",
+                self.cmds[cmdtype].owner,
+                description=[
+                    f"event for the command {self.cmds[cmdtype].ctype} not finishing in time"
+                ],
+                arg_descriptions={
+                    "cmd": "the command that timed out",
+                    "seconds": "the seconds it was given to finish",
+                },
             )
 
     def _finish_timing(self) -> None:
@@ -186,6 +283,7 @@ class MUDCmdsPlugin(BasePlugin):
 
         self.current_command = cmdt
         self.api("plugins.core.events:event.raise")(f"cmd_{self.current_command.ctype}_send")
+        self._start_timeout(cmdt)
         SendDataDirectlyToMud(NetworkData(cmd))()
 
     def checkinqueue(self, cmd: str) -> bool:
@@ -205,6 +303,7 @@ class MUDCmdsPlugin(BasePlugin):
                 )
                 afterf()
 
+            self._cancel_timeout()
             self._finish_timing()
             self.api("plugins.core.events:event.raise")(
                 f"cmd_{self.current_command.ctype}_completed"
@@ -241,6 +340,7 @@ class MUDCmdsPlugin(BasePlugin):
     def _command_fixqueue(self) -> CommandResult:
         """Finish the last command."""
         if self.current_command:
+            self._cancel_timeout()
             self._finish_timing()
             self.current_command = None
             self.sendnext()
