@@ -383,7 +383,7 @@ by calling `plugin.state.save` on each.
 1. **Uninitialize Hooks**: `uninitialize` plugin hooks run in priority order, but only if the
    plugin is flagged loaded. A plugin that failed to load is not uninitialized, but the loader
    raises `ev_plugin_unloaded` and calls `libs.api:api.toplevel.remove` for it, so the events, commands,
-   settings, timers, triggers, watch and mudcmds cleanup handlers run.
+   settings, timers, triggers, watch and mudcmds cleanup handlers run (mudcmds also closes any open hide window).
    ```python
    @RegisterPluginHook("uninitialize", priority=50)
    def _phook_uninitialize(self):

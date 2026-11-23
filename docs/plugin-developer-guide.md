@@ -633,6 +633,29 @@ of at least 1>` to override the setting for one type. On a timeout `afterf` and
 `cmd_<type>_completed` do not run, because the output was not read. The `cmd_<type>_timeout`
 event is raised with `cmd` and `seconds`, so register to it to turn off trigger groups.
 
+### Hiding a command's output
+
+Set `hide_output=True` to keep a queued command's reply from the client. Only a command the queue
+sends is hidden; a command the user types never is.
+
+```python
+        self.api("plugins.core.mudcmds:type.add")(
+            "whois", "whois", r"^Name\s+:", hide_output=True, hide_end=r"^Clan\s+:", hide_max=100
+        )
+```
+
+- `hide_start` is the regex for the reply's first line. It defaults to the type's regex. Lines
+  before it, such as tells, are shown.
+- `hide_end` is the regex for the last line, which is hidden too.
+- Without `hide_end`, the window closes at the first prompt line after `command.finish`, and that
+  prompt is hidden. When no prompt has been seen on the link (nothing marks prompts), it closes
+  at `command.finish`.
+- `hide_max` (an int of at least 1, default 500) caps the hidden lines. Past it the window closes,
+  a warning names the type, and the line is shown.
+- The window closes on a timeout, a disconnect, `type.remove`, plugin unload and `fixqueue`.
+- Your triggers still match hidden lines, since only sending them to the client is stopped.
+- An invalid value logs an error and the type is not added.
+
 ## Waiting for output
 
 To send a command and then use the MUD's answer, ask the triggers plugin to wait for it. Event
