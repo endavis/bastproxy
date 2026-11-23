@@ -18,7 +18,7 @@ def _command(name: str, group: str) -> Any:
     )
 
 
-def _stub(command_data: dict[str, Any]) -> MagicMock:
+def _stub(command_data: dict[str, Any], settings: dict[str, Any] | None = None) -> MagicMock:
     stub = MagicMock()
     stub.plugin_id = PID
     stub.command_data = command_data
@@ -29,6 +29,8 @@ def _stub(command_data: dict[str, Any]) -> MagicMock:
             return lambda _pid: True
         if name == "plugins.core.settings:setting.get":
             return lambda _pid, _setting: "@w"
+        if name == "plugins.core.settings:setting.list":
+            return lambda _pid: settings or {}
         if name == f"{PID}:output.header.format":
             return lambda title: [f"HEADER {title}"]
         raise AssertionError(name)
@@ -58,7 +60,50 @@ def test_plugin_with_empty_command_entry() -> None:
 
 
 def test_base_group_still_listed() -> None:
-    stub = _stub({TARGET: {"set": _command("set", "Base")}})
+    stub = _stub({TARGET: {"set": _command("set", "Base")}}, {"opt": SimpleNamespace(hidden=False)})
+
+    text = "\n".join(CommandsPlugin._api_command_list_formatted(stub, TARGET))
+
+    assert "set description" in text
+
+
+def test_set_hidden_when_plugin_has_no_settings() -> None:
+    stub = _stub({TARGET: {"set": _command("set", "Base"), "foo": _command("foo", "Base")}})
+
+    text = "\n".join(CommandsPlugin._api_command_list_formatted(stub, TARGET))
+
+    assert "set description" not in text
+    assert "foo description" in text
+    assert "Base" in text
+
+
+def test_set_hidden_when_plugin_has_only_hidden_settings() -> None:
+    """Every plugin has a hidden `_version` setting; it does not count."""
+    stub = _stub(
+        {TARGET: {"set": _command("set", "Base"), "foo": _command("foo", "Base")}},
+        {"_version": SimpleNamespace(hidden=True)},
+    )
+
+    text = "\n".join(CommandsPlugin._api_command_list_formatted(stub, TARGET))
+
+    assert "set description" not in text
+    assert "foo description" in text
+
+
+def test_set_listed_when_plugin_has_settings() -> None:
+    stub = _stub(
+        {TARGET: {"set": _command("set", "Base"), "foo": _command("foo", "Base")}},
+        {"opt": SimpleNamespace(hidden=False)},
+    )
+
+    text = "\n".join(CommandsPlugin._api_command_list_formatted(stub, TARGET))
+
+    assert "set description" in text
+    assert "foo description" in text
+
+
+def test_set_in_non_base_group_not_hidden_without_settings() -> None:
+    stub = _stub({TARGET: {"set": _command("set", "Other")}})
 
     text = "\n".join(CommandsPlugin._api_command_list_formatted(stub, TARGET))
 
