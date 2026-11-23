@@ -84,6 +84,40 @@ def test_error_command_not_found_without_command_has_no_error_line() -> None:
     assert "cmds" in out
 
 
+def test_valid_plugin_without_command_shows_own_help_not_error_wrapper() -> None:
+    """A bare plugin id shows the plugin's list without the generic Proxy Help block (#729)."""
+    stub = _stub({f"{PID}:command.list.formatted": lambda pid: [f"cmds of {pid}"]})
+
+    out = "\n".join(CommandsPlugin.error_command_not_found_in_plugin(stub, "plugins.core.alpha"))
+
+    assert "cmds of core.alpha" in out
+    assert "Proxy Help" not in out
+    assert "To send a command" not in out
+    assert "Not Valid" not in out
+
+
+def test_unknown_command_in_valid_plugin_keeps_proxy_help() -> None:
+    """An unknown command still shows the error and the Proxy Help wrapper."""
+    stub = _stub({f"{PID}:command.list.formatted": lambda pid: ["cmds"]})
+
+    out = "\n".join(
+        CommandsPlugin.error_command_not_found_in_plugin(stub, "plugins.core.alpha", "z")
+    )
+
+    assert "Proxy Help" in out
+    assert "Not Valid" in out
+
+
+def test_unknown_plugin_keeps_proxy_help() -> None:
+    """An unknown plugin still shows the error and the Proxy Help wrapper."""
+    stub = _stub({"plugins.core.utils:column.format": lambda plugins, **_k: plugins})
+
+    out = "\n".join(CommandsPlugin.error_plugin_not_found(stub, "zzz", "plugins.core"))
+
+    assert "Proxy Help" in out
+    assert "Not Valid" in out
+
+
 def test_error_plugin_not_found_lists_plugins_of_package() -> None:
     """The error names the unknown plugin and lists the package's plugins."""
     stub = _stub({"plugins.core.utils:column.format": lambda plugins, **_k: plugins})
@@ -146,6 +180,27 @@ def test_command_list_sections_own_group_other_group_then_base() -> None:
     assert text.index("other description") < text.index("base description")
     assert "----- core.beta -----" in text
     assert "default description" not in text
+
+
+def test_command_list_says_when_plugin_has_no_commands_of_its_own() -> None:
+    """Without a group of its own the list says so, before Base (#729)."""
+    target = "plugins.core.alpha"
+    stub = _list_stub({target: {"base": _command("base", "Base")}})
+
+    text = "\n".join(CommandsPlugin._api_command_list_formatted(stub, target))
+
+    assert "core.alpha has no commands of its own" in text
+    assert text.index("has no commands of its own") < text.index("----- Base -----")
+
+
+def test_command_list_with_own_commands_has_no_empty_line() -> None:
+    """A plugin with its own commands does not get the no-commands line."""
+    target = "plugins.core.alpha"
+    stub = _list_stub({target: {"own": _command("own", target)}})
+
+    text = "\n".join(CommandsPlugin._api_command_list_formatted(stub, target))
+
+    assert "no commands of its own" not in text
 
 
 def test_command_list_for_invalid_plugin_is_empty() -> None:

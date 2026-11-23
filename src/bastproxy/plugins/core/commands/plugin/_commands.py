@@ -979,6 +979,10 @@ class CommandsPlugin(BasePlugin):
             ]
         )
 
+        if not command:
+            # a valid plugin named with no command gets its own help, not the error wrapper
+            return ["", *message, ""]
+
         return self.proxy_help("Proxy Help", "", message)
 
     def error_plugin_not_found(
@@ -1483,6 +1487,9 @@ class CommandsPlugin(BasePlugin):
                 + "@w"
             )
             message.extend(self.format_command_list(groups[plugin_id]))
+            message.append("")
+        else:
+            message.append(f"{plugin_id.replace('plugins.', '')} has no commands of its own")
             message.append("")
 
         for group in sorted(groups.keys()):
