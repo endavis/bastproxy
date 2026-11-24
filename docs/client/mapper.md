@@ -38,6 +38,10 @@ Example, after a game plugin has filled the map:
 #bp.client.mapper.resume
 ```
 
+## Importing maps
+
+A game plugin can import a whole map in batches with `map.batch.add`, in slices of up to 1000 rows. Importing in fill mode (`overwrite=False`) fills gaps only and never overrides rooms, exits and notes the mapper already holds. An import raises one `map_changed` event per batch instead of one event per room.
+
 ## Walking
 
 `find`, `goto`, `where`, `walkto` and `resume` search the path in the background. Each answers at once with a line such as "finding a path to X", and its result (the table, the path, or "no path") comes as a separate line after the search.

@@ -20,6 +20,12 @@ from bastproxy.libs.logger import log_to
 from bastproxy.libs.records import NetworkData, SendDataDirectlyToClient, SendDataDirectlyToMud
 from bastproxy.libs.validators import int_range
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
+from bastproxy.plugins.client.mapper.libs._batch import (
+    BAD_EXIT,
+    BATCH_LIMIT,
+    count_rows,
+    exit_problem,
+)
 from bastproxy.plugins.client.mapper.libs._graph import Exit, MapGraph, find_path, requirement_key
 from bastproxy.plugins.client.mapper.libs._schema import DB_NAME, DB_VERSION, TABLES, UNKNOWN_UID
 from bastproxy.plugins.client.mapper.libs._store import MapStore, room_differences
@@ -45,6 +51,17 @@ EVENTS: dict[str, tuple[str, dict[str, str]]] = {
         {
             "uid": "the room uid",
             "differences": "dict with area as (old, new) and exits as {dir: (old, new)}",
+        },
+    ),
+    "map_changed": (
+        "a batch write changed the map, raised once by map.batch.add",
+        {
+            "areas": "the areas written",
+            "rooms": "the rooms written",
+            "new_rooms": "the rooms that were not stored before",
+            "exits": "the exits written",
+            "notes": "the notes written",
+            "skipped": "the items skipped as bad",
         },
     ),
     "walk_started": (
@@ -317,17 +334,74 @@ class MapperPlugin(BasePlugin):
         An unexplored touid never overwrites a known one. This function returns True
         when the exit was stored.
         """
-        if not fromuid or not dir or not isinstance(cost, int) or cost < 0:
+        problem = exit_problem(fromuid, dir, cost, requirement)
+        if problem == BAD_EXIT:
             log_to([self.plugin_id], logging.WARNING, "_api_exit_add: bad exit %r %r", fromuid, dir)
             return False
-        try:
-            json.dumps(requirement)
-        except (TypeError, ValueError):
+        if problem:
             log_to([self.plugin_id], logging.WARNING, "_api_exit_add: requirement is not JSON")
             return False
         stored = self.store.upsert_exit(Exit(str(fromuid), dir, str(touid), cost, requirement))
         self.graph.set_exit(stored)
         return True
+
+    @AddAPI(
+        "map.batch.add", description="write many areas, rooms, exits and notes in one transaction"
+    )
+    def _api_map_batch_add(
+        self,
+        areas: list[dict[str, Any]] | None = None,
+        rooms: list[dict[str, Any]] | None = None,
+        exits: list[dict[str, Any]] | None = None,
+        notes: dict[str, str] | None = None,
+        overwrite: bool = True,
+    ) -> dict[str, int] | None:
+        """Write areas, rooms, exits and notes in one transaction, then update the graph.
+
+        @Yareas@w       = a list of area.add dicts (uid, name, flags, details)
+        @Yrooms@w       = a list of room.add dicts, with optional exits ({direction: touid})
+        @Yexits@w       = a list of dicts with fromuid, dir, touid, cost and requirement
+        @Ynotes@w       = a dict of {room uid: text}, set only for a stored room
+        @Yoverwrite@w   = True to replace what is stored as the per-item apis do,
+                          False to fill gaps: a stored area is kept, a stored room only
+                          gains missing flags, a stored exit keeps its cost and only
+                          fills an unexplored touid or a missing requirement, and a
+                          note is set only where there is none
+
+        An unexplored touid never overwrites a known one. A bad item is skipped and
+        counted. A batch of more than BATCH_LIMIT rows (embedded exits included) is
+        refused and nothing is written, so the caller sends slices and yields between
+        them. No room_changed or room_mismatch is raised, one map_changed is raised when
+        a row changed. sqlite3.Error propagates with nothing written.
+
+        This function returns the counts (areas, rooms, new_rooms, exits, notes,
+        skipped), or None when the batch is over the limit.
+        """
+        total = count_rows(areas, rooms, exits, notes)
+        if total > BATCH_LIMIT:
+            log_to(
+                [self.plugin_id],
+                logging.WARNING,
+                "_api_map_batch_add: %s rows is over the limit of %s, nothing written",
+                total,
+                BATCH_LIMIT,
+            )
+            return None
+        result = self.store.write_batch(areas, rooms, exits, notes, overwrite)
+        for uid, flags in result.room_flags.items():
+            self.graph.set_room(uid, flags)
+        for stored_exit in result.written_exits:
+            self.graph.set_exit(stored_exit)
+        if result.skipped:
+            log_to(
+                [self.plugin_id],
+                logging.WARNING,
+                "_api_map_batch_add: skipped %s bad items",
+                result.skipped,
+            )
+        if result.changed():
+            self._raise("map_changed", **result.counts())
+        return result.counts()
 
     @AddAPI("exit.remove", description="remove an exit")
     def _api_exit_remove(self, fromuid: str, dir: str) -> bool:

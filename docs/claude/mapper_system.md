@@ -77,6 +77,18 @@ Walks (`walk.start`, `walk.restart` and reroutes) and the commands `find`, `goto
 
 `room.add` on a stored room compares the update with what is stored. It raises `room_mismatch` when the area differs, when a stored exit has a different known `touid`, or when a direction exists on only one side. The room row is then replaced and the given exits are stored. Stored exits are never deleted and a `-1` never overwrites a known `touid`. What to purge is left to the adapter or the user.
 
+## Batch writes
+
+`map.batch.add` writes many rows in one call, one sqlite transaction and one commit. It is synchronous and never awaits.
+
+- **Input.** `areas` is a list of `area.add` dicts, `rooms` a list of `room.add` dicts (embedded `exits` included), `exits` a list of dicts with the keys of `exit.list`, and `notes` a dict `{uid: text}`. Rows are written in that order, a room before its embedded exits.
+- **Limit.** A call takes at most `BATCH_LIMIT` (1000) rows, embedded exits counted. A bigger batch is refused with a warning, returns None and writes nothing. The caller sends slices and yields (`await asyncio.sleep(0)`) between calls.
+- **Bad items.** An item that `room.add`, `exit.add` or `area.add` would refuse, or a note for a room that is neither stored nor in the batch, is skipped and counted in `skipped`, with one warning per batch. A `sqlite3.Error` propagates with nothing written and the graph untouched.
+- **`overwrite=True`.** Behaves like the per-item apis: rooms and areas are replaced, an exit takes the new cost and requirement, and an unexplored touid never replaces a known one.
+- **`overwrite=False`.** Fills gaps only: a stored area is kept, a stored room keeps every field and gains only the flags it lacks, a stored exit keeps its cost and only fills an unexplored touid or a missing requirement, and a note is set only where there is none or it is empty.
+- **Events.** No `room_changed` or `room_mismatch` is raised, so a batch does no change detection; use `room.add` for that. One `map_changed` with the counts is raised when a row changed.
+- **Graph.** Updated after the commit from the merged values, so a view from `freeze()` taken before the batch never changes.
+
 ## APIs
 
 All are `plugins.client.mapper:<name>`. Names follow [ADR-0004](../decisions/0004-api-names-are-resource-first-and-cmdq-is-renamed-mudcmds.md).
@@ -90,6 +102,7 @@ All are `plugins.client.mapper:<name>`. Names follow [ADR-0004](../decisions/000
 | `room.list.unexplored(area=None)` | rooms with an exit whose `touid` is `-1` |
 | `room.current.set(uid)`, `room.current.get()` | None, the uid or None |
 | `room.note.set(uid, text)`, `room.note.get(uid)`, `room.note.remove(uid)` | bool, str or None, bool |
+| `map.batch.add(areas=None, rooms=None, exits=None, notes=None, overwrite=True)` | the counts dict, or None when over `BATCH_LIMIT` |
 | `exit.add(fromuid, dir, touid="-1", cost=1, requirement=None)`, `exit.remove(fromuid, dir)`, `exit.list(fromuid)` | bool, bool, list of dicts |
 | `path.get(start, target, max_depth=None)` | `{"start", "target", "cost", "steps": [{"fromuid", "touid", "dir", "cost", "requirement"}]}` or None |
 | `requirement.register`, `requirement.unregister`, `movement.register`, `movement.unregister` | None |
@@ -103,6 +116,7 @@ All are `plugins.client.mapper:<name>`. Names follow [ADR-0004](../decisions/000
 | `ev_plugins.client.mapper_room_arrived` | `uid`, `previous` |
 | `ev_plugins.client.mapper_room_changed` | `uid`, `new` |
 | `ev_plugins.client.mapper_room_mismatch` | `uid`, `differences` |
+| `ev_plugins.client.mapper_map_changed` | `areas`, `rooms`, `new_rooms`, `exits`, `notes`, `skipped` |
 | `ev_plugins.client.mapper_walk_started` | `target`, `steps` |
 | `ev_plugins.client.mapper_walk_step` | `index`, `step`, `commands` |
 | `ev_plugins.client.mapper_walk_done` | `target` |

@@ -111,6 +111,39 @@ def test_modifyscript_is_all_or_none(tmp_path: Path) -> None:
     assert db.select("SELECT * FROM extra") == [{"x": 1}]
 
 
+def _releases(db: Sqldb) -> list[str]:
+    """Trace the outermost RELEASE statements the connection runs."""
+    seen: list[str] = []
+    db._conn().set_trace_callback(
+        lambda sql: seen.append(sql) if sql.startswith("RELEASE sqldb_0") else None
+    )
+    return seen
+
+
+def test_transaction_commits_once(tmp_path: Path) -> None:
+    db = _db(tmp_path)
+    releases = _releases(db)
+    with db.transaction():
+        db.modify("INSERT INTO things(name) VALUES ('a')")
+        db.modifymany("INSERT INTO things(name) VALUES (?)", [("b",), ("c",)])
+        assert len(db.select("SELECT * FROM things")) == 3
+    assert len(releases) == 1
+    assert db._conn().in_transaction is False
+    assert len(db.select("SELECT * FROM things")) == 3
+
+
+def test_transaction_rolls_back_logs_and_reraises(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    db = _db(tmp_path)
+    with caplog.at_level(logging.ERROR), pytest.raises(sqlite3.Error), db.transaction():
+        db.modify("INSERT INTO things(name) VALUES ('a')")
+        db.modify("INSERT INTO things(name) VALUES (NULL)")
+    assert any("transaction" in r.getMessage() for r in caplog.records)
+    assert db._conn().in_transaction is False
+    assert db.select("SELECT * FROM things") == []
+
+
 def test_each_failure_is_logged(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     db = _db(tmp_path)
     with caplog.at_level(logging.ERROR):

@@ -28,6 +28,7 @@ Issue #754: bastproxy has no mapper, and the only mappers so far (the old Aardwo
 - **Walking.** A walk sends the next step only when `room.current.set` confirms the last one. An arrival at the room the step left is ignored. An unexpected room is rerouted (setting `reroute`, at most 3 times) or stops the walk. `walk.restart` resumes a stopped walk. `walk.start` and `walk.restart` return True once a search has started, the walk is `searching` and a missing path arrives later as `walk_failed`, with the extra reasons `moved during search` and `search failed`. A walk starts only from `walk.start` or a command, and a MUD disconnect stops it.
 - **Searching.** Walks and the commands `find`, `goto`, `where`, `walkto` and `resume` run the pathfinder with `asyncio.to_thread` on a copy-on-write view of the graph, queued with `libs.asynch:task.add`. Commands answer at once and report the result in a later line.
 - **Change detection.** `room.add` on a stored room raises `ev_plugins.client.mapper_room_mismatch` when the area changed or a known exit target differs or exists on one side only. It never deletes stored exits and an unexplored target (`-1`) never overwrites a known one. Purging is left to the adapter or the user.
+- **Batch writes.** `map.batch.add` writes areas, rooms (with embedded exits), exits and notes in one synchronous call and one sqlite transaction (`Sqldb.transaction()`), at most 1000 rows per call; the caller slices and yields between calls. It reads the stored rows once per table and merges in Python, with `overwrite=True` as the per-item apis do and `overwrite=False` to fill gaps only. It raises one `ev_plugins.client.mapper_map_changed` with counts instead of `room_changed` and `room_mismatch` per room, and updates the graph after the commit.
 - **Names.** The API names follow ADR-0004's closed action list, which has no `find`, `search`, `resume`, `purge` or `stop`: `path.get`, `room.list` and `room.list.unexplored`, `walk.restart`, `walk.clear` and `area.remove`. Commands keep the issue's names: `find`, `goto`, `walkto`, `resume`, `stop`, `where`, `showroom`, `purge`, `note`.
 
 ## Rationale
@@ -44,6 +45,7 @@ Rooms, exits, costs and paths are the same in every game, while requirements, po
 - **Requirement callbacks in the worker thread.** Rejected: adapters call the API and log, and neither is thread-safe.
 - **An awaitable `path.get`.** Rejected: ADR-0004 has no fitting action word, and the walks and commands are the long searches.
 - **Loading the graph in a thread.** Rejected for now: the database connection belongs to the loop thread, and an adapter may write right after load. Possible follow-up.
+- **A begin/commit pair for batches.** Rejected: it leaves a transaction open across the caller's awaits on the shared connection, where every other statement would nest into it.
 - **A core plugin.** Rejected: the loader forces core plugins to be required.
 
 ## Consequences
@@ -58,6 +60,7 @@ Rooms, exits, costs and paths are the same in every game, while requirements, po
 
 - Issue #754: add a mapper plugin with pathfinding and walking
 - Issue #756: run mapper path searches off the event loop
+- Issue #760: write many mapper rooms and exits in one transaction
 
 ## Related Documentation
 
