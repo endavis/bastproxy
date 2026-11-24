@@ -215,7 +215,9 @@ class MapperPlugin(BasePlugin):
 
         An update that contradicts the stored room raises the room_mismatch event.
         Exits missing from the update are kept, and an unexplored touid never
-        overwrites a known one. This function returns True when the room was stored.
+        overwrites a known one. An exit that already exists keeps its stored cost and
+        requirement, only exit.add changes them. This function returns True when the
+        room was stored.
         """
         uid = room.get("uid") if isinstance(room, dict) else None
         if uid is None or str(uid) == "":
@@ -228,7 +230,7 @@ class MapperPlugin(BasePlugin):
         self.store.upsert_room(room)
         self.graph.set_room(uid, room.get("flags", []))
         for direction, touid in (room.get("exits") or {}).items():
-            self._api_exit_add(uid, str(direction), str(touid))
+            self._add_exit(uid, str(direction), str(touid), 1, None, keep_details=True)
         self._raise("room_changed", uid=uid, new=stored is None)
         if differences:
             self._raise("room_mismatch", uid=uid, differences=differences)
@@ -334,6 +336,22 @@ class MapperPlugin(BasePlugin):
         An unexplored touid never overwrites a known one. This function returns True
         when the exit was stored.
         """
+        return self._add_exit(fromuid, dir, touid, cost, requirement, keep_details=False)
+
+    def _add_exit(
+        self,
+        fromuid: str,
+        dir: str,
+        touid: str,
+        cost: int,
+        requirement: Any,
+        *,
+        keep_details: bool,
+    ) -> bool:
+        """Validate and store an exit, see ``exit.add``.
+
+        ``keep_details`` keeps the stored cost and requirement of an existing exit.
+        """
         problem = exit_problem(fromuid, dir, cost, requirement)
         if problem == BAD_EXIT:
             log_to([self.plugin_id], logging.WARNING, "_api_exit_add: bad exit %r %r", fromuid, dir)
@@ -341,7 +359,9 @@ class MapperPlugin(BasePlugin):
         if problem:
             log_to([self.plugin_id], logging.WARNING, "_api_exit_add: requirement is not JSON")
             return False
-        stored = self.store.upsert_exit(Exit(str(fromuid), dir, str(touid), cost, requirement))
+        stored = self.store.upsert_exit(
+            Exit(str(fromuid), dir, str(touid), cost, requirement), keep_details=keep_details
+        )
         self.graph.set_exit(stored)
         return True
 
@@ -366,7 +386,9 @@ class MapperPlugin(BasePlugin):
                           False to fill gaps: a stored area is kept, a stored room only
                           gains missing flags, a stored exit keeps its cost and only
                           fills an unexplored touid or a missing requirement, and a
-                          note is set only where there is none
+                          note is set only where there is none. With True, an exit
+                          embedded in a room keeps its stored cost and requirement
+                          as room.add does; an explicit exit replaces them
 
         An unexplored touid never overwrites a known one. A bad item is skipped and
         counted. A batch of more than BATCH_LIMIT rows (embedded exits included) is

@@ -117,3 +117,20 @@ def test_room_differences() -> None:
     assert room_differences(stored, exits, same) == {}
     changed = room_differences(stored, exits, {"uid": "1", "exits": {"n": "7", "s": "3", "w": "4"}})
     assert changed["exits"] == {"n": ("2", "7"), "w": (None, "4"), "e": ("-1", None)}
+
+
+def test_upsert_exit_keep_details(store: MapStore) -> None:
+    """keep_details updates only the touid of an existing exit (#762)."""
+    store.upsert_exit(Exit("1", "n", "2", 3, {"level": 100}))
+    kept = store.upsert_exit(Exit("1", "n", "2"), keep_details=True)
+    assert kept == Exit("1", "n", "2", 3, {"level": 100})
+    assert store.upsert_exit(Exit("1", "n", "9"), keep_details=True) == Exit(
+        "1", "n", "9", 3, {"level": 100}
+    )
+    assert store.upsert_exit(Exit("1", "n", "-1"), keep_details=True).touid == "9"
+    # the default path still resets them
+    assert store.upsert_exit(Exit("1", "n", "9")) == Exit("1", "n", "9", 1, None)
+    # a new exit gets the given values
+    assert store.upsert_exit(Exit("1", "s", "4", 2, {"k": 1}), keep_details=True) == Exit(
+        "1", "s", "4", 2, {"k": 1}
+    )

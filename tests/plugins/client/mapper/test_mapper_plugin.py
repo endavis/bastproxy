@@ -9,7 +9,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from bastproxy.libs.plugins import imputils
-from bastproxy.plugins.client.mapper.libs._graph import MapGraph
+from bastproxy.plugins.client.mapper.libs._graph import Exit, MapGraph
 from bastproxy.plugins.client.mapper.libs._schema import DB_NAME, DB_VERSION, TABLES
 from bastproxy.plugins.client.mapper.libs._walk import MAX_REROUTES
 from bastproxy.plugins.client.mapper.plugin import _mapper as mapper_module
@@ -612,3 +612,33 @@ async def test_unload_during_search(test_map: Harness, monkeypatch: pytest.Monke
     gate.set()
     await _finish(test_map)
     assert "walk_started" not in test_map.names()
+
+
+def test_room_add_keeps_exit_lock(test_map: Harness) -> None:
+    """Recapturing a room keeps an exit's cost and requirement, in the db and graph (#762)."""
+    p = test_map.plugin
+    p._api_exit_add("A", "n", "B", 3, {"level": 100})
+    p._api_room_add({"uid": "A", "name": "Room A", "area": "test", "exits": {"n": "B", "w": "-1"}})
+    assert p.store.get_exit("A", "n") == Exit("A", "n", "B", 3, {"level": 100})
+    graph_exit = {e.dir: e for e in p.graph.exits_from("A")}["n"]
+    assert (graph_exit.cost, graph_exit.requirement) == (3, {"level": 100})
+    # a new exit from room.add gets the defaults
+    assert p.store.get_exit("A", "w") == Exit("A", "w", "-1", 1, None)
+
+
+def test_room_add_recapture_still_blocks_locked_exit(test_map: Harness) -> None:
+    """A requirement callback still rejects a locked exit after the room is recaptured."""
+    p = test_map.plugin
+    p._api_requirement_register("game", lambda r, e: r != {"level": 100})
+    p._api_exit_add("A", "n", "B", 1, {"level": 100})
+    p._api_room_add({"uid": "A", "area": "test", "exits": {"n": "B"}})
+    assert p._api_path_get("A", "B") is None  # the only way to B is the locked exit
+
+
+def test_exit_add_still_overwrites_lock(test_map: Harness) -> None:
+    """An explicit exit.add sets cost and requirement."""
+    p = test_map.plugin
+    p._api_exit_add("A", "n", "B", 3, {"level": 100})
+    p._api_exit_add("A", "n", "B", 2, None)
+    assert p.store.get_exit("A", "n") == Exit("A", "n", "B", 2, None)
+    assert {e.dir: e for e in p.graph.exits_from("A")}["n"].cost == 2
