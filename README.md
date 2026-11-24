@@ -52,6 +52,11 @@ A powerful, extensible MUD (Multi-User Dungeon) proxy built with Python 3.12+ an
 uv run bastproxy
 ```
 
+**As a module**: `python -m bastproxy` is equivalent, and works where the `uv` shim or the console script cannot run. Run it with the Python environment bastproxy is installed in; `BASTPROXY_HOME` must be set.
+```bash
+python -m bastproxy
+```
+
 **With options**:
 ```bash
 uv run bastproxy --port 9999 --IPv4-address localhost

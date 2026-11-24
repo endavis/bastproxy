@@ -58,6 +58,11 @@ Thank you for your interest in contributing to BastProxy! This document provides
 uv run bastproxy
 ```
 
+Or as a module, with the Python environment bastproxy is installed in, where the `uv` shim or console script cannot run (`BASTPROXY_HOME` must be set):
+```bash
+python -m bastproxy
+```
+
 Or with options:
 ```bash
 uv run bastproxy --port 9999 --IPv4-address localhost
