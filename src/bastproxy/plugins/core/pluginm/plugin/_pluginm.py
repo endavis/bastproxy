@@ -12,6 +12,7 @@ from collections.abc import Callable
 from importlib import import_module
 from typing import Any
 
+from bastproxy.libs import gcfreeze
 from bastproxy.libs.logger import get_logger
 
 # 3rd Party
@@ -406,6 +407,7 @@ class PluginManager(BasePlugin):
             return CommandResult(bool(already_loaded), extra)
 
         plugin_response = self.api("libs.plugins.loader:plugin.load")(to_load)
+        gcfreeze.refreeze(f"after load {' '.join(to_load)}")
 
         tmsg: list[str] = []
         if plugin_response["loaded_plugins"]:
@@ -456,7 +458,9 @@ class PluginManager(BasePlugin):
         if self.api("libs.plugins.loader:plugin.info.get")(plugin_id).is_required:
             return CommandResult(False, [f"Plugin {plugin_id} is required and cannot be unloaded"])
 
-        if self.api("libs.plugins.loader:plugin.unload")(plugin_id):
+        unloaded = self.api("libs.plugins.loader:plugin.unload")(plugin_id)
+        gcfreeze.refreeze(f"after unload {plugin_id}")
+        if unloaded:
             plugins_to_load_setting = self.api("plugins.core.settings:setting.get")(
                 self.plugin_id, "pluginstoload"
             )
@@ -495,7 +499,9 @@ class PluginManager(BasePlugin):
         plugins_to_load_setting = self.api("plugins.core.settings:setting.get")(
             self.plugin_id, "pluginstoload"
         )
-        if not self.api("libs.plugins.loader:plugin.reload")(args["plugin"]):
+        reloaded = self.api("libs.plugins.loader:plugin.reload")(args["plugin"])
+        gcfreeze.refreeze(f"after reload {args['plugin']}")
+        if not reloaded:
             if self.api("libs.plugins.loader:plugin.is.loaded")(args["plugin"]):
                 # the reload was refused or the unload failed; nothing changed
                 return CommandResult(

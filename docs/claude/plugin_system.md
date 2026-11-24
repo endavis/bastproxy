@@ -409,6 +409,9 @@ by calling `plugin.state.save` on each.
    unless it sets `CANRELOAD = False`, a weak reference to each deleted module is kept (see
    `plugin.module.list.stale`) and the runtime info is reset.
 
+The `#bp.core.pluginm.unload` command then re-freezes the garbage collector (see
+[Garbage collector freeze](#garbage-collector-freeze)).
+
 ### 7. Reloading
 
 `libs.plugins.loader:plugin.reload`:
@@ -430,7 +433,33 @@ by calling `plugin.state.save` on each.
    there is handled like an instantiation failure.
 
 Entries in `pluginstoload` are put back after the reload. `plugin.reload` returns `True` only if
-everything unloaded and loaded again.
+everything unloaded and loaded again. The `#bp.core.pluginm.reload` command then re-freezes the
+garbage collector (see [Garbage collector freeze](#garbage-collector-freeze)).
+
+### Garbage collector freeze
+
+Full garbage collections walk every tracked object, and the startup heap is large and long lived,
+so a full collection stalls the event loop (#758). `MudProxy.run` therefore calls
+`gc.collect()` and then `gc.freeze()` once all plugins have loaded, after the CLI overrides and
+before `ev_bastproxy_proxy_ready` is raised and the listeners are created. Frozen objects are
+left out of every later collection.
+
+A frozen reference cycle is never reclaimed, and a plugin instance is full of cycles (bound
+method callbacks, `self.api`, registrations). The `#bp.core.pluginm.load`, `unload` and `reload`
+commands therefore call `gcfreeze.refreeze` once the loader call returns, on success or failure:
+`gc.unfreeze()`, a full `gc.collect()`, then `gc.freeze()`. It costs one full collection per
+command. It is done in the commands and not in `ev_plugin_unloaded`, because that event is
+raised while the loader still holds the plugin instance, and not in the loader APIs, because
+`plugin.load` also runs at startup and `plugin.reload` loads and unloads several times.
+
+Limitation: an old object that is still referenced when the re-freeze runs, for example by a
+record tree that rolls over in about a minute, is frozen again and is released at the next
+re-freeze.
+
+Each freeze and re-freeze logs one INFO line with the reason, the frozen count, the number of
+objects collected and the elapsed milliseconds. Start the proxy with `--no-gc-freeze` to skip the
+freeze, for chasing memory or cycle leaks; the re-freezes are then no-ops. The helper is
+`src/bastproxy/libs/gcfreeze.py`.
 
 ### Base class mixins
 

@@ -20,3 +20,4 @@ def test_python_m_bastproxy_help(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert "usage:" in result.stdout
     assert "--port" in result.stdout
+    assert "--no-gc-freeze" in result.stdout
