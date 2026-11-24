@@ -85,7 +85,15 @@ def second(tmp_path: Path, harness: Harness) -> Any:
 def test_batch_equals_per_item(harness: Harness, second: Harness) -> None:
     build_map(harness.plugin)
     result = second.plugin._api_map_batch_add(rooms=ROOMS, exits=EXITS)
-    assert result == {"areas": 0, "rooms": 6, "new_rooms": 6, "exits": 10, "notes": 0, "skipped": 0}
+    assert result == {
+        "areas": 0,
+        "rooms": 6,
+        "new_rooms": 6,
+        "exits": 10,
+        "new_exits": 10,
+        "notes": 0,
+        "skipped": 0,
+    }
     assert tables(second) == tables(harness)
     assert second.plugin.graph.snapshot() == harness.plugin.graph.snapshot()
     assert second.plugin.graph.snapshot() == second.plugin.store.load_graph().snapshot()
@@ -155,7 +163,15 @@ def test_fill_mode(test_map: Harness) -> None:
         notes={"A": "ignored", "B": "filled", "NEW": "fresh note"},
         overwrite=False,
     )
-    assert result == {"areas": 1, "rooms": 2, "new_rooms": 1, "exits": 2, "notes": 2, "skipped": 0}
+    assert result == {
+        "areas": 1,
+        "rooms": 2,
+        "new_rooms": 1,
+        "exits": 2,
+        "new_exits": 0,
+        "notes": 2,
+        "skipped": 0,
+    }
     assert p.store.get_area("test")["name"] == "Test Area"
     room = p.store.get_room("A")
     assert room["name"] == "Room A"
@@ -202,7 +218,15 @@ def test_bad_items_are_skipped(harness: Harness, caplog: pytest.LogCaptureFixtur
                 {"fromuid": "1", "dir": "w", "touid": "2"},
             ],
         )
-    assert result == {"areas": 0, "rooms": 1, "new_rooms": 1, "exits": 1, "notes": 0, "skipped": 5}
+    assert result == {
+        "areas": 0,
+        "rooms": 1,
+        "new_rooms": 1,
+        "exits": 1,
+        "new_exits": 1,
+        "notes": 0,
+        "skipped": 5,
+    }
     assert [e.dir for e in p.store.exits_from("1")] == ["w"]
     assert sum("skipped 5" in r.getMessage() for r in caplog.records) == 1
 
@@ -302,3 +326,70 @@ def test_batch_equals_per_item_with_locks(harness: Harness, second: Harness) -> 
     assert tables(second) == tables(harness)
     assert second.plugin.graph.snapshot() == harness.plugin.graph.snapshot()
     assert second.plugin.store.get_exit("A", "n") == Exit("A", "n", "C", 3, {"level": 100})
+
+
+def test_new_exits_overwrite_mode_counts_only_unstored_keys(test_map: Harness) -> None:
+    result = test_map.plugin._api_map_batch_add(
+        exits=[
+            {"fromuid": "A", "dir": "n", "touid": "C", "cost": 4},
+            {"fromuid": "A", "dir": "up", "touid": "B"},
+            {"fromuid": "*", "dir": "portal f", "touid": "E"},
+            {"fromuid": "*", "dir": "portal g", "touid": "E"},
+            {"fromuid": "**", "dir": "recall", "touid": "B"},
+            {"fromuid": "**", "dir": "recall home", "touid": "A"},
+        ]
+    )
+    assert result["exits"] == 6
+    assert result["new_exits"] == 3
+    assert result["exits"] - result["new_exits"] == 3
+
+
+def test_new_exits_fill_mode_counts_only_unstored_keys(test_map: Harness) -> None:
+    result = test_map.plugin._api_map_batch_add(
+        exits=[
+            {"fromuid": "A", "dir": "s", "touid": "Z", "requirement": {"r": 1}},
+            {"fromuid": "A", "dir": "up", "touid": "B"},
+            {"fromuid": "*", "dir": "portal g", "touid": "E"},
+            {"fromuid": "**", "dir": "recall", "touid": "B"},
+        ],
+        overwrite=False,
+    )
+    assert result["exits"] == 3
+    assert result["new_exits"] == 2
+
+
+def test_new_exits_embedded_and_explicit(test_map: Harness) -> None:
+    result = test_map.plugin._api_map_batch_add(
+        rooms=[{"uid": "A", "exits": {"n": "B", "w": "F"}}, {"uid": "NEW", "exits": {"s": "A"}}],
+        exits=[
+            {"fromuid": "B", "dir": "s", "touid": "A"},
+            {"fromuid": "B", "dir": "n", "touid": "D"},
+        ],
+    )
+    assert result["exits"] == 4
+    assert result["new_exits"] == 3
+
+
+def test_new_exits_repeated_key_counts_once(harness: Harness) -> None:
+    result = harness.plugin._api_map_batch_add(
+        rooms=[{"uid": "A", "exits": {"n": "B"}}],
+        exits=[
+            {"fromuid": "A", "dir": "n", "touid": "C"},
+            {"fromuid": "A", "dir": "n", "touid": "D"},
+            {"fromuid": "*", "dir": "p", "touid": "A"},
+            {"fromuid": "*", "dir": "p", "touid": "B"},
+        ],
+    )
+    assert result["exits"] == 2
+    assert result["new_exits"] == 2
+    again = harness.plugin._api_map_batch_add(exits=[{"fromuid": "*", "dir": "p", "touid": "C"}])
+    assert again["new_exits"] == 0
+    assert again["exits"] == 1
+
+
+def test_map_changed_event_carries_new_exits(harness: Harness) -> None:
+    harness.plugin._api_map_batch_add(rooms=ROOMS, exits=EXITS)
+    assert harness.event("map_changed")["new_exits"] == 10
+    harness.events.clear()
+    harness.plugin._api_map_batch_add(exits=[{"fromuid": "A", "dir": "n", "touid": "C"}])
+    assert harness.event("map_changed")["new_exits"] == 0

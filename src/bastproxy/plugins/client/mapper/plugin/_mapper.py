@@ -59,7 +59,8 @@ EVENTS: dict[str, tuple[str, dict[str, str]]] = {
             "areas": "the areas written",
             "rooms": "the rooms written",
             "new_rooms": "the rooms that were not stored before",
-            "exits": "the exits written",
+            "exits": "the exits written, new and changed together",
+            "new_exits": "the written exits that were not stored before",
             "notes": "the notes written",
             "skipped": "the items skipped as bad",
         },
@@ -396,8 +397,8 @@ class MapperPlugin(BasePlugin):
         them. No room_changed or room_mismatch is raised, one map_changed is raised when
         a row changed. sqlite3.Error propagates with nothing written.
 
-        This function returns the counts (areas, rooms, new_rooms, exits, notes,
-        skipped), or None when the batch is over the limit.
+        This function returns the counts (areas, rooms, new_rooms, exits, new_exits,
+        notes, skipped), or None when the batch is over the limit.
         """
         total = count_rows(areas, rooms, exits, notes)
         if total > BATCH_LIMIT:
