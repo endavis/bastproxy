@@ -168,3 +168,4 @@ The Issue contains the full discussion; the ADR summarizes the outcome.
 | [0017](0017-user-aliases-expand-the-first-word-on-the-input-path-at-priority-55.md) | User aliases expand the first word on the input path at priority 55 | Accepted |
 | [0018](0018-user-actions-substitute-trigger-groups-into-commands-and-escape-matched-text.md) | User actions substitute trigger groups into commands and escape matched text | Accepted |
 | [0019](0019-user-substitutions-rewrite-mud-lines-after-triggers-and-keep-colour-codes.md) | User substitutions rewrite MUD lines after triggers and keep colour codes | Accepted |
+| [0020](0020-client-sends-made-while-mud-data-is-processed-follow-its-lines.md) | Client sends made while MUD data is processed follow its lines | Accepted |

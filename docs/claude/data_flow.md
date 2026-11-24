@@ -243,8 +243,8 @@ Code that wants to send to the MUD without the modify event calls this directly.
 
 `src/bastproxy/libs/records/rtypes/clientdata.py`, class `ProcessDataToClient(BaseRecord)`. `_exec_()`:
 
-1. Raises `ev_to_client_data_modify` with `data_list=[MUD I/O lines]`, `key_name="line"`
-2. If `send_to_clients` is still set, runs `SendDataDirectlyToClient(self.message, clients=..., exclude_clients=...)()`
+1. Raises `ev_to_client_data_modify` with `data_list=[MUD I/O lines]`, `key_name="line"`, with a `PendingClientSends` set as `client_capture` so that client sends made meanwhile are held (#746). If the event raises, the held sends are released before the exception goes on.
+2. If `send_to_clients` is still set, runs `SendDataDirectlyToClient(self.message, clients=..., exclude_clients=..., pending=...)()`. Otherwise it releases the held sends. With an outer capture open, both go to the outer capture instead.
 
 The constructor takes only `message`, `clients` and `exclude_clients`. Per-line formatting (preamble, prelogin, color) comes from each `NetworkDataLine`'s own fields; the send decision is `SendDataDirectlyToClient.can_send_to_client()`. The former `preamble`, `prelogin`, `error` and `color_for_all_lines` options were removed (#50).
 
@@ -254,7 +254,8 @@ Same file, class `SendDataDirectlyToClient(BaseRecord)`. `_exec_()`:
 
 1. `message.lock()`
 2. For each line with `send` set: `line.format()`, `line.lock()`, then for each target client (`clients`, or every client) that passes `can_send_to_client()`, `plugins.core.clients:client.send`
-3. Raises `ev_to_client_data_read` with `data_list=[line ...]` (locked `NetworkDataLine` records)
+3. Runs the sends held during the modify event (`pending`), in the order they were made, each as its own `SendDataDirectlyToClient` that formats, sends and raises its own `ev_to_client_data_read` (#746)
+4. Raises `ev_to_client_data_read` with `data_list=[line ...]` (locked `NetworkDataLine` records)
 
 `can_send_to_client(client_uuid, line)` refuses a client that is in `exclude_clients`, refuses internal lines to view-only clients that were not named in `clients`, and otherwise requires the client to be in `clients` (when set) and logged in, unless the line is `prelogin`.
 
@@ -328,6 +329,8 @@ Commands, watch and triggers register at the default priority, 50. Aliases regis
 
 A `ProcessDataToMud` created while another one's modify event runs (through `command.line.run`) processes its line at once but holds its send back. It hands the send to the enclosing record, keyed to the input line it came from (the anchor, read from the current event record by `command.line.run`). The enclosing record's `SendDataDirectlyToMud` runs the held sends right after that line, whether or not the line itself was sent, in arrival order. A held send with no anchor, or one that is not a line of the enclosing record, runs after all its lines. Lines sent outside input processing (timers, actions fired from MUD output, plugin start-up) send at once (#714).
 
+A `SendDataDirectlyToClient` called while a `ProcessDataToClient` modify event runs (from a trigger callback or any `ev_to_client_data_modify` handler) holds itself in the capture and runs after the batch's last line, usually the prompt, in the order the sends were made. Plugin output therefore follows the MUD packet that triggered it instead of landing in the middle of it. The batch is the `mud_read` read, capped at `max_lines_to_process`. A held send keeps its own `clients`, `exclude_clients` and preamble. Client log lines and `#bp` command output from actions fired by MUD lines go through the same send, so they are held too, including errors logged from trigger callbacks. A nested `ProcessDataToClient` hands its send, with its own held sends, to the outer capture. Sends outside MUD processing (client commands, timers, events not caused by MUD data) run in other tasks and send at once (#746). See [ADR-0020](../decisions/0020-client-sends-made-while-mud-data-is-processed-follow-its-lines.md).
+
 ### MUD output to clients
 
 ```
@@ -338,6 +341,7 @@ A `ProcessDataToMud` created while another one's modify event runs (through `com
          └─ SendDataDirectlyToClient(...)()
               ├─ lock message; per line: format() → adds "\r\n", lock()
               ├─ per client: can_send_to_client() → clients:client.send → send_queue
+              ├─ sends held during the modify event (plugin output), in the order made
               └─ raise ev_to_client_data_read
   ClientConnection.client_write                 writer.write(line.line), IAC EOR (send_eor) or IAC GA (send_ga) after prompts
 ```

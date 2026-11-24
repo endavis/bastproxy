@@ -56,6 +56,9 @@ from bastproxy.libs.records import NetworkData, SendDataDirectlyToClient
         )()
 ```
 
+A send made from a trigger or any other MUD-data event handler reaches the client after the lines
+of the MUD data that caused it (#746).
+
 `clients=` and `exclude_clients=` take lists of client UUIDs; with neither, the data goes to every
 client. `SendDataDirectlyToClient.can_send_to_client` in
 `src/bastproxy/libs/records/rtypes/clientdata.py` decides per client: an excluded client never gets
