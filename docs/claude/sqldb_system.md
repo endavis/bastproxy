@@ -95,6 +95,7 @@ stays at the last step that succeeded.
 | `modify(sql, data=None)` | One insert, update or delete; returns `(lastrowid, None)` |
 | `modifymany(sql, data)` | One statement run for each item of `data` |
 | `modifyscript(sql)` | Several statements, all or none |
+| `transaction()` | A `with` block: its statements commit once, or none are kept when it raises. Synchronous use only, never across an `await` |
 | `getrow(row_id, table)` | One row by key field |
 | `getlast(table, num, where=...)` | The last `num` rows by key field; `where` is a column-to-value mapping |
 | `getlastrowid(table)` | The highest key value, or `-1` for an empty table |

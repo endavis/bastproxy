@@ -13,8 +13,10 @@ through bound parameters.
 
 import json
 from collections.abc import Iterable, Mapping, Sequence
+from contextlib import AbstractContextManager
 from typing import Any, Protocol
 
+from ._batch import BatchResult, exit_problem, merge_exit, merge_room, normalize_room
 from ._graph import Exit, MapGraph
 from ._schema import INDEX_SQL, UNKNOWN_UID
 
@@ -31,6 +33,36 @@ class Database(Protocol):
     def modify(self, sql_statement: str, data: Any = None) -> tuple[int | None, Any]:
         """Run a statement that changes the database."""
         ...
+
+    def modifymany(self, sql_statement: str, data: Any = None) -> tuple[int | None, Any]:
+        """Run a statement for many rows, all or none."""
+        ...
+
+    def transaction(self) -> AbstractContextManager[None]:
+        """Run several statements in one commit."""
+        ...
+
+
+UPSERT_EXIT_SQL = (
+    "INSERT INTO exits(fromuid, dir, touid, cost, requirement) VALUES(?, ?, ?, ?, ?) "
+    "ON CONFLICT(fromuid, dir) DO UPDATE SET "
+    "touid = CASE WHEN excluded.touid = '-1' THEN exits.touid ELSE excluded.touid END, "
+    "cost = excluded.cost, requirement = excluded.requirement"
+)
+UPSERT_ROOM_SQL = (
+    "INSERT OR REPLACE INTO rooms(uid, name, area, terrain, x, y, z, flags, details) "
+    "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)"
+)
+SELECT_CHUNK = 500
+
+
+def _select_in(db: Database, sql: str, values: Sequence[str]) -> list[dict[str, Any]]:
+    """Run ``sql`` (with one ``{marks}`` placeholder list) for ``values``, in chunks."""
+    rows: list[dict[str, Any]] = []
+    for start in range(0, len(values), SELECT_CHUNK):
+        chunk = values[start : start + SELECT_CHUNK]
+        rows.extend(db.select(sql.format(marks=", ".join("?" * len(chunk))), chunk))
+    return rows
 
 
 def _like(text: str) -> str:
@@ -128,8 +160,7 @@ class MapStore:
     def upsert_room(self, room: Mapping[str, Any]) -> None:
         """Insert a room or replace the stored one."""
         self.db.modify(
-            "INSERT OR REPLACE INTO rooms(uid, name, area, terrain, x, y, z, flags, details) "
-            "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            UPSERT_ROOM_SQL,
             (
                 room["uid"],
                 room.get("name", ""),
@@ -197,10 +228,7 @@ class MapStore:
         An unexplored touid never overwrites a known one.
         """
         self.db.modify(
-            "INSERT INTO exits(fromuid, dir, touid, cost, requirement) VALUES(?, ?, ?, ?, ?) "
-            "ON CONFLICT(fromuid, dir) DO UPDATE SET "
-            "touid = CASE WHEN excluded.touid = '-1' THEN exits.touid ELSE excluded.touid END, "
-            "cost = excluded.cost, requirement = excluded.requirement",
+            UPSERT_EXIT_SQL,
             (
                 exit_.fromuid,
                 exit_.dir,
@@ -246,6 +274,173 @@ class MapStore:
         existed = self.get_note(uid) is not None
         self.db.modify("DELETE FROM bookmarks WHERE uid = ?", (uid,))
         return existed
+
+    # batches
+    def write_batch(
+        self,
+        areas: Iterable[Any] | None,
+        rooms: Iterable[Any] | None,
+        exits: Iterable[Any] | None,
+        notes: Mapping[Any, Any] | None,
+        overwrite: bool,
+    ) -> BatchResult:
+        """Write areas, rooms, exits and notes in one transaction.
+
+        The stored rows are read once per table, merged in Python in the order areas,
+        rooms with their embedded exits, exits, notes, and only the changed rows are
+        written. Bad items are skipped and counted. Raises ``sqlite3.Error`` with
+        nothing written when a statement fails.
+        """
+        result = BatchResult()
+        raw_rooms = list(rooms or ())
+        room_items = [normalize_room(r) for r in raw_rooms]
+        area_rows: dict[str, tuple[Any, ...]] = {}
+        given_areas: dict[str, tuple[str, str, str]] = {}
+        for area in areas or ():
+            uid = area.get("uid") if isinstance(area, Mapping) else None
+            if not isinstance(uid, str) or not uid:
+                result.skipped += 1
+                continue
+            area_row = (
+                area.get("name", ""),
+                json.dumps(list(area.get("flags", ()))),
+                json.dumps(dict(area.get("details") or {})),
+            )
+            if overwrite or uid not in given_areas:
+                given_areas[uid] = area_row
+        note_items = {str(uid): text for uid, text in (notes or {}).items()}
+        room_uids = [r["uid"] for r in room_items if r is not None]
+        with self.db.transaction():
+            stored_areas = {
+                r["uid"]
+                for r in _select_in(
+                    self.db, "SELECT uid FROM areas WHERE uid IN ({marks})", list(given_areas)
+                )
+            }
+            for uid, area_row in given_areas.items():
+                if overwrite or uid not in stored_areas:
+                    area_rows[uid] = (uid, *area_row)
+            result.areas = len(area_rows)
+
+            wanted = list(dict.fromkeys([*room_uids, *note_items]))
+            current_rooms = {
+                r["uid"]: _row_to_room(r)
+                for r in _select_in(self.db, "SELECT * FROM rooms WHERE uid IN ({marks})", wanted)
+            }
+            written_rooms: dict[str, dict[str, Any]] = {}
+            new_rooms: set[str] = set()
+            current_exits: dict[tuple[str, str], Exit] = {}
+            written_exits: dict[tuple[str, str], Exit] = {}
+            exit_items: list[Any] = []
+            result.skipped += sum(1 for r in room_items if r is None)
+            for raw, room in zip(raw_rooms, room_items, strict=True):
+                if room is None:
+                    continue
+                uid = room["uid"]
+                merged = merge_room(current_rooms.get(uid), room, overwrite)
+                if merged is not None:
+                    if uid not in current_rooms:
+                        new_rooms.add(uid)
+                    current_rooms[uid] = merged
+                    written_rooms[uid] = merged
+                for direction, touid in (raw.get("exits") or {}).items():
+                    exit_items.append({"fromuid": uid, "dir": str(direction), "touid": str(touid)})
+            explicit = list(exits or ())
+            exit_items.extend(explicit)
+
+            parsed: list[Exit | None] = []
+            for item in exit_items:
+                parsed.append(self._parse_exit(item))
+            result.skipped += sum(1 for p in parsed if p is None)
+            from_uids = list(dict.fromkeys(p.fromuid for p in parsed if p is not None))
+            for row in _select_in(
+                self.db, "SELECT * FROM exits WHERE fromuid IN ({marks})", from_uids
+            ):
+                current_exits[(row["fromuid"], row["dir"])] = _row_to_exit(row)
+            for given in parsed:
+                if given is None:
+                    continue
+                key = (given.fromuid, given.dir)
+                exit_merged = merge_exit(current_exits.get(key), given, overwrite)
+                if exit_merged is not None:
+                    current_exits[key] = exit_merged
+                    written_exits[key] = exit_merged
+
+            note_uids = [u for u in note_items if u in current_rooms]
+            result.skipped += len(note_items) - len(note_uids)
+            stored_notes = {
+                r["uid"]: r["notes"]
+                for r in _select_in(
+                    self.db, "SELECT uid, notes FROM bookmarks WHERE uid IN ({marks})", note_uids
+                )
+            }
+            note_rows: list[tuple[str, str]] = []
+            for uid in note_uids:
+                text = note_items[uid]
+                if not isinstance(text, str):
+                    result.skipped += 1
+                elif stored_notes.get(uid) == text or (not overwrite and stored_notes.get(uid)):
+                    continue
+                else:
+                    note_rows.append((uid, text))
+
+            self.db.modifymany(
+                "INSERT OR REPLACE INTO areas(uid, name, flags, details) VALUES(?, ?, ?, ?)",
+                list(area_rows.values()),
+            )
+            self.db.modifymany(
+                UPSERT_ROOM_SQL,
+                [
+                    (
+                        r["uid"],
+                        r["name"],
+                        r["area"],
+                        r["terrain"],
+                        r["x"],
+                        r["y"],
+                        r["z"],
+                        json.dumps(r["flags"]),
+                        json.dumps(r["details"]),
+                    )
+                    for r in written_rooms.values()
+                ],
+            )
+            self.db.modifymany(
+                UPSERT_EXIT_SQL,
+                [
+                    (
+                        e.fromuid,
+                        e.dir,
+                        e.touid,
+                        e.cost,
+                        json.dumps(e.requirement) if e.requirement is not None else None,
+                    )
+                    for e in written_exits.values()
+                ],
+            )
+            self.db.modifymany(
+                "INSERT OR REPLACE INTO bookmarks(uid, notes) VALUES(?, ?)", note_rows
+            )
+        result.rooms = len(written_rooms)
+        result.new_rooms = len(new_rooms)
+        result.exits = len(written_exits)
+        result.notes = len(note_rows)
+        result.room_flags = {uid: r["flags"] for uid, r in written_rooms.items()}
+        result.written_exits = list(written_exits.values())
+        return result
+
+    @staticmethod
+    def _parse_exit(item: Any) -> Exit | None:
+        """Build an Exit from a batch item, or None when it is invalid."""
+        if not isinstance(item, Mapping):
+            return None
+        fromuid = item.get("fromuid")
+        direction = item.get("dir")
+        cost = item.get("cost", 1)
+        requirement = item.get("requirement")
+        if not isinstance(direction, str) or exit_problem(fromuid, direction, cost, requirement):
+            return None
+        return Exit(str(fromuid), direction, str(item.get("touid", UNKNOWN_UID)), cost, requirement)
 
     def load_graph(self) -> MapGraph:
         """Build the graph from the database."""

@@ -199,6 +199,26 @@ class Sqldb:
         finally:
             self._txn_depth -= 1
 
+    @contextlib.contextmanager
+    def transaction(self) -> Iterator[None]:
+        """Run several statements in one commit, all or none.
+
+        Every ``modify``, ``modifymany`` and ``select`` inside the block nests in one
+        savepoint, so the database commits once when the block ends and undoes every
+        statement when it raises. Use it synchronously only, never across an ``await``:
+        the connection is shared and any other statement would join the open block.
+
+        Raises:
+            sqlite3.Error: A statement failed and none were kept. It is logged first.
+
+        """
+        try:
+            with self._transaction():
+                yield
+        except sqlite3.Error:
+            self._log_failure("transaction", "<batch>")
+            raise
+
     def _log_failure(self, method: str, sql: str) -> None:
         """Log the exception being handled for a failed statement."""
         log_to(
