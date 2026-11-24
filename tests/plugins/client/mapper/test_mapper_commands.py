@@ -26,16 +26,29 @@ def _text(result: CommandResult) -> str:
     return "\n".join([result.message] if isinstance(result.message, str) else result.message)
 
 
+def _sent(h: Harness) -> str:
+    """Return everything sent to the client so far, as one text."""
+    return "\n".join(line for msg in h.client for line in ([msg] if isinstance(msg, str) else msg))
+
+
+def _find_text(h: Harness, **args: Any) -> str:
+    """Run find with a current room and return the table the client got."""
+    h.client.clear()
+    result = _run(h, "find", **args)
+    assert "finding the steps" in _text(result)
+    return _sent(h)
+
+
 def test_find(test_map: Harness) -> None:
     """find by name, area, flag, unexplored, and with no match."""
     test_map.plugin.current_room = "A"
-    result = _run(test_map, "find", text=["room", "c"])
-    assert "C | Room C | test | 2" in _text(result)
-    assert "uid | name" in _text(result)
-    assert "F |" not in _text(_run(test_map, "find", text=["room", "c"]))
-    assert "B |" in _text(_run(test_map, "find", flag="noportal"))
-    assert "A |" in _text(_run(test_map, "find", area="test"))
-    unexplored = _text(_run(test_map, "find", unexplored=True))
+    text = _find_text(test_map, text=["room", "c"])
+    assert "C | Room C | test | 2" in text
+    assert "uid | name" in text
+    assert "F |" not in text
+    assert "B |" in _find_text(test_map, flag="noportal")
+    assert "A |" in _find_text(test_map, area="test")
+    unexplored = _find_text(test_map, unexplored=True)
     assert "E |" in unexplored
     assert "A |" not in unexplored
     assert _text(_run(test_map, "find", text=["zzz"])) == "No rooms found"
@@ -59,7 +72,10 @@ def test_goto(test_map: Harness) -> None:
     )
     assert _run(test_map, "goto", uid="C").success is True
     assert test_map.mud == ["run nn"]
-    assert _run(test_map, "goto", uid="nowhere").success is False
+    assert "going to C: run nn" in _sent(test_map)
+    test_map.client.clear()
+    assert _run(test_map, "goto", uid="nowhere").success is True
+    assert "no path to nowhere" in _sent(test_map)
 
 
 def test_walkto_resume_stop(test_map: Harness) -> None:
@@ -74,15 +90,23 @@ def test_walkto_resume_stop(test_map: Harness) -> None:
     assert _run(test_map, "stop").success is True
     assert _run(test_map, "resume").success is True
     assert test_map.mud == ["n", "n"]
+    test_map.client.clear()
+    assert _run(test_map, "walkto", uid="nowhere").success is True
+    assert "could not walk to nowhere: no path" in _sent(test_map)
 
 
 def test_where_sends_nothing(test_map: Harness) -> None:
     """where shows directions and cost without moving."""
     test_map.plugin.current_room = "A"
-    result = _run(test_map, "where", uid="C")
-    assert _text(result) == "cost 2: n, n"
+    assert _run(test_map, "where", uid="C").success is True
+    assert "cost 2: n, n" in _sent(test_map)
     assert test_map.mud == []
-    assert _run(test_map, "where", uid="nowhere").success is False
+    test_map.client.clear()
+    assert _run(test_map, "where", uid="nowhere").success is True
+    assert "no path to nowhere" in _sent(test_map)
+    p = test_map.plugin
+    p.current_room = None
+    assert _run(test_map, "where", uid="C").success is False
 
 
 def test_showroom(test_map: Harness) -> None:

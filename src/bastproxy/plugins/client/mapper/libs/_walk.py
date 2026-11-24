@@ -18,6 +18,7 @@ from ._graph import Exit
 MAX_REROUTES = 3
 
 IDLE = "idle"
+SEARCHING = "searching"
 WALKING = "walking"
 STOPPED = "stopped"
 
@@ -55,8 +56,17 @@ class Walk:
         self.reroutes = 0
         self._origin = from_uid
 
+    def searching(self, target: str, from_uid: str) -> None:
+        """Wait for a path search. Arrivals are ignored until the walk is started again."""
+        self.state = SEARCHING
+        self.target = target
+        self.steps = []
+        self.index = 0
+        self._origin = from_uid
+
     def reroute(self, steps: list[Exit], from_uid: str) -> None:
         """Continue the walk with a new path from ``from_uid``."""
+        self.state = WALKING
         self.steps = list(steps)
         self.index = 0
         self.reroutes += 1
@@ -95,8 +105,8 @@ class Walk:
         self.state = IDLE
 
     def stop(self) -> bool:
-        """Stop an active walk, keeping the target. Returns False when not walking."""
-        if self.state != WALKING:
+        """Stop a walk or a search, keeping the target. Returns False when neither is active."""
+        if self.state not in (WALKING, SEARCHING):
             return False
         self.state = STOPPED
         return True

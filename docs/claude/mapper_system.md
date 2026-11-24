@@ -37,10 +37,10 @@ The layout follows the MUSHclient mapper so an adapter can import an existing da
 
 | Callback | Signature | On failure |
 | :--- | :--- | :--- |
-| `requirement.register(owner_id, callback)` | `callback(requirement, exit_dict) -> bool`, only called for an exit that has a requirement. True lets the path use the exit. | A callback that raises is logged and blocks the exit. With no callback, exits are allowed. |
+| `requirement.register(owner_id, callback)` | `callback(requirement, exit_dict) -> bool`, only called for an exit that has a requirement, with `exit_dict` the one exit that carries it. True lets the path use the exit. A walk or command search asks it on the event loop before the search, once for every distinct requirement in the map; `path.get` asks it lazily, once per requirement it reaches. | A callback that raises is logged and blocks the exit. With no callback, exits are allowed. |
 | `movement.register(owner_id, callback)` | `callback(steps: list[dict]) -> list[str]`, steps being exit dicts. Returns the commands to send. | A callback that raises or returns something other than a list of strings is logged, and the directions are sent. |
 
-The requirement callback runs at most once per distinct requirement in one search. A walk calls the movement callback with one step at a time; the `goto` command calls it with the whole path, so an adapter can return a speedwalk such as `run 3n2e`. Commands are sent with `SendDataDirectlyToMud`.
+The requirement callback runs at most once per distinct requirement in one search, always on the event loop, so it may call `self.api(...)` and log. A walk calls the movement callback with one step at a time; the `goto` command calls it with the whole path, so an adapter can return a speedwalk such as `run 3n2e`. Commands are sent with `SendDataDirectlyToMud`.
 
 ## Pathfinding
 
@@ -54,13 +54,24 @@ The requirement callback runs at most once per distinct requirement in one searc
 
 ## Walking
 
-A walk has three states: `idle`, `walking` and `stopped`.
+A walk has four states: `idle`, `searching`, `walking` and `stopped`.
 
-- `walk.start(target)` finds a path from the current room, raises `walk_started` and sends only the first step.
+- `walk.start(target)` starts a path search from the current room and returns True once it has started, with the walk `searching`. When the search finishes it raises `walk_started` and sends only the first step. A target with no path arrives later as `walk_failed`, reason `no path`. It returns False, raising `walk_failed` with reason `current room unknown`, when the current room is not known.
+- Arrivals while `searching` are ignored. If the character moved when the search ends, the walk stops with `walk_failed`, reason `moved during search`; a search that raised stops it with reason `search failed`. `walk.clear` during a search stops it and the late result is dropped.
 - Each `room.current.set` is given to the walk. The arrival of the step's target sends the next step (`walk_step`), or finishes the walk (`walk_done`). An arrival at the room the step left from, for example after `look`, is ignored.
 - An arrival anywhere else re-paths from there and continues when the `reroute` setting is on, up to 3 times. Otherwise the walk stops with `walk_failed`, reason `unexpected room`.
-- `walk.clear` stops the walk and keeps its target. `walk.restart` re-paths from the current room to that target. A MUD disconnect stops an active walk.
+- `walk.clear` stops the walk and keeps its target. `walk.restart` searches a path from the current room to that target and returns like `walk.start`. A MUD disconnect stops an active walk.
 - A walk only starts from `walk.start` or a command. Arrivals while `idle` or `stopped` send nothing.
+
+## Threading
+
+Walks (`walk.start`, `walk.restart` and reroutes) and the commands `find`, `goto`, `where`, `walkto` and `resume` run the pathfinder in a worker thread, so a long search does not stall the event loop. The search does not run in parallel with the loop, as Python runs one thread at a time; it frees the loop, which keeps running between the switches. A command answers at once with a line like "finding a path to X" and reports its result in a later line to the client.
+
+- **Copy-on-write views.** A search reads a frozen view of the graph. Taking the view shares the graph's outer dicts, and the first write after it copies them, so writes on the loop never change what a worker reads and no lock is needed. Per-room exit dicts are replaced on a write, never mutated.
+- **Requirement callbacks stay on the loop.** Before the search the plugin asks the callback about every distinct requirement in the map and gives the worker a lookup, so adapters keep the API and the log. A requirement missing from the answers blocks its exit.
+- **`path.get` stays synchronous** and runs on the event loop.
+- **`load_graph` stays synchronous** at plugin load. The database connection belongs to the loop thread, and an adapter may write rooms right after load.
+- A search result is dropped when the plugin unloads or the walk was stopped or restarted meanwhile.
 
 ## Change detection
 
@@ -83,7 +94,7 @@ All are `plugins.client.mapper:<name>`. Names follow [ADR-0004](../decisions/000
 | `path.get(start, target, max_depth=None)` | `{"start", "target", "cost", "steps": [{"fromuid", "touid", "dir", "cost", "requirement"}]}` or None |
 | `requirement.register`, `requirement.unregister`, `movement.register`, `movement.unregister` | None |
 | `walk.start(target)`, `walk.restart()`, `walk.clear(reason="stopped")` | bool |
-| `walk.get()` | `{state, target, steps, index, reroutes}` |
+| `walk.get()` | `{state, target, steps, index, reroutes}`, state being `idle`, `searching`, `walking` or `stopped` |
 
 ## Events
 
