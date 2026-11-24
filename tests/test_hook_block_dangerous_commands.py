@@ -3317,6 +3317,33 @@ def test_merge_git_dash_c_worktree_from_main_passes(branch_repos: tuple[Path, Pa
     assert _hook_exit(f"git -C {wt.as_posix()} merge --no-edit main", repo) == 0
 
 
+def test_every_merge_in_a_command_is_judged_git_dash_c(
+    branch_repos: tuple[Path, Path],
+) -> None:
+    repo, wt = branch_repos
+    cmd = f"git -C {wt.as_posix()} merge --no-edit main; git merge --no-edit fix/1-x"
+    assert _hook_exit(cmd, repo) == 2
+
+
+def test_every_merge_in_a_command_is_judged_cd_chain(
+    branch_repos: tuple[Path, Path],
+) -> None:
+    repo, wt = branch_repos
+    cmd = (
+        f"cd {wt.as_posix()} && git merge --no-edit main; "
+        f"cd {repo.as_posix()} && git merge --no-edit fix/1-x"
+    )
+    assert _hook_exit(cmd, repo) == 2
+
+
+def test_two_merges_on_non_protected_branch_pass(branch_repos: tuple[Path, Path]) -> None:
+    repo, wt = branch_repos
+    cmd = (
+        f"git -C {wt.as_posix()} merge --no-edit main; git -C {wt.as_posix()} merge --no-edit main"
+    )
+    assert _hook_exit(cmd, repo) == 0
+
+
 def test_push_cd_to_main_from_worktree_blocks(branch_repos: tuple[Path, Path]) -> None:
     repo, wt = branch_repos
     assert _hook_exit(f"cd {repo.as_posix()} && git push", wt) == 2

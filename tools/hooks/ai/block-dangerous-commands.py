@@ -3802,6 +3802,9 @@ def check_merge_to_protected(command: str) -> tuple[bool, str]:
     Protected branches often require linear history (no merge commits).
     Blocks `git merge` on protected branches unless that merge passes --ff-only.
 
+    Every ``git merge`` in the command is judged on its own; the command is
+    allowed only once all of them have been checked (#1311).
+
     Each ``git`` token's own subcommand decides whether it is a merge, and
     ``--ff-only`` counts only up to the end of that command. Matching the words
     anywhere on the line refused read-only commands such as
@@ -3839,7 +3842,8 @@ def check_merge_to_protected(command: str) -> tuple[bool, str]:
                 f"Merge on protected branch '{current_branch}' would create merge commit. "
                 f"Use --ff-only for fast-forward merge, or merge via PR"
             )
-        return False, ""
+        # This merge is on a non-protected branch; judge the next one too.
+        continue
 
     return False, ""
 
