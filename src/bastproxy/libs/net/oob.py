@@ -39,6 +39,7 @@ logger = get_logger(__name__)
 __all__ = [
     "CACHE_MAX_ENTRIES",
     "CLIENT_MAX_MODULES",
+    "GMCP_MAX_DEPTH",
     "MISSING",
     "MSDP_MAX_DEPTH",
     "MSDP_MAX_NODES",
@@ -68,6 +69,7 @@ REDACTED = "<redacted>"
 MISSING: Any = object()
 
 OOB_MAX_PAYLOAD = 256 * 1024
+GMCP_MAX_DEPTH = 64
 MSDP_MAX_DEPTH = 16
 MSDP_MAX_NODES = 4096
 CACHE_MAX_ENTRIES = 512
@@ -119,6 +121,33 @@ def valid_mssp_name(name: str) -> bool:
     return _MSSP_NAME_RE.fullmatch(name) is not None
 
 
+def _gmcp_too_deep(body: str) -> bool:
+    """Whether the JSON ``body`` nests brackets deeper than ``GMCP_MAX_DEPTH``.
+
+    Brackets inside JSON strings do not count. The scan stops at the first excess.
+    """
+    depth = 0
+    in_string = False
+    escaped = False
+    for char in body:
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+        elif char == '"':
+            in_string = True
+        elif char in "[{":
+            depth += 1
+            if depth > GMCP_MAX_DEPTH:
+                return True
+        elif char in "]}":
+            depth -= 1
+    return False
+
+
 def decode_gmcp(payload: bytes, encoding: str = "utf-8") -> tuple[str, Any]:
     """Decode a GMCP payload into ``(package, data)``.
 
@@ -127,7 +156,7 @@ def decode_gmcp(payload: bytes, encoding: str = "utf-8") -> tuple[str, Any]:
 
     Raises:
         OobDecodeError: If the payload is over ``OOB_MAX_PAYLOAD``, the package name is not
-            valid, or the body is not JSON.
+            valid, the body is not JSON, or the body nests deeper than ``GMCP_MAX_DEPTH``.
 
     """
     if len(payload) > OOB_MAX_PAYLOAD:
@@ -141,6 +170,9 @@ def decode_gmcp(payload: bytes, encoding: str = "utf-8") -> tuple[str, Any]:
     body = body.strip()
     if not body:
         return package, None
+    if _gmcp_too_deep(body):
+        msg = "GMCP body nests too deep"
+        raise OobDecodeError(msg, name=package)
     try:
         return package, json.loads(body)
     except (ValueError, RecursionError) as exc:
