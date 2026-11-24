@@ -160,6 +160,14 @@ def test_coder_brief_reads_from_the_plan_locations() -> None:
     assert "each read outside its pointers" in coder
 
 
+def test_coder_brief_points_at_portable_tests() -> None:
+    coder = _section(_skill_text(), "## Coder brief", "## Per-host subagent notes")
+    assert (
+        "Before writing an exact-value assertion, check it against the `portable-tests` rule."
+        in coder
+    )
+
+
 def test_implement_worker_starts_from_the_plan_locations() -> None:
     text = IMPLEMENT_WORKER.read_text(encoding="utf-8")
     assert "named symbols" in text

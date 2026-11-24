@@ -120,6 +120,8 @@ runs, and it already does what a hand-rolled `tests.yml` would:
 | **Checks** | the `lint` and `docs` jobs run `doit` tasks, so CI and a local run cannot diverge; the `test` job calls `pytest` directly (see [Pipeline Jobs](#pipeline-jobs)) |
 | **Coverage** | `package_name` **and** `tools/`, gated by `fail_under` in `pyproject.toml` |
 | **Actions** | pinned to commit SHAs with a `# vX.Y.Z` comment (see [Action pinning](#action-pinning-and-workflow-permissions)) |
+| **Interpreter** | every job that sets up Python and then runs uv sets `UV_PYTHON` to that version, so `uv sync` and `uv run` use it instead of the one in `.python-version`; a `Check the Python version` step fails the job if uv runs another one (#1261) |
+| **uv cache** | `astral-sh/setup-uv` with `enable-cache: true`, keyed on `uv.lock`; no separate `actions/cache` step or `UV_CACHE_DIR`. It is faster than `actions/cache`, most of all on Windows (timings in #1266) |
 
 Read `.github/workflows/ci.yml` for the current definition. This page previously carried a ~60-line
 `tests.yml` sample to copy; it drifted from the real file in every dimension above — hardcoded
@@ -133,12 +135,25 @@ versions, raw `pytest` instead of `doit`, and mutable action tags this project's
 | Job | What it runs |
 | :--- | :--- |
 | `setup` | Builds the test matrix from `.github/python-versions.json` |
-| `test` | `pytest`, called directly, on each OS and Python version in the matrix. The newest Python on `ubuntu-latest` also measures coverage. |
+| `test` | `pytest`, called directly, on each OS and Python version in the matrix. It does not measure coverage. On Windows it then also runs `doit format_check`, `doit security` and `doit cleanup`, on Git's default line-ending settings (see [Windows doit tasks](#windows-doit-tasks)). |
+| `coverage` | `pytest --cov` on the newest Python on `ubuntu-latest`, in parallel with `test`, plus the opt-in Codecov upload (the only job holding `id-token: write`). It logs which coverage core ran (`COVERAGE_DEBUG=core`). Skipped on `full_matrix` runs, which test only the middle versions. |
 | `lint` | `doit env_check`, `doit format_check`, `doit lint`, `doit type_check`, `doit deadcode`, `doit security`, `doit spell_check`, `doit audit` and `doit wheel_check`, on `ubuntu-latest`. Each runs even when one before it failed, so CI reports every failing check at once. A failure in any of them fails CI. |
 | `docs` | `doit docs_build`, described below |
-| `ci-complete` | Fails if any other job failed; a skipped job passes. It gives the run one result to require ([ADR-9013](../decisions/9013-python-version-support-policy.md)). |
+| `ci-complete` | Fails if any other job (`test`, `coverage`, `lint`, `docs`) failed; a skipped job passes. It gives the run one result to require ([ADR-9013](../decisions/9013-python-version-support-policy.md)). |
 
 `tests/test_ci_jobs_doc.py` checks this table against `ci.yml`: the same jobs, and the same `doit` tasks in each.
+
+#### Windows doit tasks
+
+`pytest` alone never ran a `doit` task on Windows, so three Windows-only failures reached `main`. The Windows `test` job checks out with Git's defaults (`core.autocrlf=true`; it no longer turns that off) and runs one task for each:
+
+| Task | Catches |
+| :--- | :--- |
+| `doit format_check` | CRLF checkouts failing ruff's `line-ending = "lf"` (#1288) |
+| `doit security` | A `install_check_or_skip` action string that cmd.exe cannot parse (#1291) |
+| `doit cleanup` | A Rich panel with a non-cp1252 character crashing on a piped stdout (#1287) |
+
+Linux runs the first two in the `lint` job already. `tests/test_ci_workflow.py` checks that the job sets no `autocrlf` and runs all three on Windows only.
 
 #### Documentation Build Job
 
@@ -185,6 +200,28 @@ The same principle does **not** license shedding these tests. They cover
 `tools/doit/`, `tools/hooks/`, workflows and agent assets — code that ships to and
 runs in the project, and that the gate below measures. Shedding them was measured
 at 40.73% total and 8.27% on `tools/hooks/`, well under `fail_under` (#731).
+
+### Shipped tooling under downstream mypy configs
+
+A project spawned from the template owns its `[tool.mypy]` table and may change it, so
+the tooling that ships (`tools/doit/`, `tools/hooks/`) must type-check under those
+changes, not only under the template's own config. `test_mypy_config_variants.py`
+guards this. For each variant it reads the live `[tool.mypy]` table from
+`pyproject.toml`, changes exactly one setting, writes the result under `tmp_path` and
+runs mypy over the same paths `doit type_check` uses. It fails on any mypy error.
+
+It runs as an ordinary test, so `doit test`, `doit check` and the CI `test` jobs cover
+it. It is skipped on Windows: `doit type_check` runs only in the Linux `lint` job, and
+mypy evaluates `sys.platform` branches for the host with `warn_unreachable` on. It is
+template-owned ([ADR-9017](../decisions/9017-template-tooling-and-its-tests-are-template-owned.md))
+and shed on configuration.
+
+To add a variant, append a `MypyVariant` to `VARIANTS` in that file, with a `reason`
+that starts with the issue number. The current variants are:
+
+- `subclassing-any-off`: `disallow_subclassing_any = false` (#1299).
+- `doit-follow-untyped-imports`: `follow_untyped_imports = true` on the `doit.*`
+  override (#1301).
 
 ### Action pinning and workflow permissions
 
@@ -779,7 +816,7 @@ uv run mutmut results --all true
 
 mutmut does not run all of `tests/`. It copies `src/`, `tests/`, `pyproject.toml` and `uv.lock` into `mutants/` (git-ignored) and runs the tests there. A test that imports `tools` or reads any other file in the repository fails in that copy. mutmut passes `-x` to pytest, so the first such failure stops the run before any mutant is checked (#873).
 
-`pytest_add_cli_args_test_selection` in `[tool.mutmut]` therefore lists only the tests that exercise `src/`. When you add a test file that imports the package, add it to that list. `tests/test_mutmut_config.py` fails until you do. It also fails if a listed file imports a module that mutmut does not copy, or no longer exists. The benchmarks in `tests/benchmarks/` are left out on purpose: they time the package and assert nothing, so they cannot kill a mutant.
+`pytest_add_cli_args_test_selection` in `[tool.mutmut]` therefore lists only the tests that exercise `src/`. When you add a test file that imports the package, add it to that list. `tests/test_mutmut_config.py` fails until you do. It also fails if a listed file imports a module that mutmut does not copy, or no longer exists, and (a static scan, so a heuristic) if a listed file reads a repository file mutmut does not copy. A selected test that needs a data file gets it through `also_copy` in `[tool.mutmut]`, listing the narrowest directory that holds the file (#1272). mutmut 3.8 cannot copy a file entry whose parent directory it does not create, so a file under a subdirectory crashes the run before any test; a top-level file works, and `tests/test_mutmut_config.py` rejects the subdirectory case (#1275). The benchmarks in `tests/benchmarks/` are left out on purpose: they time the package and assert nothing, so they cannot kill a mutant.
 
 ### Interpreting Results
 

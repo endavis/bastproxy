@@ -2,7 +2,8 @@
 
 Verifies that ``task_commit``, ``task_bump``, and ``task_changelog`` gate
 their ``cz`` invocations on an import probe of ``commitizen`` in the
-project venv (via ``install_check_or_skip``) so real failures — pre-commit hook rejections,
+project venv (via ``install_check_or_skip``, no POSIX shell: #1291) so real failures —
+pre-commit hook rejections,
 tag/version bump failures, changelog generation failures — propagate
 instead of being swallowed by the legacy ``|| echo 'not installed'`` pattern.
 
@@ -19,12 +20,14 @@ import re
 import subprocess
 from collections.abc import Callable, Iterator
 from pathlib import Path
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
 from rich.console import Console
 
+from tools.doit.base import _GuardedCmdAction
 from tools.doit.git import (
     _is_rebuildable,
     _main_checkout,
@@ -63,30 +66,25 @@ class TestGitTaskGates:
     share the same gating package; the underlying ``cz`` subcommand differs.
     """
 
-    def test_commit_gates_on_commitizen_package(self) -> None:
-        action = task_commit()["actions"][0]
-        assert isinstance(action, str)
-        assert 'uv run --no-sync python -c "import commitizen"' in action
-        assert "commitizen not installed. Run: doit install_dev" in action
-        assert "uv run cz commit" in action
-        # Bug-fix invariant: the bare-swallow pattern must be gone.
-        assert "|| echo 'commitizen not installed" not in action
-
-    def test_bump_gates_on_commitizen_package(self) -> None:
-        action = task_bump()["actions"][0]
-        assert isinstance(action, str)
-        assert 'uv run --no-sync python -c "import commitizen"' in action
-        assert "commitizen not installed. Run: doit install_dev" in action
-        assert "uv run cz bump" in action
-        assert "|| echo 'commitizen not installed" not in action
-
-    def test_changelog_gates_on_commitizen_package(self) -> None:
-        action = task_changelog()["actions"][0]
-        assert isinstance(action, str)
-        assert 'uv run --no-sync python -c "import commitizen"' in action
-        assert "commitizen not installed. Run: doit install_dev" in action
-        assert "uv run cz changelog" in action
-        assert "|| echo 'commitizen not installed" not in action
+    @pytest.mark.parametrize(
+        ("task", "command"),
+        [
+            (task_commit, "uv run cz commit"),
+            (task_bump, "uv run cz bump"),
+            (task_changelog, "uv run cz changelog"),
+        ],
+    )
+    def test_gates_on_commitizen_package(
+        self, task: Callable[[], dict[str, Any]], command: str
+    ) -> None:
+        action = task()["actions"][0]
+        assert isinstance(action, _GuardedCmdAction)
+        assert action._module == "commitizen"
+        assert action._hint == "commitizen not installed. Run: doit install_dev"
+        assert action._action == command
+        # No POSIX-only syntax, so the task runs under cmd.exe (#1291).
+        for token in ("/dev/null", "||", "{ ", "'"):
+            assert token not in action._action
 
 
 class TestPreCommitInstall:

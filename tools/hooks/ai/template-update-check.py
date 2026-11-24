@@ -4,8 +4,9 @@ Session-start hook that tells the user when the project is behind pyproject-temp
 
 A project made from pyproject-template records the template commit it last synced to in
 ``.config/pyproject_template/settings.toml`` (``[template].commit``, ADR-9020). This hook
-compares that commit to the head of the template's ``main`` (``git ls-remote``, short timeout,
-cached for 24h) and prints one line when they differ.
+compares that commit to the head of the template's ``main`` (``git ls-remote``, short timeout)
+and prints one line when they differ. The head is always fetched live; only a failed check is
+cached for 24h, so an offline machine pays the timeout once a day.
 
 It is silent, and exits 0, in every no-op case: opted out with
 ``PYPROJECT_TEMPLATE_UPDATE_CHECK=0``, no settings file, no recorded commit, running inside the
@@ -110,10 +111,18 @@ def read_cache(path: Path, now: float) -> tuple[bool, str | None]:
 
 
 def write_cache(path: Path, sha: str | None, now: float) -> None:
-    """Best-effort cache write; a failure only costs another ``ls-remote`` next time."""
+    """Cache a failed check (``sha`` None); drop the cache after a success.
+
+    A cached head goes stale when the template moves on, and a project synced past it would get
+    a false notice, so a successful result is never stored. Best-effort: a failure only costs
+    another ``ls-remote`` next time.
+    """
     try:
+        if sha is not None:
+            path.unlink(missing_ok=True)
+            return
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps({"checked_at": now, "sha": sha}), encoding="utf-8")
+        path.write_text(json.dumps({"checked_at": now, "sha": None}), encoding="utf-8")
     except OSError:
         return
 
@@ -201,10 +210,11 @@ def check(root: Path, now: float, env: dict[str, str] | None = None) -> str | No
     if is_template_repo(root):
         return None
     cache_path = root / CACHE_RELATIVE
-    hit, remote = read_cache(cache_path, now)
-    if not hit:
-        remote = fetch_remote_head()
-        write_cache(cache_path, remote, now)
+    hit, cached = read_cache(cache_path, now)
+    if hit and cached is None:
+        return None  # a recent failed check: stay offline-quiet
+    remote = fetch_remote_head()
+    write_cache(cache_path, remote, now)
     if remote is None or shas_match(recorded, remote):
         return None
     return build_message(recorded)

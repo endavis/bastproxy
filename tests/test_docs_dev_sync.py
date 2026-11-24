@@ -17,19 +17,12 @@ The allowlist holds the runtime syncs. Each entry says why its reader is not dev
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
 
+from doc_scan import committed_markdown_files
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
-SKIP_DIRS = {
-    ".git",
-    ".venv",
-    "site",
-    "node_modules",
-    "__pycache__",
-    "tmp",
-    ".mypy_cache",
-    "worktrees",
-}
 
 # `uv sync` and its arguments, up to a shell operator, a comment or a closing quote.
 SYNC = re.compile(r"\buv sync\b(?P<args>[^;&|#'\"`\n]*)")
@@ -44,18 +37,10 @@ RUNTIME_SYNCS: dict[tuple[str, str], str] = {
 }
 
 
-def _markdown_files(root: Path) -> list[Path]:
-    return [
-        path
-        for path in sorted(root.rglob("*.md"))
-        if not any(part in SKIP_DIRS for part in path.relative_to(root).parts)
-    ]
-
-
 def _fenced_syncs(root: Path = REPO_ROOT) -> list[tuple[str, str]]:
     """Return (doc, line) for every line in a fenced code block that runs `uv sync`."""
     found: list[tuple[str, str]] = []
-    for doc in _markdown_files(root):
+    for doc in committed_markdown_files(root):
         fenced = False
         for raw in doc.read_text(encoding="utf-8", errors="replace").splitlines():
             line = raw.strip()
@@ -88,7 +73,7 @@ def test_no_doc_suggests_a_security_only_sync() -> None:
     """`uv sync --extra security` keeps that extra and uninstalls the `dev` one, `doit` included."""
     wrong = [
         f"{doc.relative_to(REPO_ROOT)}:{number}: {line.strip()}"
-        for doc in _markdown_files(REPO_ROOT)
+        for doc in committed_markdown_files(REPO_ROOT)
         for number, line in enumerate(doc.read_text(encoding="utf-8").splitlines(), start=1)
         if SECURITY_ONLY.search(line) and "never" not in line.lower()
     ]
@@ -113,7 +98,13 @@ def test_runtime_syncs_are_still_used() -> None:
     assert not stale, "RUNTIME_SYNCS entries no longer in their docs:\n  " + "\n  ".join(stale)
 
 
+def _init_repo(root: Path) -> None:
+    subprocess.run(["git", "init", "--quiet"], cwd=root, check=True, capture_output=True)
+
+
 def test_the_scanner_reads_only_fenced_commands(tmp_path: Path) -> None:
+    _init_repo(tmp_path)
+    (tmp_path / ".gitignore").write_text("/worktrees/\n", encoding="utf-8")
     doc = tmp_path / "docs" / "setup.md"
     doc.parent.mkdir()
     doc.write_text(
@@ -137,3 +128,17 @@ def test_the_scanner_reads_only_fenced_commands(tmp_path: Path) -> None:
         ("docs/setup.md", "uv sync --all-extras --dev && doit check"),
     ]
     assert [_is_dev_sync(line) for _, line in found] == [False, True]
+
+
+def test_the_scanner_skips_git_ignored_directories(tmp_path: Path) -> None:
+    """A git-ignored copy of the docs, such as `mutants/`, is not scanned (#1278)."""
+    _init_repo(tmp_path)
+    (tmp_path / ".gitignore").write_text("mutants/\n", encoding="utf-8")
+    kept = tmp_path / "docs" / "setup.md"
+    kept.parent.mkdir()
+    kept.write_text("```bash\nuv sync --all-extras\n```\n", encoding="utf-8")
+    ignored = tmp_path / "mutants" / "docs" / "setup.md"
+    ignored.parent.mkdir(parents=True)
+    ignored.write_text("```bash\nuv sync\n```\n", encoding="utf-8")
+
+    assert _fenced_syncs(tmp_path) == [("docs/setup.md", "uv sync --all-extras")]

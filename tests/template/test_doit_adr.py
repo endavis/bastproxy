@@ -728,3 +728,79 @@ class TestRegisterFallbacks(_RegisterBase):
         assert (readme.read_bytes(), mkdocs.read_bytes()) == before
         assert "CouldnotupdatetheADRindex" in out
         assert "Couldnotupdatethenavin" in out
+
+
+_MKDOCS_NESTED = """site_name: Demo
+nav:
+  - Home: index.md
+  - Decisions:
+      - Overview: decisions/README.md
+      - ADR-0001 Mine: decisions/0001-mine.md
+      - Template Decisions:
+          - ADR-9001 First: decisions/9001-first.md
+  - Reference:
+      - API: reference/api.md
+"""
+
+
+class TestNavNestedGroup:
+    """``_add_to_nav`` places entries by number around a nested group (#1259)."""
+
+    @staticmethod
+    def _add(tmp_path: Path, text: str, number: int) -> tuple[str, list[Any]]:
+        mkdocs = tmp_path / "mkdocs.yml"
+        mkdocs.write_text(text, encoding="utf-8")
+        path = f"decisions/{number:04d}-new.md"
+        assert adr_module._add_to_nav(mkdocs, number, "New", path)
+        out = mkdocs.read_text(encoding="utf-8")
+        data = yaml.safe_load(out)
+        (dec,) = (e for e in data["nav"] if isinstance(e, dict) and "Decisions" in e)
+        return out, list(dec["Decisions"])
+
+    def test_project_adr_goes_before_group(self, tmp_path: Path) -> None:
+        out, decisions = self._add(tmp_path, _MKDOCS_NESTED, 2)
+        lines = out.split("\n")
+        new = lines.index("      - ADR-0002 New: decisions/0002-new.md")
+        assert lines[new - 1].strip().startswith("- ADR-0001")
+        assert lines[new + 1].strip() == "- Template Decisions:"
+        group = next(d for d in decisions if isinstance(d, dict) and "Template Decisions" in d)
+        assert group["Template Decisions"] == [{"ADR-9001 First": "decisions/9001-first.md"}]
+
+    def test_template_adr_goes_inside_group(self, tmp_path: Path) -> None:
+        out, _ = self._add(tmp_path, _MKDOCS_NESTED, 9002)
+        lines = out.split("\n")
+        new = lines.index("          - ADR-9002 New: decisions/9002-new.md")
+        assert lines[new - 1].strip().startswith("- ADR-9001")
+
+    def test_template_adr_lands_between_neighbours(self, tmp_path: Path) -> None:
+        text = _MKDOCS_NESTED.replace(
+            "9001-first.md\n",
+            "9001-first.md\n          - ADR-9003 Third: decisions/9003-third.md\n",
+        )
+        out, _ = self._add(tmp_path, text, 9002)
+        lines = out.split("\n")
+        new = lines.index("          - ADR-9002 New: decisions/9002-new.md")
+        assert lines[new - 1].strip().startswith("- ADR-9001")
+        assert lines[new + 1].strip().startswith("- ADR-9003")
+
+    def test_first_project_adr_goes_before_group_header(self, tmp_path: Path) -> None:
+        text = _MKDOCS_NESTED.replace("      - ADR-0001 Mine: decisions/0001-mine.md\n", "")
+        out, _ = self._add(tmp_path, text, 1)
+        lines = out.split("\n")
+        new = lines.index("      - ADR-0001 New: decisions/0001-new.md")
+        assert lines[new + 1].strip() == "- Template Decisions:"
+
+    def test_template_adr_without_series_goes_at_block_end(self, tmp_path: Path) -> None:
+        text = (
+            "nav:\n  - Decisions:\n      - Overview: decisions/README.md\n"
+            "      - ADR-0001 Mine: decisions/0001-mine.md\n  - Reference:\n      - API: a.md\n"
+        )
+        out, decisions = self._add(tmp_path, text, 9001)
+        assert decisions[-1] == {"ADR-9001 New": "decisions/9001-new.md"}
+        assert "  - Reference:" in out.split("\n")
+
+    def test_existing_nested_entry_is_not_added_twice(self, tmp_path: Path) -> None:
+        mkdocs = tmp_path / "mkdocs.yml"
+        mkdocs.write_text(_MKDOCS_NESTED, encoding="utf-8")
+        assert adr_module._add_to_nav(mkdocs, 9001, "First", "decisions/9001-first.md")
+        assert mkdocs.read_text(encoding="utf-8") == _MKDOCS_NESTED

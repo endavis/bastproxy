@@ -75,9 +75,10 @@ pyproject-template has updates since 1a2b3c4. Run the template-sync skill to rev
 
 - **Check:** `git ls-remote https://github.com/endavis/pyproject-template refs/heads/main` with a
   2-second timeout. It does not use the GitHub API, so it has no rate limit.
-- **Cache:** the result is stored in `tmp/template-update-check.json` for 24 hours. A failed check
-  (offline, timeout) is cached too, so an offline machine pays the timeout once a day, not at every
-  start. `doit cleanup` deletes the cache; the cost is one extra `ls-remote`.
+- **Cache:** only a failed check (offline, timeout) is cached, in `tmp/template-update-check.json`
+  for 24 hours, so an offline machine pays the timeout once a day, not at every start. A successful
+  check is never cached: it compares against the live head, so a project synced after the head
+  moved gets no false notice. `doit cleanup` deletes the cache; the cost is one extra `ls-remote`.
 - **Silent** when `settings.toml` is missing or records no commit, when the project is the template
   repo itself, when the check fails, and when opted out. The hook always exits 0.
 - **Opt out:** set `PYPROJECT_TEMPLATE_UPDATE_CHECK=0` in the environment that launches the CLI.

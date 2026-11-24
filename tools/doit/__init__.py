@@ -5,8 +5,32 @@ Tasks are auto-discovered from all modules in this package.
 """
 
 import importlib
+import sys
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
+
+
+def ensure_utf8_streams(streams: Iterable[Any] | None = None) -> None:
+    """Reconfigure text streams to UTF-8 so Rich box-drawing output cannot crash.
+
+    Under Git Bash on Windows, ``sys.stdout`` defaults to cp1252, which cannot
+    encode the box-drawing characters Rich writes through doit's captured-output
+    writer (issue #1287). Streams without ``reconfigure`` or already UTF-8 are
+    left untouched.
+
+    Args:
+        streams: Streams to reconfigure. Defaults to ``sys.stdout`` and ``sys.stderr``.
+    """
+    targets = (sys.stdout, sys.stderr) if streams is None else streams
+    for stream in targets:
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        encoding = str(getattr(stream, "encoding", "") or "").lower().replace("_", "-")
+        if encoding in ("utf-8", "utf8"):
+            continue
+        reconfigure(encoding="utf-8")
 
 
 def discover_tasks() -> dict[str, Any]:

@@ -3261,3 +3261,206 @@ def test_confirmed_write_keeps_the_config_message(hook: types.ModuleType, comman
     assert is_dangerous
     assert _CONFIRMED_MARK in reason
     assert _UNRESOLVED_MARK not in reason
+
+
+# --- the branch a merge/push is judged on is where the command runs (#1280) ---
+
+
+@pytest.fixture
+def branch_repos(tmp_path: Path) -> tuple[Path, Path]:
+    """Return ``(main_checkout, worktree)``: a repo on ``main`` and a worktree on ``fix/1-x``."""
+    repo = tmp_path / "repo"
+    wt = tmp_path / "wt"
+    env = ["-c", "user.name=t", "-c", "user.email=t@example.com"]
+    for args in (
+        ["init", "-q", "-b", "main", str(repo)],
+        ["-C", str(repo), *env, "commit", "-q", "--allow-empty", "-m", "init"],
+        ["-C", str(repo), "worktree", "add", "-q", "-b", "fix/1-x", str(wt)],
+    ):
+        subprocess.run(["git", *args], check=True, capture_output=True)
+    return repo, wt
+
+
+def _hook_exit(command: str, process_cwd: Path, payload_cwd: Path | None = None) -> int:
+    """Run the hook script as a subprocess from *process_cwd* and return its exit code."""
+    payload: dict[str, object] = {"tool_name": "Bash", "tool_input": {"command": command}}
+    if payload_cwd is not None:
+        payload["cwd"] = str(payload_cwd)
+    proc = subprocess.run(
+        [sys.executable, str(HOOK_PATH)],
+        input=json.dumps(payload),
+        capture_output=True,
+        text=True,
+        cwd=process_cwd,
+        check=False,
+    )
+    return proc.returncode
+
+
+def test_merge_cd_to_worktree_from_main_passes(branch_repos: tuple[Path, Path]) -> None:
+    repo, wt = branch_repos
+    assert _hook_exit(f"cd {wt.as_posix()} && git merge --no-edit main", repo) == 0
+
+
+def test_merge_cd_to_main_from_worktree_blocks(branch_repos: tuple[Path, Path]) -> None:
+    repo, wt = branch_repos
+    assert _hook_exit(f"cd {repo.as_posix()} && git merge --no-edit fix/1-x", wt) == 2
+
+
+def test_merge_git_dash_c_main_from_worktree_blocks(branch_repos: tuple[Path, Path]) -> None:
+    repo, wt = branch_repos
+    assert _hook_exit(f"git -C {repo.as_posix()} merge --no-edit fix/1-x", wt) == 2
+
+
+def test_merge_git_dash_c_worktree_from_main_passes(branch_repos: tuple[Path, Path]) -> None:
+    repo, wt = branch_repos
+    assert _hook_exit(f"git -C {wt.as_posix()} merge --no-edit main", repo) == 0
+
+
+def test_push_cd_to_main_from_worktree_blocks(branch_repos: tuple[Path, Path]) -> None:
+    repo, wt = branch_repos
+    assert _hook_exit(f"cd {repo.as_posix()} && git push", wt) == 2
+
+
+def test_push_cd_to_worktree_from_main_passes(branch_repos: tuple[Path, Path]) -> None:
+    repo, wt = branch_repos
+    assert _hook_exit(f"cd {wt.as_posix()} && git push", repo) == 0
+
+
+@pytest.mark.parametrize("sep", ["; ", ";", " ; "])
+def test_semicolon_cd_resolves_for_push_and_merge(
+    branch_repos: tuple[Path, Path], sep: str
+) -> None:
+    # `cd X; git ...` tokenizes as `X;` on the shlex tokens: the `;` ends the path
+    repo, wt = branch_repos
+    assert _hook_exit(f"cd {wt.as_posix()}{sep}git push", repo) == 0
+    assert _hook_exit(f"cd {wt.as_posix()}{sep}git merge --no-edit main", repo) == 0
+    assert _hook_exit(f"cd {repo.as_posix()}{sep}git push", wt) == 2
+    assert _hook_exit(f"cd {repo.as_posix()}{sep}git merge --no-edit fix/1-x", wt) == 2
+
+
+def test_push_git_dash_c_main_from_worktree_blocks(branch_repos: tuple[Path, Path]) -> None:
+    repo, wt = branch_repos
+    assert _hook_exit(f"git -C {repo.as_posix()} push", wt) == 2
+
+
+def test_push_git_dash_c_worktree_from_main_passes(branch_repos: tuple[Path, Path]) -> None:
+    repo, wt = branch_repos
+    assert _hook_exit(f"git -C {wt.as_posix()} push", repo) == 0
+
+
+def test_payload_cwd_is_where_the_command_starts(branch_repos: tuple[Path, Path]) -> None:
+    repo, wt = branch_repos
+    # the process sits in the worktree; the host says the command runs in main
+    assert _hook_exit("git push", wt, payload_cwd=repo) == 2
+    assert _hook_exit("git merge --no-edit fix/1-x", wt, payload_cwd=repo) == 2
+    # and the other way round
+    assert _hook_exit("git push", repo, payload_cwd=wt) == 0
+    assert _hook_exit("git merge --no-edit main", repo, payload_cwd=wt) == 0
+
+
+def test_relative_cd_resolves_against_payload_cwd(
+    branch_repos: tuple[Path, Path],  # creates repo/ and wt/ under tmp_path
+    tmp_path: Path,
+) -> None:
+    assert _hook_exit("cd repo && git push", tmp_path, payload_cwd=tmp_path) == 2
+    assert _hook_exit("cd wt && git push", tmp_path, payload_cwd=tmp_path) == 0
+
+
+def test_relative_cd_with_cdpath_in_environment_fails_closed(
+    branch_repos: tuple[Path, Path],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # bash may resolve a relative `cd wt` through CDPATH, somewhere else entirely
+    monkeypatch.setenv("CDPATH", str(tmp_path))
+    assert _hook_exit("cd wt && git push", tmp_path, payload_cwd=tmp_path) == 2
+    # CDPATH is not consulted for `./wt` or an absolute path
+    assert _hook_exit("cd ./wt && git push", tmp_path, payload_cwd=tmp_path) == 0
+    _repo, wt = branch_repos
+    assert _hook_exit(f"cd {wt.as_posix()} && git push", tmp_path) == 0
+
+
+@pytest.mark.parametrize(
+    "template",
+    [
+        "builtin cd {wt} && {git}",
+        "command cd {wt} && {git}",
+        "CDPATH=/tmp; cd wt && {git}",
+        "GIT_DIR={wt}/.git {git}",
+        "git --git-dir={wt}/.git {git_args}",
+        "git --work-tree {wt} {git_args}",
+        "git --namespace=x -C {wt} {git_args}",
+        "cd $HOME && {git}",
+        "cd ~ && {git}",
+        "cd && {git}",
+        "cd .. && {git}",
+        "cd {wt}/../repo && {git}",
+        "cd {wt}/nonexistent && {git}",
+        "pushd {wt} && {git}",
+        "cd {wt} || {git}",
+        "env -C {wt} {git}",
+        "git -C $HOME {git_args}",
+        "git -C {wt}/nonexistent {git_args}",
+    ],
+)
+@pytest.mark.parametrize(
+    ("git", "git_args"),
+    [("git push", "push"), ("git merge --no-edit main", "merge --no-edit main")],
+)
+def test_unresolvable_directory_fails_closed(
+    branch_repos: tuple[Path, Path], template: str, git: str, git_args: str
+) -> None:
+    _repo, wt = branch_repos
+    command = template.format(wt=wt.as_posix(), git=git, git_args=git_args)
+    # even from a feature-branch worktree, an unknown directory is treated as protected
+    assert _hook_exit(command, wt) == 2
+
+
+def test_unresolvable_directory_still_allows_ff_only_and_explicit_push(
+    branch_repos: tuple[Path, Path],
+) -> None:
+    _repo, wt = branch_repos
+    assert _hook_exit("cd $HOME && git merge --ff-only main", wt) == 0
+    assert _hook_exit("cd $HOME && git push origin fix/1-x", wt) == 0
+
+
+@pytest.mark.parametrize(
+    "prefix",
+    [
+        "false || ",
+        "true | ",
+        "true & ",
+        "if true; then ",
+        "while true; do ",
+        "case x in x) ",
+        "! ",
+        "echo x && ",
+    ],
+)
+@pytest.mark.parametrize(
+    ("git", "git_args"),
+    [("git push", "push"), ("git merge --no-edit main", "merge --no-edit main")],
+)
+def test_cd_outside_the_leading_chain_fails_closed(
+    branch_repos: tuple[Path, Path], prefix: str, git: str, git_args: str
+) -> None:
+    """Only an unconditional cd chain from the command start is followed (#1308)."""
+    repo, wt = branch_repos
+    del git_args
+    # from the main checkout, a followed `cd <wt>` would land on a feature branch
+    assert _hook_exit(f"{prefix}cd {wt.as_posix()} && {git}", repo) == 2
+
+
+def test_non_cd_command_before_a_cd_chain_fails_closed(
+    branch_repos: tuple[Path, Path],
+) -> None:
+    repo, wt = branch_repos
+    assert _hook_exit(f"echo x && cd {wt.as_posix()} && git push", repo) == 2
+    assert _hook_exit(f"cd {wt.as_posix()} && echo x && git push", repo) == 2
+
+
+def test_multi_cd_leading_chain_is_followed(branch_repos: tuple[Path, Path]) -> None:
+    repo, wt = branch_repos
+    assert _hook_exit(f"cd {repo.as_posix()} && cd {wt.as_posix()} && git push", repo) == 0
+    assert _hook_exit(f"cd {wt.as_posix()}; cd {repo.as_posix()}; git push", wt) == 2

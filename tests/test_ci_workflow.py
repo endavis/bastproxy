@@ -305,18 +305,99 @@ class TestOsMatrix:
             assert data["jobs"][job]["with"]["all_os"] is True, name
 
 
+def _test_job_steps() -> list[dict[str, Any]]:
+    """Return the steps of the ``test`` job."""
+    steps: list[dict[str, Any]] = _load_workflow()["jobs"]["test"]["steps"]
+    return steps
+
+
+# The doit tasks the test job runs for Windows only. A project's own doit steps
+# (e.g. an install step for its tools) are not in this set and are not checked.
+_WINDOWS_TASKS = {"format_check", "security", "cleanup"}
+
+
+def _doit_task(step: dict[str, Any]) -> str | None:
+    """Return the doit task a step runs, or None when it runs no doit task."""
+    run = step.get("run", "")
+    if "doit " not in run:
+        return None
+    rest = run.split("doit ", 1)[1].split()
+    return rest[0] if rest else None
+
+
+def _windows_task_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [s for s in steps if _doit_task(s) in _WINDOWS_TASKS]
+
+
+def _assert_windows_only(steps: list[dict[str, Any]]) -> None:
+    selected = _windows_task_steps(steps)
+    assert selected
+    for step in selected:
+        assert "runner.os == 'Windows'" in step.get("if", ""), step["name"]
+
+
+def _assert_runs_after_failure(steps: list[dict[str, Any]]) -> None:
+    for step in _windows_task_steps(steps):
+        assert "!cancelled()" in step.get("if", ""), step["name"]
+
+
+class TestWindowsDoitTasks:
+    """The Windows test job runs doit tasks on Git's default checkout (#1293)."""
+
+    def test_windows_job_does_not_configure_autocrlf(self) -> None:
+        """Turning autocrlf off hid #1288; the checkout must use Git's defaults."""
+        for step in _test_job_steps():
+            assert "autocrlf" not in step.get("run", ""), step.get("name")
+
+    def test_windows_job_runs_each_doit_task(self) -> None:
+        """format_check (#1288), security (cmd.exe guard, #1291) and cleanup (Rich panel, #1287)."""
+        run = {_doit_task(step) for step in _test_job_steps()}
+        assert run >= _WINDOWS_TASKS
+
+    def test_doit_steps_run_on_windows_only(self) -> None:
+        """Linux runs these tasks in the lint job; the test job adds them for Windows."""
+        _assert_windows_only(_test_job_steps())
+
+    def test_doit_steps_run_after_an_earlier_failure(self) -> None:
+        """A failing test run must not hide a failing doit task."""
+        _assert_runs_after_failure(_test_job_steps())
+
+    def test_projects_own_doit_step_is_not_checked(self) -> None:
+        """A project's Linux-only doit step must not trip the Windows checks (#1306)."""
+        extra = {
+            "name": "Install project tools (Linux)",
+            "if": "runner.os == 'Linux'",
+            "run": "uv run doit install_tools",
+        }
+        steps = [*_test_job_steps(), extra]
+        _assert_windows_only(steps)
+        _assert_runs_after_failure(steps)
+
+    def test_windows_task_missing_cancelled_guard_fails(self) -> None:
+        broken = {"name": "x", "if": "runner.os == 'Windows'", "run": "uv run doit security"}
+        with pytest.raises(AssertionError):
+            _assert_runs_after_failure([broken])
+
+    def test_windows_task_missing_windows_guard_fails(self) -> None:
+        broken = {"name": "x", "if": "!cancelled()", "run": "uv run doit security"}
+        with pytest.raises(AssertionError):
+            _assert_windows_only([broken])
+
+
 class TestCodecovOptIn:
-    """The Codecov upload is opt-in, OIDC-authenticated and uploads one file (#1218)."""
+    """The Codecov upload is opt-in, OIDC-authenticated and uploads one file (#1218).
+
+    It lives in the separate ``coverage`` job, not the ``test`` matrix (#1260).
+    """
 
     @staticmethod
     def _step() -> dict[str, Any]:
-        steps: list[dict[str, Any]] = _load_workflow()["jobs"]["test"]["steps"]
+        steps: list[dict[str, Any]] = _load_workflow()["jobs"]["coverage"]["steps"]
         return next(s for s in steps if s.get("name") == "Upload coverage to Codecov")
 
     def test_gated_on_repository_variable(self) -> None:
         condition = self._step()["if"]
         assert "vars.CODECOV_ENABLED == 'true'" in condition
-        assert "needs.setup.outputs.newest" in condition
 
     def test_authenticates_with_oidc_not_a_token(self) -> None:
         step = self._step()
@@ -329,7 +410,7 @@ class TestCodecovOptIn:
         assert with_["files"] == "./tmp/coverage.xml"
 
     def test_job_can_request_an_oidc_token(self) -> None:
-        perms = _load_workflow()["jobs"]["test"]["permissions"]
+        perms = _load_workflow()["jobs"]["coverage"]["permissions"]
         assert perms == {"contents": "read", "id-token": "write"}
 
     def test_callers_grant_id_token(self) -> None:
@@ -344,3 +425,52 @@ class TestCodecovOptIn:
             data = yaml.safe_load((workflows / name).read_text(encoding="utf-8"))
             granted = [data.get("permissions"), data["jobs"][job].get("permissions")]
             assert any(p and p.get("id-token") == "write" for p in granted), name
+
+
+class TestCoverageJob:
+    """Coverage runs in its own job, not in the test matrix (#1260)."""
+
+    @staticmethod
+    def _jobs() -> dict[str, Any]:
+        jobs: dict[str, Any] = _load_workflow()["jobs"]
+        return jobs
+
+    def test_test_matrix_has_no_coverage_or_oidc(self) -> None:
+        test = self._jobs()["test"]
+        text = yaml.safe_dump(test)
+        for forbidden in ("--cov", "codecov", "id-token", "permissions"):
+            assert forbidden not in text, forbidden
+
+    def test_test_matrix_runs_plain_tests_unconditionally(self) -> None:
+        runs = [s for s in self._jobs()["test"]["steps"] if s.get("name") == "Run tests"]
+        assert len(runs) == 1
+        assert "if" not in runs[0]
+        assert runs[0]["run"].startswith("uv run pytest")
+
+    def test_coverage_job_runs_on_newest_linux(self) -> None:
+        job = self._jobs()["coverage"]
+        assert job["runs-on"] == "ubuntu-latest"
+        assert job["needs"] == "setup"
+        assert job["env"]["UV_PYTHON"] == "${{ needs.setup.outputs.newest }}"
+        setup_py = next(s for s in job["steps"] if "setup-python" in str(s.get("uses")))
+        assert setup_py["with"]["python-version"] == "${{ needs.setup.outputs.newest }}"
+
+    def test_coverage_job_measures_coverage_and_reports_core(self) -> None:
+        job = self._jobs()["coverage"]
+        measured = next(s for s in job["steps"] if s.get("name") == "Run tests with coverage")
+        assert "--cov" in measured["run"]
+        assert measured["env"]["COVERAGE_DEBUG"] == "core"
+        assert measured["env"]["COVERAGE_DEBUG_FILE"].startswith("tmp/")
+        show = next(s for s in job["steps"] if s.get("name") == "Show the coverage core")
+        assert show["if"] == "always()"
+        assert "Using core=" in show["run"]
+
+    def test_coverage_job_skipped_on_full_matrix(self) -> None:
+        assert "inputs.full_matrix" in self._jobs()["coverage"]["if"]
+
+    def test_ci_complete_needs_coverage_and_accepts_skipped(self) -> None:
+        job = self._jobs()["ci-complete"]
+        assert "coverage" in job["needs"]
+        script = job["steps"][0]["run"]
+        assert 'coverage_result="${{ needs.coverage.result }}"' in script
+        assert '"$coverage_result" != "skipped"' in script

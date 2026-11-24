@@ -75,6 +75,8 @@ effect for a real input, and let the mutation fail incidentally.** A test that r
 not equal the mutated constant" tests the mutation, not the behavior, and breaks again the next time
 someone touches an unrelated literal on that line.
 
+Before writing an exact-value assertion, check it against the `portable-tests` rule.
+
 Several survivors in the same function often collapse to one root cause and one missing test — group
 them before writing anything, rather than writing one redundant test per mutant name.
 

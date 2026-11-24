@@ -1,10 +1,57 @@
 """Tests for doit task autodiscovery."""
 
+import io
 from pathlib import Path
 
 import pytest
 
-from tools.doit import discover_tasks
+from tools.doit import discover_tasks, ensure_utf8_streams
+
+
+class TestEnsureUtf8Streams:
+    """Tests for ensure_utf8_streams (issue #1287)."""
+
+    def test_reconfigures_cp1252_stream(self) -> None:
+        """A cp1252 stream can write box-drawing chars after the call."""
+        raw = io.BytesIO()
+        stream = io.TextIOWrapper(raw, encoding="cp1252")
+        with pytest.raises(UnicodeEncodeError):
+            stream.write("┌─┐")
+
+        ensure_utf8_streams([stream])
+        stream.write("┌─┐")
+        stream.flush()
+
+        assert raw.getvalue().decode("utf-8") == "┌─┐"
+
+    def test_utf8_stream_left_untouched(self) -> None:
+        """A stream already UTF-8 is not reconfigured."""
+
+        class Spy(io.TextIOWrapper):
+            calls = 0
+
+            def reconfigure(self, **kwargs: object) -> None:
+                Spy.calls += 1
+
+        stream = Spy(io.BytesIO(), encoding="UTF8")
+        ensure_utf8_streams([stream])
+        assert Spy.calls == 0
+
+    def test_stream_without_reconfigure_is_ignored(self) -> None:
+        """Streams lacking reconfigure (e.g. StringIO) do not raise."""
+        ensure_utf8_streams([io.StringIO(), object()])
+
+    def test_defaults_to_std_streams(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """With no argument, sys.stdout and sys.stderr are reconfigured."""
+        out = io.TextIOWrapper(io.BytesIO(), encoding="cp1252")
+        err = io.TextIOWrapper(io.BytesIO(), encoding="cp1252")
+        monkeypatch.setattr("sys.stdout", out)
+        monkeypatch.setattr("sys.stderr", err)
+
+        ensure_utf8_streams()
+
+        assert out.encoding.lower() == "utf-8"
+        assert err.encoding.lower() == "utf-8"
 
 
 class TestDiscoverTasks:

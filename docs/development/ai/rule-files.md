@@ -84,7 +84,7 @@ tolerates a glob matching nothing, but leaving it invites a future file to load 
 
 Every agent in the delegation matrix edits this codebase, so a rule that only Claude loads is a
 half-installed control. Every rule here is mirrored to all three surfaces — currently
-`typing-branch-narrowing` and `verified-claims` — each with its own format and loading mechanism:
+`typing-branch-narrowing`, `verified-claims` and `portable-tests` — each with its own format and loading mechanism:
 
 | Surface | Path | Loading |
 | :--- | :--- | :--- |

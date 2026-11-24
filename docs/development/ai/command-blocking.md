@@ -40,6 +40,7 @@ The hook uses Python's `shlex` module to properly parse shell quoting:
 4. **Check** for force push to protected branches (main/master) — including refspec forms (`HEAD:main`, `+main`) and commands preceded by git global options (`-C`, `-c`, `--git-dir`, …)
 5. **Check** for deletion of protected branches — also handles git global options
 6. **Check** for merge commits on protected branches (linear history)
+   - A bare `git push` and a `git merge` without `--ff-only` are judged on the branch checked out *where the command runs*: the payload's `cwd` (else the hook process's directory), with a leading `cd <path>` (joined by `&&` or `;`) and every git `-C <path>` applied in order (#1280). When that directory cannot be resolved — a `$`, backtick, glob or `~` in the path, `cd` with no path or `cd ..`, `pushd`/`popd`, a wrapper such as `env -C`, a `cd` inside a group or after `||`, `builtin cd` or `command cd`, a relative `cd` while `CDPATH` is set, `--git-dir`, `--work-tree`, `--namespace` or a `GIT_*` variable, or a directory that does not exist — the hook fails closed and blocks, since the branch is unknown. `git merge --ff-only` and a push that names its branch are not affected.
 7. **Recurse** into shell-wrapper payloads (`bash -c "..."`, `sh -c "..."`, `eval "..."`) — up to depth 3, so all checks above apply inside wrappers
 8. **Block** or **Allow** — Claude/Codex block via exit code 2; Copilot and Antigravity block via a stdout decision JSON (exit code 0)
 

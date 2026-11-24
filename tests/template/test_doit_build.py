@@ -17,6 +17,7 @@ from __future__ import annotations
 import subprocess
 import zipfile
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -453,3 +454,62 @@ class TestVenvPaths:
     def test_venv_script_windows(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(build_mod.platform, "system", lambda: "Windows")
         assert _venv_script(Path("C:/venv"), "foo-cli") == Path("C:/venv/Scripts/foo-cli.exe")
+
+
+class TestPublish:
+    """``task_publish`` passes the token via ``UV_PUBLISH_TOKEN`` (issue #1297)."""
+
+    def _run(
+        self, monkeypatch: pytest.MonkeyPatch, returncode: int = 0
+    ) -> tuple[bool, list[dict[str, Any]]]:
+        calls: list[dict[str, Any]] = []
+
+        def fake_run(argv: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+            calls.append({"argv": argv, **kwargs})
+            return subprocess.CompletedProcess(argv, returncode)
+
+        monkeypatch.setattr(build_mod.subprocess, "run", fake_run)
+        action = build_mod.task_publish()["actions"][1]
+        assert callable(action)
+        return action(), calls
+
+    def test_token_reaches_uv_publish_through_environment(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("PYPI_TOKEN", "pypi-secret-value")
+        ok, calls = self._run(monkeypatch)
+        assert ok is True
+        assert len(calls) == 1
+        assert calls[0]["argv"] == ["uv", "publish"]
+        assert calls[0]["env"]["UV_PUBLISH_TOKEN"] == "pypi-secret-value"
+
+    def test_token_is_in_no_command_string(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PYPI_TOKEN", "pypi-secret-value")
+        _, calls = self._run(monkeypatch)
+        assert "pypi-secret-value" not in " ".join(calls[0]["argv"])
+        assert "--token" not in calls[0]["argv"]
+        actions = build_mod.task_publish()["actions"]
+        assert all("pypi-secret-value" not in str(a) for a in actions)
+        assert all("{token}" not in str(a) for a in actions)
+
+    def test_missing_token_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("PYPI_TOKEN", raising=False)
+        with pytest.raises(RuntimeError, match=r"PYPI_TOKEN environment variable must be set."):
+            self._run(monkeypatch)
+
+    def test_task_definition_does_not_need_token(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("PYPI_TOKEN", raising=False)
+        assert build_mod.task_publish()["actions"]
+
+    def test_parent_environment_is_kept(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PYPI_TOKEN", "pypi-secret-value")
+        monkeypatch.setenv("PATH", "/some/bin")
+        monkeypatch.setenv("SOME_OTHER_VAR", "kept")
+        _, calls = self._run(monkeypatch)
+        assert calls[0]["env"]["PATH"] == "/some/bin"
+        assert calls[0]["env"]["SOME_OTHER_VAR"] == "kept"
+
+    def test_nonzero_exit_fails_action(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("PYPI_TOKEN", "t")
+        ok, _ = self._run(monkeypatch, returncode=1)
+        assert ok is False

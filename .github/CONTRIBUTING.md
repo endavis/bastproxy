@@ -118,6 +118,10 @@ We welcome many types of contributions:
   `cp1252` on Windows and breaks silently on non-ASCII content. Binary-mode
   calls (`"rb"`, `"wb"`, `"ab"`) and `tarfile.open(...)` do not take an
   encoding kwarg. Enforced by ruff's `PLW1514` rule.
+- **Line endings:** LF everywhere. `.gitattributes` (`* text=auto eol=lf`) makes Git check
+  files out with LF even with `core.autocrlf=true`, matching ruff's `line-ending = "lf"`
+  (#1288). A checkout made before it landed keeps CRLF working files until you renormalize:
+  run `git add --renormalize .`, then re-check out the files, or re-clone.
 
 ### Type Hints
 

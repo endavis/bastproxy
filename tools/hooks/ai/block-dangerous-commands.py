@@ -1657,6 +1657,115 @@ def check_dangerous_sequences(tokens: list[str]) -> tuple[bool, str]:
     return False, ""
 
 
+def _git_command_dir(tokens: list[str], git_idx: int, sub: int) -> tuple[str | None, bool]:
+    """Return ``(directory, unresolved)``: where the ``git`` at *git_idx* runs (#1280).
+
+    The start is the payload ``cwd`` (else the hook process's directory). Only an
+    unconditional ``cd <path>`` chain from the command start, each ``cd`` joined
+    to the next command by ``&&`` or ``;``, is followed; a ``cd`` anywhere else,
+    or any other token between the command start and ``git`` in a prefix that
+    contains a ``cd``, fails closed. Each such ``cd`` and each ``-C``
+    option before the subcommand at *sub* is applied in order; an absolute path
+    resets. ``directory`` is ``None`` when nothing moves the directory, so the
+    caller uses the default.
+
+    Fails closed (``unresolved``): a ``cd`` with no, an empty, a dynamic
+    (``$``, backtick, glob), ``~``, ``-`` or ``..`` path, a ``cd`` not joined by
+    ``&&`` or ``;`` or inside a group, a ``cd`` word that is not a plain command
+    start (``builtin cd``, ``command cd``), a relative ``cd`` while ``CDPATH``
+    is set or named in the command, ``pushd``/``popd``, a wrapper option such
+    as ``env -C``, a ``-C`` value of those kinds, ``--git-dir``,
+    ``--work-tree``, ``--namespace`` or a ``GIT_*`` word before ``git`` (the
+    repository is not the directory's), or a directory that does not exist.
+    """
+    if _cwd_moved(tokens, git_idx, ignore_cd=True):
+        return None, True
+    if any("GIT_" in t for t in tokens[:git_idx]):
+        return None, True
+    cdpath = bool(os.environ.get("CDPATH")) or any("CDPATH" in t for t in tokens[:git_idx])
+    # (path, is_cd): a relative `cd` may go through CDPATH, a `git -C` never does
+    steps: list[tuple[str, bool]] = []
+    starts = set(_command_start_indices(tokens[:git_idx])) if git_idx else set()
+    has_cd = False
+    for i in range(git_idx):
+        if tokens[i].strip(";&|(){}") == "cd":
+            if tokens[i] != "cd" or i not in starts:
+                return None, True
+            has_cd = True
+    # only an unconditional `cd <path> (&&|;)` chain from the command start is
+    # followed; any other token before `git` in a `cd`-bearing prefix fails closed
+    i = 0
+    while has_cd and i < git_idx:
+        if tokens[i] != "cd" or i not in starts:
+            return None, True
+        j = i + 1
+        while j < git_idx and tokens[j] in {"-P", "-L", "-e", "-@", "--"}:
+            j += 1
+        if j >= git_idx or tokens[j] in _SHELL_OPERATORS:
+            return None, True
+        # the shlex tokens keep a spaced `;` on the path: `cd X; git` is `X;`
+        if len(tokens[j]) > 1 and tokens[j].endswith(";") and not tokens[j].endswith(";;"):
+            steps.append((tokens[j][:-1], True))
+            i = j + 1
+            continue
+        if j + 1 >= len(tokens) or tokens[j + 1] not in {"&&", ";"}:
+            return None, True
+        steps.append((tokens[j], True))
+        i = j + 2
+    opts = tokens[git_idx + 1 : sub]
+    k = 0
+    while k < len(opts):
+        t = opts[k]
+        k += 1
+        if t.split("=", 1)[0] in {"--git-dir", "--work-tree", "--namespace"}:
+            return None, True
+        value: str | None = None
+        if t == "-C":
+            value = opts[k] if k < len(opts) else ""
+            k += 1
+        elif t.startswith("-C"):
+            value = t[2:]
+        elif t in _GIT_GLOBAL_OPTS_WITH_VALUE:
+            k += 1
+        if value is not None:
+            steps.append((value, False))
+    if not steps:
+        return None, False
+    # os.path, not posixpath: the directory is checked on this host's filesystem
+    base = _PAYLOAD_CWD if _PAYLOAD_CWD is not None else os.getcwd()
+    path = base
+    for step, is_cd in steps:
+        if (
+            not step
+            or step == "-"
+            or step.startswith("~")
+            or any(c in _DYNAMIC_CHARS for c in step)
+            or "`" in step
+            or _has_dotdot(step)
+            or (is_cd and cdpath and not os.path.isabs(step) and not step.startswith("./"))
+        ):
+            return None, True
+        path = os.path.join(path, step)
+    path = os.path.normpath(path)
+    if not os.path.isdir(path):
+        return None, True
+    # a path that lands back on the start moves nothing (``git -C .``)
+    return (None if path == os.path.normpath(base) else path), False
+
+
+def _branch_where_git_runs(
+    tokens: list[str], git_idx: int, sub: int
+) -> tuple[str | None, str | None]:
+    """Return ``(branch, unresolved_reason)`` for the ``git`` at *git_idx* (#1280)."""
+    directory, unresolved = _git_command_dir(tokens, git_idx, sub)
+    if unresolved:
+        return None, (
+            "its working directory cannot be resolved (cd, git -C or a wrapper the hook "
+            "cannot fold), so the branch is unknown and treated as protected"
+        )
+    return (get_current_branch(directory) if directory is not None else get_current_branch()), None
+
+
 def check_push_to_protected(tokens: list[str]) -> tuple[bool, str]:
     """
     Check if command is a push (regular or force) while on a protected branch.
@@ -1719,12 +1828,14 @@ def check_push_to_protected(tokens: list[str]) -> tuple[bool, str]:
                 return True, f"{action} to protected branch '{branch}'"
 
         # Check if currently on a protected branch (catches bare `git push`)
-        current_branch = get_current_branch()
-        if (
-            current_branch
-            and current_branch.lower() in PROTECTED_BRANCHES
-            and (not after_push or (len(after_push) == 1 and after_push[0] == "origin"))
-        ):
+        bare_push = not after_push or (len(after_push) == 1 and after_push[0] == "origin")
+        current_branch, unresolved = (
+            _branch_where_git_runs(tokens, git_idx, subcommand_idx) if bare_push else (None, None)
+        )
+        if unresolved is not None:
+            action = "Force push" if has_force_flag else "Push"
+            return True, f"{action} without a branch: {unresolved}"
+        if current_branch and current_branch.lower() in PROTECTED_BRANCHES and bare_push:
             action = "Force push" if has_force_flag else "Push"
             return True, (
                 f"{action} while on protected branch '{current_branch}'. "
@@ -1795,15 +1906,24 @@ def check_delete_protected_branch(tokens: list[str]) -> tuple[bool, str]:
     return False, ""
 
 
-def get_current_branch() -> str | None:
-    """
-    Get the current git branch name.
+# The ``cwd`` the host reports in the hook payload (the directory the command
+# starts in), set by ``main()``. ``None`` means the hook process's directory.
+_PAYLOAD_CWD: str | None = None
 
-    Returns None if not in a git repository or in detached HEAD state.
+
+def get_current_branch(directory: str | None = None) -> str | None:
     """
+    Get the current git branch name, in *directory* or else where the command starts.
+
+    That is the payload's ``cwd`` when the host sent one, else the hook
+    process's directory. Returns None if not in a git repository or in
+    detached HEAD state.
+    """
+    where = directory if directory is not None else _PAYLOAD_CWD
+    cmd = ["git"] if where is None else ["git", "-C", where]
     try:
         result = subprocess.run(
-            ["git", "branch", "--show-current"],
+            [*cmd, "branch", "--show-current"],
             capture_output=True,
             text=True,
             timeout=5,
@@ -2453,16 +2573,23 @@ _CWD_WRAPPERS = _COMMAND_PREFIX_WRAPPERS | frozenset(
 _CWD_ALWAYS_MOVING = frozenset({"chroot"})
 
 
-def _cwd_moved(tokens: list[str], idx: int) -> bool:
+def _cwd_moved(tokens: list[str], idx: int, *, ignore_cd: bool = False) -> bool:
     """Return True when a word before *idx* may change the working directory.
 
     Fails closed: any option given to a prefix wrapper (``sudo -D x``,
     ``nsenter -w x``, ``env -i``) counts, as its own options may move the
     directory. A wrapper's options are read up to its command word;
     ``NAME=value`` assignments are skipped.
+
+    With *ignore_cd*, a plain ``cd`` and a ``-C`` option do not count (the
+    caller resolves those itself, :func:`_git_command_dir`); ``pushd``,
+    ``popd``, ``--chdir`` and the wrapper options still do.
     """
     words = [t.strip(";&|()") for t in tokens[:idx]]
-    if any(t in {"cd", "pushd", "popd", "-C"} or t.startswith(("--chdir", "-C")) for t in words):
+    if ignore_cd:
+        if any(t in {"pushd", "popd"} or t.startswith("--chdir") for t in words):
+            return True
+    elif any(t in {"cd", "pushd", "popd", "-C"} or t.startswith(("--chdir", "-C")) for t in words):
         return True
     for i, word in enumerate(words):
         base = word.rsplit("/", 1)[-1].lower()
@@ -3704,7 +3831,9 @@ def check_merge_to_protected(command: str) -> tuple[bool, str]:
             continue
 
         # Check if we're on a protected branch
-        current_branch = get_current_branch()
+        current_branch, unresolved = _branch_where_git_runs(tokens, git_idx, subcommand_idx)
+        if unresolved is not None:
+            return True, f"Merge without --ff-only: {unresolved}"
         if current_branch and current_branch.lower() in PROTECTED_BRANCHES:
             return True, (
                 f"Merge on protected branch '{current_branch}' would create merge commit. "
@@ -4270,6 +4399,9 @@ def main() -> int:
 
     tool_name, command, tool_input = _parse_input(input_data)
     fmt = _hook_format(input_data)
+    global _PAYLOAD_CWD
+    payload_cwd = input_data.get("cwd") if isinstance(input_data, dict) else None
+    _PAYLOAD_CWD = payload_cwd if isinstance(payload_cwd, str) and payload_cwd else None
     # Case-insensitive throughout (#1037, decision a): a CLI's own
     # capitalization of a tool name is not part of its contract.
     tool_lower = tool_name.lower()
