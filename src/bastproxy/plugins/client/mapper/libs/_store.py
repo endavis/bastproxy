@@ -49,6 +49,11 @@ UPSERT_EXIT_SQL = (
     "touid = CASE WHEN excluded.touid = '-1' THEN exits.touid ELSE excluded.touid END, "
     "cost = excluded.cost, requirement = excluded.requirement"
 )
+UPSERT_EXIT_KEEP_SQL = (
+    "INSERT INTO exits(fromuid, dir, touid, cost, requirement) VALUES(?, ?, ?, ?, ?) "
+    "ON CONFLICT(fromuid, dir) DO UPDATE SET "
+    "touid = CASE WHEN excluded.touid = '-1' THEN exits.touid ELSE excluded.touid END"
+)
 UPSERT_ROOM_SQL = (
     "INSERT OR REPLACE INTO rooms(uid, name, area, terrain, x, y, z, flags, details) "
     "VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?)"
@@ -222,13 +227,15 @@ class MapStore:
         return [_row_to_room(r) for r in self.db.select(sql + " ORDER BY uid", params)]
 
     # exits
-    def upsert_exit(self, exit_: Exit) -> Exit:
+    def upsert_exit(self, exit_: Exit, *, keep_details: bool = False) -> Exit:
         """Add or update an exit and return the stored one.
 
-        An unexplored touid never overwrites a known one.
+        An unexplored touid never overwrites a known one. With ``keep_details`` an
+        existing exit keeps its stored cost and requirement and only its touid is
+        updated; a new exit still gets the given values.
         """
         self.db.modify(
-            UPSERT_EXIT_SQL,
+            UPSERT_EXIT_KEEP_SQL if keep_details else UPSERT_EXIT_SQL,
             (
                 exit_.fromuid,
                 exit_.dir,
@@ -332,6 +339,7 @@ class MapStore:
             current_exits: dict[tuple[str, str], Exit] = {}
             written_exits: dict[tuple[str, str], Exit] = {}
             exit_items: list[Any] = []
+            embedded: list[bool] = []
             result.skipped += sum(1 for r in room_items if r is None)
             for raw, room in zip(raw_rooms, room_items, strict=True):
                 if room is None:
@@ -345,8 +353,10 @@ class MapStore:
                     written_rooms[uid] = merged
                 for direction, touid in (raw.get("exits") or {}).items():
                     exit_items.append({"fromuid": uid, "dir": str(direction), "touid": str(touid)})
+                    embedded.append(True)
             explicit = list(exits or ())
             exit_items.extend(explicit)
+            embedded.extend(False for _ in explicit)
 
             parsed: list[Exit | None] = []
             for item in exit_items:
@@ -357,11 +367,13 @@ class MapStore:
                 self.db, "SELECT * FROM exits WHERE fromuid IN ({marks})", from_uids
             ):
                 current_exits[(row["fromuid"], row["dir"])] = _row_to_exit(row)
-            for given in parsed:
+            for given, is_embedded in zip(parsed, embedded, strict=True):
                 if given is None:
                     continue
                 key = (given.fromuid, given.dir)
-                exit_merged = merge_exit(current_exits.get(key), given, overwrite)
+                exit_merged = merge_exit(
+                    current_exits.get(key), given, overwrite, keep_details=is_embedded
+                )
                 if exit_merged is not None:
                     current_exits[key] = exit_merged
                     written_exits[key] = exit_merged

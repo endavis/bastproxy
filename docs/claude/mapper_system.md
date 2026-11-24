@@ -75,7 +75,7 @@ Walks (`walk.start`, `walk.restart` and reroutes) and the commands `find`, `goto
 
 ## Change detection
 
-`room.add` on a stored room compares the update with what is stored. It raises `room_mismatch` when the area differs, when a stored exit has a different known `touid`, or when a direction exists on only one side. The room row is then replaced and the given exits are stored. Stored exits are never deleted and a `-1` never overwrites a known `touid`. What to purge is left to the adapter or the user.
+`room.add` on a stored room compares the update with what is stored. It raises `room_mismatch` when the area differs, when a stored exit has a different known `touid`, or when a direction exists on only one side. The room row is then replaced and the given exits are stored. An exit that already exists keeps its stored `cost` and `requirement` and only its `touid` is updated, so recapturing a room never drops a lock; only `exit.add` changes them. Stored exits are never deleted and a `-1` never overwrites a known `touid`. What to purge is left to the adapter or the user.
 
 ## Batch writes
 
@@ -84,7 +84,7 @@ Walks (`walk.start`, `walk.restart` and reroutes) and the commands `find`, `goto
 - **Input.** `areas` is a list of `area.add` dicts, `rooms` a list of `room.add` dicts (embedded `exits` included), `exits` a list of dicts with the keys of `exit.list`, and `notes` a dict `{uid: text}`. Rows are written in that order, a room before its embedded exits.
 - **Limit.** A call takes at most `BATCH_LIMIT` (1000) rows, embedded exits counted. A bigger batch is refused with a warning, returns None and writes nothing. The caller sends slices and yields (`await asyncio.sleep(0)`) between calls.
 - **Bad items.** An item that `room.add`, `exit.add` or `area.add` would refuse, or a note for a room that is neither stored nor in the batch, is skipped and counted in `skipped`, with one warning per batch. A `sqlite3.Error` propagates with nothing written and the graph untouched.
-- **`overwrite=True`.** Behaves like the per-item apis: rooms and areas are replaced, an exit takes the new cost and requirement, and an unexplored touid never replaces a known one.
+- **`overwrite=True`.** Behaves like the per-item apis: rooms and areas are replaced, an explicit exit takes the new cost and requirement (as `exit.add`), an exit embedded in a room keeps its stored cost and requirement and only updates its `touid` (as `room.add`), and an unexplored touid never replaces a known one.
 - **`overwrite=False`.** Fills gaps only: a stored area is kept, a stored room keeps every field and gains only the flags it lacks, a stored exit keeps its cost and only fills an unexplored touid or a missing requirement, and a note is set only where there is none or it is empty.
 - **Events.** No `room_changed` or `room_mismatch` is raised, so a batch does no change detection; use `room.add` for that. One `map_changed` with the counts is raised when a row changed.
 - **Graph.** Updated after the commit from the merged values, so a view from `freeze()` taken before the batch never changes.

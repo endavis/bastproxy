@@ -9,7 +9,7 @@ from unittest.mock import patch
 import pytest
 
 from bastproxy.plugins.client.mapper.libs._batch import BATCH_LIMIT
-from bastproxy.plugins.client.mapper.libs._graph import MapGraph
+from bastproxy.plugins.client.mapper.libs._graph import Exit, MapGraph
 from bastproxy.plugins.client.mapper.libs._schema import TABLES
 from bastproxy.plugins.client.mapper.libs._store import MapStore
 from bastproxy.plugins.core.sqldb.libs._sqlite import create_database
@@ -270,3 +270,35 @@ def test_failure_writes_nothing_and_leaves_graph(harness: Harness) -> None:
     assert tables(harness) == tables_before
     assert p.graph.snapshot() == graph_before
     assert harness.events == []
+
+
+def test_embedded_exits_keep_lock_explicit_overwrite(test_map: Harness) -> None:
+    """In overwrite mode an embedded exit keeps the lock, an explicit one replaces it (#762)."""
+    p = test_map.plugin
+    p._api_exit_add("A", "n", "B", 3, {"level": 100})
+    p._api_map_batch_add(rooms=[{"uid": "A", "area": "test", "exits": {"n": "B"}}])
+    assert p.store.get_exit("A", "n") == Exit("A", "n", "B", 3, {"level": 100})
+    assert {e.dir: e for e in p.graph.exits_from("A")}["n"].cost == 3
+    p._api_map_batch_add(exits=[{"fromuid": "A", "dir": "n", "touid": "B"}])
+    assert p.store.get_exit("A", "n") == Exit("A", "n", "B", 1, None)
+
+
+def test_batch_equals_per_item_with_locks(harness: Harness, second: Harness) -> None:
+    """Embedded and explicit exits of one batch end as the per-item calls would (#762)."""
+    for h in (harness, second):
+        build_map(h.plugin)
+        h.plugin._api_exit_add("A", "n", "B", 3, {"level": 100})
+        h.plugin._api_exit_add("B", "n", "C", 4, {"level": 5})
+    rooms = [
+        {"uid": "A", "area": "test", "exits": {"n": "C", "e": "-1"}},
+        {"uid": "B", "area": "test", "exits": {"n": "C"}},
+    ]
+    exits = [
+        {"fromuid": "B", "dir": "n", "touid": "C", "cost": 2},
+        {"fromuid": "A", "dir": "e", "touid": "D", "cost": 7, "requirement": {"k": 1}},
+    ]
+    per_item(harness, rooms, exits)
+    second.plugin._api_map_batch_add(rooms=rooms, exits=exits)
+    assert tables(second) == tables(harness)
+    assert second.plugin.graph.snapshot() == harness.plugin.graph.snapshot()
+    assert second.plugin.store.get_exit("A", "n") == Exit("A", "n", "C", 3, {"level": 100})

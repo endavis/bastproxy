@@ -61,6 +61,7 @@ Rooms, exits, costs and paths are the same in every game, while requirements, po
 - Issue #754: add a mapper plugin with pathfinding and walking
 - Issue #756: run mapper path searches off the event loop
 - Issue #760: write many mapper rooms and exits in one transaction
+- Issue #762: recapturing a room keeps its exits' requirement and cost
 
 ## Related Documentation
 

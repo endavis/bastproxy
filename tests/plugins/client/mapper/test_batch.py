@@ -94,3 +94,16 @@ def test_batch_result_counts_and_changed() -> None:
     result.notes = 1
     assert result.changed() is True
     assert result.counts()["notes"] == 1
+
+
+def test_merge_exit_keep_details_overwrite() -> None:
+    """keep_details with overwrite keeps cost and requirement, and updates the touid (#762)."""
+    stored = Exit("A", "n", "B", 3, {"level": 100})
+    assert merge_exit(stored, Exit("A", "n", "C"), True, keep_details=True) == Exit(
+        "A", "n", "C", 3, {"level": 100}
+    )
+    assert merge_exit(stored, Exit("A", "n", "-1"), True, keep_details=True) is None
+    assert merge_exit(None, Exit("A", "n", "C"), True, keep_details=True) == Exit("A", "n", "C")
+    # fill mode is unchanged by the flag
+    given = Exit("A", "n", "C", 9, {"x": 1})
+    assert merge_exit(stored, given, False, keep_details=True) == merge_exit(stored, given, False)

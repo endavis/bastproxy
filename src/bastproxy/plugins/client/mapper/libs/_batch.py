@@ -104,16 +104,24 @@ def merge_room(
     return merged
 
 
-def merge_exit(stored: Exit | None, given: Exit, overwrite: bool) -> Exit | None:
+def merge_exit(
+    stored: Exit | None, given: Exit, overwrite: bool, *, keep_details: bool = False
+) -> Exit | None:
     """Return the exit to write, or None when nothing changes.
 
     An unexplored touid never replaces a known one. With ``overwrite`` the given cost
     and requirement replace the stored ones. Without, the stored cost is kept, an
-    unexplored touid is filled and a missing requirement is filled.
+    unexplored touid is filled and a missing requirement is filled. With
+    ``keep_details`` (an exit embedded in a room, as ``room.add`` does) and
+    ``overwrite``, a stored exit keeps its cost and requirement and only its touid
+    is updated.
     """
     if stored is None:
         return given
-    if overwrite:
+    if overwrite and keep_details:
+        touid = stored.touid if given.touid == UNKNOWN_UID else given.touid
+        merged = Exit(stored.fromuid, stored.dir, touid, stored.cost, stored.requirement)
+    elif overwrite:
         touid = stored.touid if given.touid == UNKNOWN_UID else given.touid
         merged = Exit(given.fromuid, given.dir, touid, given.cost, given.requirement)
     else:
