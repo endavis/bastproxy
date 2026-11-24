@@ -201,6 +201,28 @@ The same principle does **not** license shedding these tests. They cover
 runs in the project, and that the gate below measures. Shedding them was measured
 at 40.73% total and 8.27% on `tools/hooks/`, well under `fail_under` (#731).
 
+### Shipped tooling under downstream mypy configs
+
+A project spawned from the template owns its `[tool.mypy]` table and may change it, so
+the tooling that ships (`tools/doit/`, `tools/hooks/`) must type-check under those
+changes, not only under the template's own config. `test_mypy_config_variants.py`
+guards this. For each variant it reads the live `[tool.mypy]` table from
+`pyproject.toml`, changes exactly one setting, writes the result under `tmp_path` and
+runs mypy over the same paths `doit type_check` uses. It fails on any mypy error.
+
+It runs as an ordinary test, so `doit test`, `doit check` and the CI `test` jobs cover
+it. It is skipped on Windows: `doit type_check` runs only in the Linux `lint` job, and
+mypy evaluates `sys.platform` branches for the host with `warn_unreachable` on. It is
+template-owned ([ADR-9017](../decisions/9017-template-tooling-and-its-tests-are-template-owned.md))
+and shed on configuration.
+
+To add a variant, append a `MypyVariant` to `VARIANTS` in that file, with a `reason`
+that starts with the issue number. The current variants are:
+
+- `subclassing-any-off`: `disallow_subclassing_any = false` (#1299).
+- `doit-follow-untyped-imports`: `follow_untyped_imports = true` on the `doit.*`
+  override (#1301).
+
 ### Action pinning and workflow permissions
 
 **Every external action is pinned to a commit SHA**, with a `# vX.Y.Z` comment so the

@@ -1660,8 +1660,11 @@ def check_dangerous_sequences(tokens: list[str]) -> tuple[bool, str]:
 def _git_command_dir(tokens: list[str], git_idx: int, sub: int) -> tuple[str | None, bool]:
     """Return ``(directory, unresolved)``: where the ``git`` at *git_idx* runs (#1280).
 
-    The start is the payload ``cwd`` (else the hook process's directory). Each
-    ``cd <path>`` before *git_idx*, joined by ``&&`` or ``;``, and each ``-C``
+    The start is the payload ``cwd`` (else the hook process's directory). Only an
+    unconditional ``cd <path>`` chain from the command start, each ``cd`` joined
+    to the next command by ``&&`` or ``;``, is followed; a ``cd`` anywhere else,
+    or any other token between the command start and ``git`` in a prefix that
+    contains a ``cd``, fails closed. Each such ``cd`` and each ``-C``
     option before the subcommand at *sub* is applied in order; an absolute path
     resets. ``directory`` is ``None`` when nothing moves the directory, so the
     caller uses the default.
@@ -1683,12 +1686,17 @@ def _git_command_dir(tokens: list[str], git_idx: int, sub: int) -> tuple[str | N
     # (path, is_cd): a relative `cd` may go through CDPATH, a `git -C` never does
     steps: list[tuple[str, bool]] = []
     starts = set(_command_start_indices(tokens[:git_idx])) if git_idx else set()
+    has_cd = False
     for i in range(git_idx):
-        if tokens[i].strip(";&|(){}") == "cd" and (tokens[i] != "cd" or i not in starts):
-            return None, True
+        if tokens[i].strip(";&|(){}") == "cd":
+            if tokens[i] != "cd" or i not in starts:
+                return None, True
+            has_cd = True
+    # only an unconditional `cd <path> (&&|;)` chain from the command start is
+    # followed; any other token before `git` in a `cd`-bearing prefix fails closed
+    i = 0
+    while has_cd and i < git_idx:
         if tokens[i] != "cd" or i not in starts:
-            continue
-        if any(t in {"(", ")", "{", "}"} or t.startswith(("(", "{")) for t in tokens[:i]):
             return None, True
         j = i + 1
         while j < git_idx and tokens[j] in {"-P", "-L", "-e", "-@", "--"}:
@@ -1698,10 +1706,12 @@ def _git_command_dir(tokens: list[str], git_idx: int, sub: int) -> tuple[str | N
         # the shlex tokens keep a spaced `;` on the path: `cd X; git` is `X;`
         if len(tokens[j]) > 1 and tokens[j].endswith(";") and not tokens[j].endswith(";;"):
             steps.append((tokens[j][:-1], True))
+            i = j + 1
             continue
         if j + 1 >= len(tokens) or tokens[j + 1] not in {"&&", ";"}:
             return None, True
         steps.append((tokens[j], True))
+        i = j + 2
     opts = tokens[git_idx + 1 : sub]
     k = 0
     while k < len(opts):

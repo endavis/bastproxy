@@ -311,6 +311,36 @@ def _test_job_steps() -> list[dict[str, Any]]:
     return steps
 
 
+# The doit tasks the test job runs for Windows only. A project's own doit steps
+# (e.g. an install step for its tools) are not in this set and are not checked.
+_WINDOWS_TASKS = {"format_check", "security", "cleanup"}
+
+
+def _doit_task(step: dict[str, Any]) -> str | None:
+    """Return the doit task a step runs, or None when it runs no doit task."""
+    run = step.get("run", "")
+    if "doit " not in run:
+        return None
+    rest = run.split("doit ", 1)[1].split()
+    return rest[0] if rest else None
+
+
+def _windows_task_steps(steps: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [s for s in steps if _doit_task(s) in _WINDOWS_TASKS]
+
+
+def _assert_windows_only(steps: list[dict[str, Any]]) -> None:
+    selected = _windows_task_steps(steps)
+    assert selected
+    for step in selected:
+        assert "runner.os == 'Windows'" in step.get("if", ""), step["name"]
+
+
+def _assert_runs_after_failure(steps: list[dict[str, Any]]) -> None:
+    for step in _windows_task_steps(steps):
+        assert "!cancelled()" in step.get("if", ""), step["name"]
+
+
 class TestWindowsDoitTasks:
     """The Windows test job runs doit tasks on Git's default checkout (#1293)."""
 
@@ -321,25 +351,37 @@ class TestWindowsDoitTasks:
 
     def test_windows_job_runs_each_doit_task(self) -> None:
         """format_check (#1288), security (cmd.exe guard, #1291) and cleanup (Rich panel, #1287)."""
-        run = {
-            step["run"].split("doit ", 1)[1].split()[0]
-            for step in _test_job_steps()
-            if "doit " in step.get("run", "")
-        }
-        assert {"format_check", "security", "cleanup"} <= run
+        run = {_doit_task(step) for step in _test_job_steps()}
+        assert run >= _WINDOWS_TASKS
 
     def test_doit_steps_run_on_windows_only(self) -> None:
         """Linux runs these tasks in the lint job; the test job adds them for Windows."""
-        steps = [s for s in _test_job_steps() if "doit " in s.get("run", "")]
-        assert steps
-        for step in steps:
-            assert "runner.os == 'Windows'" in step.get("if", ""), step["name"]
+        _assert_windows_only(_test_job_steps())
 
     def test_doit_steps_run_after_an_earlier_failure(self) -> None:
         """A failing test run must not hide a failing doit task."""
-        for step in _test_job_steps():
-            if "doit " in step.get("run", ""):
-                assert "!cancelled()" in step.get("if", ""), step["name"]
+        _assert_runs_after_failure(_test_job_steps())
+
+    def test_projects_own_doit_step_is_not_checked(self) -> None:
+        """A project's Linux-only doit step must not trip the Windows checks (#1306)."""
+        extra = {
+            "name": "Install project tools (Linux)",
+            "if": "runner.os == 'Linux'",
+            "run": "uv run doit install_tools",
+        }
+        steps = [*_test_job_steps(), extra]
+        _assert_windows_only(steps)
+        _assert_runs_after_failure(steps)
+
+    def test_windows_task_missing_cancelled_guard_fails(self) -> None:
+        broken = {"name": "x", "if": "runner.os == 'Windows'", "run": "uv run doit security"}
+        with pytest.raises(AssertionError):
+            _assert_runs_after_failure([broken])
+
+    def test_windows_task_missing_windows_guard_fails(self) -> None:
+        broken = {"name": "x", "if": "!cancelled()", "run": "uv run doit security"}
+        with pytest.raises(AssertionError):
+            _assert_windows_only([broken])
 
 
 class TestCodecovOptIn:

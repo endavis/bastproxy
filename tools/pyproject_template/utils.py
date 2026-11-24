@@ -113,6 +113,9 @@ TEMPLATE_OWNED_TEST_FILES: list[str] = [
     "tests/template/test_configure_repo_identity.py",
     # Imports tools.pyproject_template to apply configure's rewrite (#1269).
     "tests/template/test_documented_paths_survive_configure.py",
+    # Reads the template's own [tool.mypy] table and type-checks the shipped
+    # tooling under variants of it; shed with the template config (#1305).
+    "tests/template/test_mypy_config_variants.py",
 ]
 
 

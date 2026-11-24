@@ -3423,3 +3423,44 @@ def test_unresolvable_directory_still_allows_ff_only_and_explicit_push(
     _repo, wt = branch_repos
     assert _hook_exit("cd $HOME && git merge --ff-only main", wt) == 0
     assert _hook_exit("cd $HOME && git push origin fix/1-x", wt) == 0
+
+
+@pytest.mark.parametrize(
+    "prefix",
+    [
+        "false || ",
+        "true | ",
+        "true & ",
+        "if true; then ",
+        "while true; do ",
+        "case x in x) ",
+        "! ",
+        "echo x && ",
+    ],
+)
+@pytest.mark.parametrize(
+    ("git", "git_args"),
+    [("git push", "push"), ("git merge --no-edit main", "merge --no-edit main")],
+)
+def test_cd_outside_the_leading_chain_fails_closed(
+    branch_repos: tuple[Path, Path], prefix: str, git: str, git_args: str
+) -> None:
+    """Only an unconditional cd chain from the command start is followed (#1308)."""
+    repo, wt = branch_repos
+    del git_args
+    # from the main checkout, a followed `cd <wt>` would land on a feature branch
+    assert _hook_exit(f"{prefix}cd {wt.as_posix()} && {git}", repo) == 2
+
+
+def test_non_cd_command_before_a_cd_chain_fails_closed(
+    branch_repos: tuple[Path, Path],
+) -> None:
+    repo, wt = branch_repos
+    assert _hook_exit(f"echo x && cd {wt.as_posix()} && git push", repo) == 2
+    assert _hook_exit(f"cd {wt.as_posix()} && echo x && git push", repo) == 2
+
+
+def test_multi_cd_leading_chain_is_followed(branch_repos: tuple[Path, Path]) -> None:
+    repo, wt = branch_repos
+    assert _hook_exit(f"cd {repo.as_posix()} && cd {wt.as_posix()} && git push", repo) == 0
+    assert _hook_exit(f"cd {wt.as_posix()}; cd {repo.as_posix()}; git push", wt) == 2
