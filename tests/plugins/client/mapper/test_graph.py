@@ -75,6 +75,28 @@ def test_norecall_room_cannot_recall() -> None:
     assert _path("C", "A", graph=graph) == (1, ["recall"])
 
 
+def test_anywhere_exits_checked_once_per_search() -> None:
+    """The exits from anywhere are relaxed from one room, not from every room."""
+    seen: list[str] = []
+
+    def counting(exit_: Exit) -> bool:
+        seen.append(exit_.fromuid)
+        return True
+
+    assert _path("A", "zz", allowed=counting) is None
+    assert seen.count("*") == 1
+    assert seen.count("**") == 1
+
+
+def test_anywhere_exits_from_first_room_that_may_use_them() -> None:
+    """A noportal start does not use up the portals; the next room relaxes them."""
+    graph = _graph()
+    graph.set_exit(Exit("*", "portal far", "C", 1))
+    graph.set_exit(Exit("B", "n", "C", 9))
+    # B is noportal: recall to A, then the portal from A.
+    assert _path("B", "C", graph=graph) == (2, ["recall", "portal far"])
+
+
 def test_unknown_start_uses_anywhere_exits() -> None:
     """A start that is not in the graph still has the anywhere exits."""
     assert _path("zzz", "F") == (1, ["portal f"])

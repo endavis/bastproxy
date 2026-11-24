@@ -11,7 +11,7 @@ This module imports nothing from bastproxy, so it is tested on its own.
 
 import heapq
 import itertools
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -93,19 +93,6 @@ class MapGraph:
         """Return the exits stored for a room, not counting exits from anywhere."""
         return list(self._exits.get(uid, {}).values())
 
-    def edges(self, uid: str) -> Iterator[Exit]:
-        """Yield the exits a character in ``uid`` can take, with the exits from anywhere.
-
-        A ``noportal`` room blocks the ``*`` exits and a ``norecall`` room blocks the
-        ``**`` exits. The uid does not have to be a known room.
-        """
-        yield from self.exits_from(uid)
-        flags = self.room_flags(uid)
-        if NOPORTAL_FLAG not in flags:
-            yield from self.exits_from(ANYWHERE_UID)
-        if NORECALL_FLAG not in flags:
-            yield from self.exits_from(RECALL_UID)
-
     def snapshot(self) -> dict[str, Any]:
         """Return a comparable copy of the graph, used by tests."""
         return {
@@ -128,6 +115,8 @@ def find_path(
     longer than ``max_depth`` steps is dropped, so a target whose cheapest route is
     longer than the limit is unreachable even when a costlier, shorter route exists.
     Exits to an unexplored room and exits ``allowed`` rejects are never used.
+    A ``noportal`` room cannot take the ``*`` exits and a ``norecall`` room cannot
+    take the ``**`` exits; the start does not have to be a known room.
     """
     if start == target:
         return PathResult(0, [])
@@ -135,6 +124,8 @@ def find_path(
     best: dict[str, int] = {start: 0}
     came: dict[str, tuple[str, Exit]] = {}
     heap: list[tuple[int, int, int, str]] = [(0, 0, next(counter), start)]
+    portals_done = False
+    recall_done = False
     while heap:
         cost, steps, _tie, uid = heapq.heappop(heap)
         if cost > best.get(uid, cost):
@@ -149,7 +140,18 @@ def find_path(
             return PathResult(cost, path)
         if steps + 1 > max_depth:
             continue
-        for exit_ in graph.edges(uid):
+        flags = graph.room_flags(uid)
+        candidates = graph.exits_from(uid)
+        # The exits from anywhere lead to the same rooms from every room, and rooms
+        # come off the heap cheapest first, so only the first room that may use them
+        # can improve a cost. Relax them once per search, not once per room.
+        if not portals_done and NOPORTAL_FLAG not in flags:
+            portals_done = True
+            candidates += graph.exits_from(ANYWHERE_UID)
+        if not recall_done and NORECALL_FLAG not in flags:
+            recall_done = True
+            candidates += graph.exits_from(RECALL_UID)
+        for exit_ in candidates:
             if exit_.touid == UNKNOWN_UID or not allowed(exit_):
                 continue
             new_cost = cost + exit_.cost
