@@ -152,3 +152,17 @@ def test_resend_variables_default_none_nest_and_reset() -> None:
         raise RuntimeError("x")
     assert resend_capture.get() is None
     assert resend_anchor.get() is None
+
+
+def test_client_capture_defaults_none_nests_and_resets() -> None:
+    from bastproxy.libs.context import client_capture, fresh_context, holding_client_sends
+
+    assert client_capture.get() is None
+    with holding_client_sends("a"):
+        with holding_client_sends("b"):
+            assert client_capture.get() == "b"
+            assert fresh_context().run(client_capture.get) is None
+        assert client_capture.get() == "a"
+    with pytest.raises(RuntimeError), holding_client_sends("a"):
+        raise RuntimeError("x")
+    assert client_capture.get() is None

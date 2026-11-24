@@ -88,7 +88,7 @@ Records compare and hash by UUID (`__eq__`, `__hash__`) and sort by creation tim
 
 ### Context variables
 
-`src/bastproxy/libs/context.py` holds six context variables, each set for the duration of the work and reset with its token, also when the work raises:
+`src/bastproxy/libs/context.py` holds seven context variables, each set for the duration of the work and reset with its token, also when the work raises:
 
 | Variable | Set by | Read by |
 |----------|--------|---------|
@@ -97,9 +97,10 @@ Records compare and hash by UUID (`__eq__`, `__hash__`) and sort by creation tim
 | `command_args` (a mapping or `None`) | `CommandClass.run`, around the command function | `TrackedUpdate.format_detailed` and the `command.current.args.get` API, which returns `{}` when no command runs |
 | `resend_capture` (a `PendingMudSends` or `None`) | `ProcessDataToMud._exec_`, around its modify event | a nested `ProcessDataToMud`, which hands its send to the capture while it is open |
 | `resend_anchor` (an input line or `None`) | `command.line.run`, around `execute_line` | `ProcessDataToMud._exec_`, as the line a held send follows |
+| `client_capture` (a `PendingClientSends` or `None`) | `ProcessDataToClient._exec_`, around its modify event | `SendDataDirectlyToClient.__call__`, which holds the send while the capture is open (#746) |
 | `output_client` (a client id or `None`) | `run_internal_command_from_event`, around the whole command run (a broadcast gives `None`) | `plugins.core.proxy:line.length.get`, to size output for the client that ran the command |
 
-Asyncio copies the current context into each task. `TaskItem.create` passes `fresh_context()` as the task's context, which resets the six variables, so a task spawned while a record, event or command is running does not inherit it. The tracking actor is left alone.
+Asyncio copies the current context into each task. `TaskItem.create` passes `fresh_context()` as the task's context, which resets the seven variables, so a task spawned while a record, event or command is running does not inherit it. The tracking actor is left alone.
 
 A nested command no longer clears the outer command's args when it finishes.
 
@@ -249,7 +250,7 @@ From a client, the same information is available through `plugins.debug.records`
 | `ProcessDataToMud` | `src/bastproxy/libs/records/rtypes/muddata.py` | `BaseRecord` | Client input before plugins see it |
 | `SendDataDirectlyToMud` | `src/bastproxy/libs/records/rtypes/muddata.py` | `BaseRecord` | Formats and queues lines for the MUD |
 | `ProcessDataToClient` | `src/bastproxy/libs/records/rtypes/clientdata.py` | `BaseRecord` | MUD output before plugins see it |
-| `SendDataDirectlyToClient` | `src/bastproxy/libs/records/rtypes/clientdata.py` | `BaseRecord` | Formats and queues lines for clients |
+| `SendDataDirectlyToClient` | `src/bastproxy/libs/records/rtypes/clientdata.py` | `BaseRecord` | Formats and queues lines for clients; held until the MUD data's lines are sent while a `ProcessDataToClient` modify event runs (#746) |
 | `TelnetNegotiation` | `src/bastproxy/libs/records/rtypes/telnet.py` | `BaseRecord` | One telnet option negotiation (DO, DONT, WILL, WONT, SB); see [Telnet negotiation records](#telnet-negotiation-records) |
 | `TelnetProtocolMessage` | `src/bastproxy/libs/records/rtypes/telnet.py` | `BaseRecord` | One decoded protocol message (GMCP, MSDP, MSSP); the shape #58 to #61 fill in |
 | `ProcessRaisedEvent` | `src/bastproxy/plugins/core/events/libs/process/_raisedevent.py` | `BaseRecord` | One raise of an event |
