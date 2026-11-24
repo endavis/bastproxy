@@ -75,6 +75,10 @@ CONTRACT: tuple[tuple[str, str], ...] = (
     ("uncovered lines loop back", "Steps 4 and 5"),
     ("bug-locking mistake named", "the mistake AGENTS.md forbids for a failing test"),
     ("mutants cache is gitignored", "git-ignored"),
+    (
+        "portable-tests pointer",
+        "Before writing an exact-value assertion, check it against the `portable-tests` rule.",
+    ),
     ("hand-off gate", "passes `doit check`, hand off to"),
 )
 
@@ -258,3 +262,10 @@ def test_shared_skill_declares_the_frontmatter_agents_activate_on() -> None:
     # would be doing when it needs this, not just the skill's title.
     for phrase in ("mutmut", "mutant", "coverage"):
         assert phrase in frontmatter.lower(), f"description never mentions {phrase!r}"
+
+
+def test_the_portable_tests_pointer_sits_in_step_4() -> None:
+    """The pointer must be in the step that writes tests, on every surface."""
+    needle = "check it against the `portable-tests` rule."
+    misplaced = [s for s, text in _existing_bodies() if needle not in _step(text, 4)]
+    assert not misplaced, f"portable-tests pointer is not in Step 4 on: {misplaced}"

@@ -132,17 +132,18 @@ See [`docs/development/ai/rule-files.md`](../../docs/development/ai/rule-files.m
 - **Anything not tied to an observed failure** — if you cannot cite a PR or issue where the rule
   was violated, the instruction file is not ready to be written.
 
-## Shipped rule: `typing-branch-narrowing`
+## Shipped rules
 
-This project ships one rule file, mirrored across all three agent rule surfaces because every
-agent in the delegation matrix edits this codebase. The checklist body is identical everywhere;
-only the frontmatter and the loading mechanism differ.
+This project ships `typing-branch-narrowing`, `verified-claims` and `portable-tests`, mirrored
+across all three agent rule surfaces because every agent in the delegation matrix edits this
+codebase. The checklist body is identical everywhere; only the frontmatter and the loading
+mechanism differ.
 
 | Surface | Path |
 | :--- | :--- |
-| Claude | `.claude/rules/typing-branch-narrowing.md` |
-| Copilot | `.github/instructions/typing-branch-narrowing.instructions.md` |
-| Codex / Antigravity | `.agents/skills/typing-branch-narrowing/SKILL.md` |
+| Claude | `.claude/rules/<name>.md` |
+| Copilot | `.github/instructions/<name>.instructions.md` |
+| Codex / Antigravity | `.agents/skills/<name>/SKILL.md` |
 
 **When you change one, change all three.** A rule that disagrees with itself across agents is worse
 than no rule, because whichever agent is driving decides which version applies.

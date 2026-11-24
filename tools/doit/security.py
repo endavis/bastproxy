@@ -1,10 +1,16 @@
 """Security-related doit tasks."""
 
+from pathlib import Path
 from typing import Any
 
 from doit.tools import title_with_actions
 
 from .base import install_check_or_skip, optional_root_files
+
+
+def _make_tmp_dir() -> None:
+    """Create ``tmp/`` when missing, without a POSIX ``mkdir -p`` (cmd.exe has none)."""
+    Path("tmp").mkdir(parents=True, exist_ok=True)
 
 
 def task_audit() -> dict[str, Any]:
@@ -14,9 +20,9 @@ def task_audit() -> dict[str, Any]:
             install_check_or_skip(
                 "pip-audit",
                 "pip-audit not installed. Run: doit install_dev",
+                "uv run pip-audit --skip-editable",
                 module="pip_audit",
             )
-            + "uv run pip-audit --skip-editable"
         ],
         "title": title_with_actions,
     }
@@ -29,11 +35,11 @@ def task_security() -> dict[str, Any]:
             install_check_or_skip(
                 "bandit",
                 "bandit not installed. Run: doit install_dev",
+                "uv run bandit -c pyproject.toml -r src/ tools/"
+                + optional_root_files("bootstrap.py")
+                + " -q -f custom --msg-template "
+                + '"{relpath}:{line}:{col}: {test_id} [{severity}/{confidence}] {msg}"',
             )
-            + "uv run bandit -c pyproject.toml -r src/ tools/"
-            + optional_root_files("bootstrap.py")
-            + " -q -f custom --msg-template "
-            + "'{relpath}:{line}:{col}: {test_id} [{severity}/{confidence}] {msg}'"
         ],
         "title": title_with_actions,
         "verbosity": 0,
@@ -47,9 +53,9 @@ def task_licenses() -> dict[str, Any]:
             install_check_or_skip(
                 "pip-licenses",
                 "pip-licenses not installed. Run: doit install_dev",
+                "uv run pip-licenses --format=markdown --order=license",
                 module="piplicenses",
             )
-            + "uv run pip-licenses --format=markdown --order=license"
         ],
         "title": title_with_actions,
     }
@@ -59,14 +65,14 @@ def task_sbom() -> dict[str, Any]:
     """Generate SBOM in CycloneDX format (requires security extras)."""
     return {
         "actions": [
-            "mkdir -p tmp",
+            _make_tmp_dir,
             install_check_or_skip(
                 "cyclonedx-bom",
                 "cyclonedx-py not installed. Run: doit install_dev",
+                "uv run cyclonedx-py environment --of JSON -o tmp/sbom.json && "
+                "uv run cyclonedx-py environment --of XML -o tmp/sbom.xml",
                 module="cyclonedx",
-            )
-            + "uv run cyclonedx-py environment --of JSON -o tmp/sbom.json && "
-            "uv run cyclonedx-py environment --of XML -o tmp/sbom.xml",
+            ),
         ],
         "title": title_with_actions,
         "verbosity": 2,

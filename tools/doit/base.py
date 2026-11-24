@@ -1,12 +1,14 @@
 """Base utilities and configuration for doit tasks."""
 
 import os
-import shlex
 import subprocess  # nosec B404  # subprocess is required to run doit sub-tasks
 import sys
 from collections.abc import Mapping
 from pathlib import Path
+from typing import TextIO
 
+from doit.action import CmdAction
+from doit.exceptions import TaskError, TaskFailed
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
@@ -107,48 +109,93 @@ def optional_root_dirs(*names: str) -> str:
     return " " + " ".join(f"{name}/" for name in survivors)
 
 
-def install_check_or_skip(package: str, hint: str, module: str | None = None) -> str:
-    """Build a shell prefix that gates a doit action on ``package`` being installed.
+def _module_installed(module: str) -> bool:
+    """Return whether ``module`` imports in the project ``.venv``.
 
-    Emits a shell snippet that exits 0 with ``hint`` printed when the package's
-    module cannot be imported, and otherwise lets the rest of the action run so
-    its real exit code reaches the operator unmasked. Replaces the
-    ``cmd || echo 'not installed'`` pattern, which always swallowed real
-    failures by exiting 0 regardless of why ``cmd`` failed. See issue #527.
+    Runs ``uv run --no-sync python -c "import <module>"`` with list arguments and no
+    shell, so the probe behaves the same under cmd.exe and POSIX shells. It does not use
+    ``uv pip show``: that honours ``UV_PYTHON`` and inspects whatever interpreter it names,
+    so it reported tools missing from ``.venv`` as absent (or present when they were not).
+    See issue #1193.
 
-    The probe imports the module with ``uv run --no-sync python``, i.e. in the
-    project ``.venv`` the guarded ``uv run <tool>`` command uses. It does not
-    use ``uv pip show``: that honours ``UV_PYTHON`` and inspects whatever
-    interpreter it names, so it reported tools missing from ``.venv`` as
-    absent (or present when they were not). See issue #1193.
+    Args:
+        module: The importable module name.
 
-    The emitted snippet uses the form::
+    Returns:
+        ``True`` when the import succeeds.
+    """
+    result = subprocess.run(
+        ["uv", "run", "--no-sync", "python", "-c", f"import {module}"],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    return result.returncode == 0
 
-        uv run --no-sync python -c "import <module>" >/dev/null 2>&1 || { echo <hint>; exit 0; };
 
-    If the import succeeds, the brace group is skipped and the caller's real
-    command runs; its exit code propagates unmasked. If it fails, the brace
-    group prints the hint and ``exit 0`` terminates the shell before the real
-    command is reached.
+# ``CmdAction`` ships no type information, so mypy sees ``Any`` as the base class. That is a
+# ``misc`` error only under ``disallow_subclassing_any``; ``unused-ignore`` keeps a project that
+# turns it off but keeps ``warn_unused_ignores`` from failing on this line.
+class _GuardedCmdAction(CmdAction):  # type: ignore[misc, unused-ignore]  # doit has no stubs
+    """A ``CmdAction`` that skips itself, with a hint, when its tool is not installed."""
+
+    def __init__(self, command: str, module: str, hint: str) -> None:
+        super().__init__(command)
+        self._module = module
+        self._hint = hint
+
+    def execute(
+        self, out: TextIO | None = None, err: TextIO | None = None
+    ) -> TaskFailed | TaskError | None:
+        """Run the command, or print the hint and pass when the module is missing.
+
+        Returns:
+            ``None`` when skipped or when the command succeeds, otherwise the failure
+            ``CmdAction`` reports, so the tool's exit code reaches doit unmasked (#527).
+        """
+        if not _module_installed(self._module):
+            text = self._hint + "\n"
+            if out is not None:
+                out.write(text)
+            self.out = text
+            self.err = ""
+            self.result = text
+            return None
+        result: TaskFailed | TaskError | None = super().execute(out, err)
+        return result
+
+
+def install_check_or_skip(
+    package: str, hint: str, command: str, *, module: str | None = None
+) -> CmdAction:
+    """Build a doit action that runs ``command`` only when ``package`` is installed.
+
+    When the package's module cannot be imported, the action prints ``hint`` and passes,
+    so a missing optional extra does not fail the task. When it can, the action runs
+    ``command`` and its real exit code reaches the operator unmasked. Replaces the
+    ``cmd || echo 'not installed'`` pattern, which always swallowed real failures. See
+    issue #527.
+
+    The probe runs in Python (see :func:`_module_installed`), not in a shell snippet
+    prefixed to ``command``: the snippet used ``/dev/null`` and ``|| { ...; }``, which
+    cmd.exe cannot parse. ``command`` itself still runs through the platform shell, so it
+    must be written for both cmd.exe and POSIX shells, so it uses double quotes,
+    never single. See issue #1291.
 
     Args:
         package: The distribution name (e.g. ``"bandit"``, ``"cyclonedx-bom"``).
             Used to derive ``module`` when that is not given.
-        hint: Human-readable install instruction printed when the package is
-            absent (e.g. ``"bandit not installed. Run: doit install_dev"``).
-            Shell-quoted via ``shlex.quote`` so embedded spaces and special
-            characters are safe.
-        module: The importable module name when it differs from ``package``
-            with ``-`` replaced by ``_`` (e.g. ``"piplicenses"`` for
-            ``pip-licenses``). Defaults to that replaced form.
+        hint: Human-readable install instruction printed when the package is absent
+            (e.g. ``"bandit not installed. Run: doit install_dev"``).
+        command: The command to run when the package is installed.
+        module: The importable module name when it differs from ``package`` with ``-``
+            replaced by ``_`` (e.g. ``"piplicenses"`` for ``pip-licenses``).
 
     Returns:
-        A shell fragment ending with ``"; "`` suitable for prepending to the
-        rest of a doit action string via plain string concatenation.
+        A doit ``CmdAction`` for use in a task's ``actions`` list.
     """
     module_name = module if module is not None else package.replace("-", "_")
-    probe = f'uv run --no-sync python -c "import {module_name}"'
-    return f"{probe} >/dev/null 2>&1 || {{ echo {shlex.quote(hint)}; exit 0; }}; "
+    return _GuardedCmdAction(command, module_name, hint)
 
 
 def warn_if_env_drifted() -> None:

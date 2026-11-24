@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import ast
 import os
-import shlex
 import subprocess
 import sys
 from io import StringIO
@@ -12,6 +11,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from doit.exceptions import TaskFailed
 from rich.console import Console
 
 from tools.doit.base import (
@@ -227,106 +227,92 @@ class TestOptionalRootDirs:
 # ---------------------------------------------------------------------------
 
 
-def _write_fake_uv(tmp_path: Path) -> Path:
-    """Write a fake ``uv`` shim that gates the import probe on FAKE_INSTALLED.
-
-    Returns the directory containing the shim (suitable for prepending to PATH).
-    The shim accepts ``run --no-sync python ...`` and exits 0 iff
-    ``FAKE_INSTALLED=1``. All other invocations exit 0 (the gate either skips
-    or hands off to ``true`` / ``false``).
-    """
-    bindir = tmp_path / "bin"
-    bindir.mkdir()
-    shim = bindir / "uv"
-    shim.write_text(
-        "#!/bin/sh\n"
-        'if [ "$1" = "run" ] && [ "$2" = "--no-sync" ] && [ "$3" = "python" ]; then\n'
-        '  [ "$FAKE_INSTALLED" = "1" ] && exit 0 || exit 1\n'
-        "fi\n"
-        "exit 0\n",
-        encoding="utf-8",
-    )
-    shim.chmod(0o755)
-    return bindir
+_PROBE_HINT = "bandit not installed. Run: doit install_dev"
 
 
-def _run_bash(action: str, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
-    """Run ``bash -c <action>`` with a deliberately minimal env. Used by the
-    shell-level behavioural tests below."""
-    return subprocess.run(
-        ["bash", "-c", action],
-        capture_output=True,
-        text=True,
-        env=env,
-        check=False,
-    )
+def _probe_result(returncode: int) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.CompletedProcess(args=[], returncode=returncode)
 
 
 class TestInstallCheckOrSkip:
-    """Structural tests for ``install_check_or_skip`` (cross-platform).
+    """Tests for ``install_check_or_skip``, which runs without a POSIX shell (#1291).
 
-    Asserts the generated snippet's shape: gate command, redirection, hint,
-    exit-0 branch, separator, and shell-safe quoting. Behavioural assertions
-    (snippet driven through ``bash``) live in
-    ``TestInstallCheckOrSkipShellBehavior`` below — those are POSIX-shell
-    specific and skipped on Windows.
+    The probe is a Python ``subprocess.run`` with list arguments, so it works the same
+    under cmd.exe and POSIX shells. ``subprocess.run`` is patched for the probe and the
+    guarded command is a ``python -c`` one-liner, so nothing here needs ``uv`` or bash.
     """
 
-    def test_snippet_probes_module_import_in_project_venv(self) -> None:
-        """The gate imports the module via ``uv run --no-sync python`` (#1193)."""
-        snippet = install_check_or_skip("bandit", "bandit not installed.")
-        assert 'uv run --no-sync python -c "import bandit"' in snippet
-
-    def test_snippet_does_not_use_uv_pip_show(self) -> None:
-        """``uv pip show`` honours UV_PYTHON and probes the wrong interpreter (#1193)."""
-        snippet = install_check_or_skip("bandit", "bandit not installed.")
-        assert "uv pip show" not in snippet
-        assert "pip show" not in snippet
+    def test_probe_uses_project_venv_with_list_args_and_no_shell(self) -> None:
+        """The probe imports the module via ``uv run --no-sync python`` (#1193)."""
+        action = install_check_or_skip("bandit", _PROBE_HINT, "echo hi")
+        with patch("tools.doit.base.subprocess.run", return_value=_probe_result(0)) as run:
+            action.execute()
+        argv = run.call_args.args[0]
+        assert argv == ["uv", "run", "--no-sync", "python", "-c", "import bandit"]
+        assert not run.call_args.kwargs.get("shell")
+        assert run.call_args.kwargs["stdout"] == subprocess.DEVNULL
+        assert run.call_args.kwargs["stderr"] == subprocess.DEVNULL
 
     def test_module_defaults_to_package_with_underscores(self) -> None:
         """Without ``module``, hyphens in the package name become underscores."""
-        snippet = install_check_or_skip("pip-audit", "missing")
-        assert 'import pip_audit"' in snippet
+        action = install_check_or_skip("pip-audit", "missing", "echo hi")
+        with patch("tools.doit.base.subprocess.run", return_value=_probe_result(0)) as run:
+            action.execute()
+        assert run.call_args.args[0][-1] == "import pip_audit"
 
     def test_explicit_module_overrides_default(self) -> None:
         """An explicit ``module`` is imported instead of the derived name."""
-        snippet = install_check_or_skip("pip-licenses", "missing", module="piplicenses")
-        assert 'import piplicenses"' in snippet
-        assert "pip_licenses" not in snippet
+        action = install_check_or_skip("pip-licenses", "missing", "echo hi", module="piplicenses")
+        with patch("tools.doit.base.subprocess.run", return_value=_probe_result(0)) as run:
+            action.execute()
+        assert run.call_args.args[0][-1] == "import piplicenses"
 
-    def test_snippet_silences_probe_output(self) -> None:
-        """The gate must redirect the probe's output so it doesn't pollute task logs."""
-        snippet = install_check_or_skip("bandit", "bandit not installed.")
-        assert ">/dev/null 2>&1" in snippet
+    def test_not_installed_prints_hint_and_skips_command(self) -> None:
+        """A failed probe writes the hint, returns None and never runs the command."""
+        action = install_check_or_skip("bandit", _PROBE_HINT, "echo ran")
+        out = StringIO()
+        with (
+            patch("tools.doit.base.subprocess.run", return_value=_probe_result(1)),
+            patch("doit.action.subprocess.Popen") as popen,
+        ):
+            result = action.execute(out=out)
+        assert result is None
+        assert _PROBE_HINT in out.getvalue()
+        assert action.out is not None
+        assert _PROBE_HINT in action.out
+        popen.assert_not_called()
 
-    def test_snippet_contains_hint(self) -> None:
-        """The hint is embedded in the not-installed branch."""
-        snippet = install_check_or_skip(
-            "bandit", "bandit not installed. Run: uv sync --extra security"
-        )
-        assert "bandit not installed. Run: uv sync --extra security" in snippet
+    def test_not_installed_without_out_stream_still_passes(self) -> None:
+        """``out=None`` (doit's default) must not break the skip path."""
+        action = install_check_or_skip("bandit", _PROBE_HINT, "echo ran")
+        with patch("tools.doit.base.subprocess.run", return_value=_probe_result(1)):
+            assert action.execute() is None
 
-    def test_snippet_exits_zero_in_not_installed_branch(self) -> None:
-        """The not-installed branch must exit 0 so doit ticks green for missing extras."""
-        snippet = install_check_or_skip("bandit", "bandit not installed.")
-        assert "exit 0" in snippet
+    def test_installed_and_tool_succeeds_returns_none_without_hint(self) -> None:
+        """A passing probe runs the command; success prints no hint."""
+        command = f'"{sys.executable}" -c "print(42)"'
+        action = install_check_or_skip("bandit", _PROBE_HINT, command)
+        out = StringIO()
+        with patch("tools.doit.base.subprocess.run", return_value=_probe_result(0)):
+            result = action.execute(out=out)
+        assert result is None
+        assert action.out is not None
+        assert "42" in action.out
+        assert _PROBE_HINT not in out.getvalue()
 
-    def test_snippet_ends_with_separator_for_concatenation(self) -> None:
-        """The snippet ends with ``; `` so callers can plain-concatenate the rest of the action."""
-        snippet = install_check_or_skip("bandit", "bandit not installed.")
-        assert snippet.endswith("; ")
+    def test_installed_and_tool_fails_propagates_failure(self) -> None:
+        """A real tool failure is not masked: it is the bug fix from issue #527."""
+        command = f'"{sys.executable}" -c "raise SystemExit(3)"'
+        action = install_check_or_skip("bandit", _PROBE_HINT, command)
+        with patch("tools.doit.base.subprocess.run", return_value=_probe_result(0)):
+            result = action.execute()
+        assert isinstance(result, TaskFailed)
+        assert _PROBE_HINT not in (action.out or "")
 
-    def test_hint_with_special_chars_is_shell_quoted(self) -> None:
-        """Hints containing single quotes / spaces are quoted via ``shlex.quote``.
-
-        Without quoting, an embedded ``'`` would terminate the shell-quoted
-        string and either break the snippet or, worse, allow injection.
-        """
-        hint = "don't break: run `uv sync --extra security`"
-        snippet = install_check_or_skip("bandit", hint)
-        # The hint is included via shlex.quote(); whatever its quoted form is,
-        # bash must echo back the original hint verbatim when the snippet runs.
-        assert shlex.quote(hint) in snippet
+    def test_str_is_the_command(self) -> None:
+        """doit's ``title_with_actions`` prints ``str(action)``, so it shows the command."""
+        action = install_check_or_skip("bandit", _PROBE_HINT, "uv run bandit -q")
+        assert str(action) == "Cmd: uv run bandit -q"
 
 
 DOIT_DIR = Path(__file__).resolve().parents[2] / "tools" / "doit"
@@ -377,84 +363,6 @@ class TestInstallHints:
             "these install hints do not end in 'Run: doit install_dev' "
             "(None means the hint is not a string literal):\n  " + "\n  ".join(wrong)
         )
-
-
-@pytest.mark.skipif(
-    sys.platform == "win32",
-    reason=(
-        "Behavioural tests drive the snippet through bash -c with a fake "
-        "``uv`` shim on PATH. On GitHub's Windows runners, ``bash`` resolves "
-        "to ``wsl.exe`` and fails before the snippet is reached. The doit "
-        "task action only runs through POSIX shell in real use, so this "
-        "platform restriction matches reality."
-    ),
-)
-class TestInstallCheckOrSkipShellBehavior:
-    """Behavioural tests for ``install_check_or_skip`` (POSIX shells only).
-
-    Drive the snippet through ``bash -c`` against a fake ``uv`` shim on PATH
-    to verify that the three relevant branches behave correctly. The
-    "installed + tool fails -> action exits non-zero" case is the bug fix
-    being verified (issue #527).
-    """
-
-    def _build_env(self, bindir: Path, *, installed: bool) -> dict[str, str]:
-        """Build a minimal child env with the fake-uv directory ahead of system bins."""
-        # /usr/bin and /bin keep ``bash``, ``echo``, etc. resolvable; the fake
-        # ``uv`` wins because its directory comes first.
-        path = f"{bindir}:/usr/bin:/bin"
-        env = {"PATH": path, "FAKE_INSTALLED": "1" if installed else "0"}
-        # ``bash`` itself sometimes needs ``HOME`` etc; keep it minimal but viable.
-        if "HOME" in os.environ:
-            env["HOME"] = os.environ["HOME"]
-        return env
-
-    def test_not_installed_branch_exits_zero_and_prints_hint(self, tmp_path: Path) -> None:
-        """When the import probe fails, the snippet prints the hint and exits 0."""
-        bindir = _write_fake_uv(tmp_path)
-        env = self._build_env(bindir, installed=False)
-
-        snippet = install_check_or_skip(
-            "bandit", "bandit not installed. Run: uv sync --extra security"
-        )
-        # The user's real command is ``false`` — if the gate failed to short
-        # the shell on the not-installed branch, the action would exit 1.
-        action = snippet + "false"
-
-        result = _run_bash(action, env)
-        assert result.returncode == 0
-        assert "bandit not installed. Run: uv sync --extra security" in result.stdout
-
-    def test_installed_and_tool_succeeds_exits_zero(self, tmp_path: Path) -> None:
-        """When the import probe succeeds and the tool succeeds, the action exits 0."""
-        bindir = _write_fake_uv(tmp_path)
-        env = self._build_env(bindir, installed=True)
-
-        snippet = install_check_or_skip("bandit", "bandit not installed.")
-        action = snippet + "true"
-
-        result = _run_bash(action, env)
-        assert result.returncode == 0
-        # The hint must NOT appear on the happy path.
-        assert "not installed" not in result.stdout
-
-    def test_installed_and_tool_fails_propagates_nonzero(self, tmp_path: Path) -> None:
-        """When the import probe succeeds and the tool fails, the action exits non-zero.
-
-        This is the bug fix from issue #527: previously the ``|| echo 'not
-        installed'`` form swallowed real failures by exiting 0. The gate must
-        let real failures through unmasked.
-        """
-        bindir = _write_fake_uv(tmp_path)
-        env = self._build_env(bindir, installed=True)
-
-        snippet = install_check_or_skip("bandit", "bandit not installed.")
-        action = snippet + "false"
-
-        result = _run_bash(action, env)
-        assert result.returncode != 0
-        # The "not installed" hint must NOT appear when the failure is real.
-        assert "not installed" not in result.stdout
 
 
 class TestVerbatim:

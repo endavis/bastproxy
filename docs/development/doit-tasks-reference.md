@@ -846,7 +846,9 @@ doit adr --title="Use some tool" --template --body-file=adr.md
   placeholder
 - Adds the ADR to the `## Index` table in `docs/decisions/README.md` (the series table for
   `--template` or the project one) and to the `- Decisions:` list under `nav:` in `mkdocs.yml`,
-  in numeric order, in every input mode. Both edits are idempotent and keep comments. When a file
+  in numeric order, in every input mode. Nav entries inside a nested group such as
+  `Template Decisions` count, and the entry goes beside the nearest ADR of its own series, never
+  right after a group header. Both edits are idempotent and keep comments. When a file
   is missing or restructured so an entry cannot be placed safely, it leaves the file as it is and
   prints a reminder naming the file. The nav label is `ADR-NNNN <title>`; shorten it by hand if you like
 

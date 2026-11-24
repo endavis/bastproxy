@@ -363,6 +363,15 @@ def run_configure(
 
         github_user = prompt("GitHub username", defaults["github_user"] or "username")
 
+    # The GitHub repository name is its own identity: it need not equal the
+    # Python package name (a repo `my-tool` ships package `mytool`). Use the
+    # supplied value, else the git remote's, else the PyPI name (#1268).
+    github_repo = (
+        defaults.get("github_repo")
+        or parse_github_url(get_git_config("remote.origin.url"))[1]
+        or pypi_name
+    )
+
     # Confirm configuration
     Logger.header("Configuration Summary")
     print(f"Project Name:     {project_name}")
@@ -373,6 +382,7 @@ def run_configure(
     if (maintainer_name, maintainer_email) != (author_name, author_email):
         print(f"Maintainer:       {maintainer_name} <{maintainer_email}>")
     print(f"GitHub:           {github_user}")
+    print(f"GitHub repo:      {github_repo}")
     # Stated, not asked. Dependabot is part of the template's automation
     # surface -- .github/dependabot.yml plus two workflows, a docs page and
     # their tests -- and ships with every project.
@@ -403,28 +413,33 @@ def run_configure(
         "__AUTHOR_NAME__": author_name,
         "__AUTHOR_EMAIL__": author_email,
         "__DESCRIPTION__": description,
-        "__REPO_URL__": f"https://github.com/{github_user}/{package_name}",
-        "__REPO_SLUG__": f"{github_user}/{package_name}",
+        "__REPO_NAME__": github_repo,
+        "__REPO_URL__": f"https://github.com/{github_user}/{github_repo}",
+        "__REPO_SLUG__": f"{github_user}/{github_repo}",
         # URLs (Specific matches first). Retained for runtime-critical files
         # (pyproject.toml, workflows, LICENSE, mkdocs.yml, dodo.py, .envrc,
         # .pre-commit-config.yaml) that keep literal placeholders, and for
         # downstream consumer projects that have not yet migrated.
-        "https://github.com/username/package_name": f"https://github.com/{github_user}/{package_name}",
-        "https://github.com/original-owner/package_name": f"https://github.com/{github_user}/{package_name}",
-        "https://codecov.io/gh/username/package_name": f"https://codecov.io/gh/{github_user}/{package_name}",
-        "https://codecov.io/gh/username/package_name/branch/main/graph/badge.svg": f"https://codecov.io/gh/{github_user}/{package_name}/branch/main/graph/badge.svg",
-        "https://github.com/username/package_name/actions/workflows/ci.yml/badge.svg": f"https://github.com/{github_user}/{package_name}/actions/workflows/ci.yml/badge.svg",
+        "https://github.com/username/package_name": f"https://github.com/{github_user}/{github_repo}",
+        "https://github.com/original-owner/package_name": f"https://github.com/{github_user}/{github_repo}",
+        "https://codecov.io/gh/username/package_name": f"https://codecov.io/gh/{github_user}/{github_repo}",
+        "https://codecov.io/gh/username/package_name/branch/main/graph/badge.svg": f"https://codecov.io/gh/{github_user}/{github_repo}/branch/main/graph/badge.svg",
+        "https://github.com/username/package_name/actions/workflows/ci.yml/badge.svg": f"https://github.com/{github_user}/{github_repo}/actions/workflows/ci.yml/badge.svg",
         "https://github.com/username": f"https://github.com/{github_user}",
         # GitHub Pages URL (mkdocs.yml)
-        "https://username.github.io/package_name": f"https://{github_user}.github.io/{package_name}",
+        "https://username.github.io/package_name": f"https://{github_user}.github.io/{github_repo}",
         # Files and Paths
         "package-name.svg": f"{pypi_name}.svg",
         "package-name/": f"{pypi_name}/",
         # Repo name pattern (mkdocs.yml) - must come before general package_name
-        "username/package_name": f"{github_user}/{package_name}",
+        "username/package_name": f"{github_user}/{github_repo}",
         # General Placeholders (Substrings). Python files receive
         # word-boundary protection from ``update_file()`` so identifier
         # substrings (e.g. ``validate_package_name``) survive.
+        # [project].name is the PyPI name, not the import name (#1268). Literal
+        # so the `package-name = "package_name.cli:main"` script line, whose
+        # value continues past `package_name`, is untouched here.
+        'name = "package_name"': f'name = "{pypi_name}"',
         "package_name": package_name,
         "package-name": pypi_name,
         "Package Name": project_name,
@@ -433,7 +448,7 @@ def run_configure(
         "your.email@example.com": author_email,
         # GitHub template placeholders (for issue templates, etc.)
         "{owner}": github_user,
-        "{repo}": package_name,
+        "{repo}": github_repo,
         # Contact email placeholders. These are the security-report address in
         # .github/SECURITY.md, and they belong to whoever answers for the
         # project now -- not to whoever wrote it. In an adopted or forked

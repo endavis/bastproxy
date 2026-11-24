@@ -334,9 +334,66 @@ def _add_to_index(
     return True
 
 
+_NAV_ADR_ENTRY = re.compile(r"^\s*- .*?(\d{4})-[^/\s]*\.md\s*$")
+
+
+def _nav_insert_point(
+    lines: list[str], start: int, end: int, child: int, number: int
+) -> tuple[int, int]:
+    """Pick the line and indent at which to insert ADR *number* into a nav block.
+
+    ADR entries are found at any depth, so a group header such as
+    ``- Template Decisions:`` is never an anchor. The entry goes beside the
+    nearest entry of its own series (same leading digit), else before the first
+    child-level item holding a template ADR (project ADR) or at the end of the
+    block (template ADR).
+
+    Args:
+        lines: Lines of ``mkdocs.yml``
+        start: First line of the Decisions block
+        end: Line after the last line of the block
+        child: Indent of the block's direct children
+        number: ADR number to place
+
+    Returns:
+        ``(insert_at, indent)``
+    """
+    series = f"{number:04d}"[0]
+    entries: list[tuple[int, int, int]] = []
+    for i in range(start, end):
+        found = _NAV_ADR_ENTRY.match(lines[i])
+        if found and found.group(1)[0] == series:
+            entries.append((i, int(found.group(1)), len(lines[i]) - len(lines[i].lstrip())))
+    at_or_below = [e for e in entries if e[1] <= number]
+    if at_or_below:
+        i, _, ind = max(at_or_below, key=lambda e: e[1])
+        return i + 1, ind
+    if entries:
+        i, _, ind = min(entries, key=lambda e: e[1])
+        return i, ind
+    if series == "0":
+        for i in range(start, end):
+            line = lines[i]
+            if not line.strip() or len(line) - len(line.lstrip()) != child:
+                continue
+            if not line.lstrip().startswith("- "):
+                continue
+            stop = i + 1
+            while stop < end and (
+                not lines[stop].strip() or len(lines[stop]) - len(lines[stop].lstrip()) > child
+            ):
+                stop += 1
+            for j in range(i, stop):
+                found = _NAV_ADR_ENTRY.match(lines[j])
+                if found and found.group(1)[0] == "9":
+                    return i, child
+    return end, child
+
+
 def _add_to_nav(mkdocs: Path, number: int, title: str, nav_path: str) -> bool:
     """Add the ADR to the ``- Decisions:`` list under ``nav:`` in *mkdocs*, in numeric order.
 
+    Entries nested in a group (``- Template Decisions:``) count, wherever they sit.
     The edit is text-based, so comments and layout in the file survive. The file
     is left unchanged when it or the list is missing. An entry already pointing
     at *nav_path* is not added twice.
@@ -382,25 +439,17 @@ def _add_to_nav(mkdocs: Path, number: int, title: str, nav_path: str) -> bool:
     if child is None:
         return False
 
-    items = [
-        i
+    if any(
+        lines[i].lstrip().startswith("- ") and lines[i].rstrip().endswith(f": {nav_path}")
         for i in range(decisions_at + 1, block_end)
-        if lines[i].strip() and indent(lines[i]) == child and lines[i].lstrip().startswith("- ")
-    ]
-    if any(lines[i].rstrip().endswith(f": {nav_path}") for i in items):
+    ):
         return True
 
     label = f"ADR-{number:04d} {title}"
     if _YAML_SPECIALS.search(label):
         label = json.dumps(label, ensure_ascii=False)
-    entry = f"{' ' * child}- {label}: {nav_path}"
-
-    insert_at = items[-1] + 1
-    for i in items:
-        found = re.search(r"(\d{4})-[^/\s]*\.md\s*$", lines[i])
-        if found and int(found.group(1)) > number:
-            insert_at = i
-            break
+    insert_at, entry_indent = _nav_insert_point(lines, decisions_at + 1, block_end, child, number)
+    entry = f"{' ' * entry_indent}- {label}: {nav_path}"
     lines.insert(insert_at, entry)
     mkdocs.write_text("\n".join(lines), encoding="utf-8")
     return True

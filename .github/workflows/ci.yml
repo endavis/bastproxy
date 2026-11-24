@@ -109,24 +109,19 @@ jobs:
     needs: setup
     if: ${{ needs.setup.outputs.matrix != '{"include":[]}' }}
     runs-on: ${{ matrix.os }}
-    # id-token: write lets the Codecov upload authenticate with OIDC. The
-    # calling workflow must grant it too, or GitHub rejects the call.
-    permissions:
-      contents: read
-      id-token: write
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.setup.outputs.matrix) }}
     env:
-      UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
       HYPOTHESIS_PROFILE: ci
       BASTPROXY_HOME: ${{ github.workspace }}/tmp/bastproxy_home
+      # uv builds .venv from .python-version unless told otherwise (#1261).
+      UV_PYTHON: ${{ matrix.python-version }}
 
     steps:
-      - name: Configure git line endings (Windows)
-        if: runner.os == 'Windows'
-        run: git config --global core.autocrlf false
-
+      # No Windows git config step: the checkout uses Git's defaults, as a
+      # developer's does (core.autocrlf=true). .gitattributes pins eol=lf (#1288),
+      # and the doit steps below fail if that stops working (#1293).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Create BASTPROXY_HOME directory
@@ -140,28 +135,111 @@ jobs:
       - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           version: "latest"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
 
-      - name: Cache uv dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - name: Install dependencies
+        id: install
+        run: uv sync --all-extras --dev
+
+      # Fails the job when uv runs another Python than the one requested
+      # above (#1261). Assumes the requested version is in X.Y form.
+      - name: Check the Python version
+        shell: bash
+        run: >-
+          uv run python -c 'import os, sys;
+          v = "%d.%d" % sys.version_info[:2];
+          want = os.environ["UV_PYTHON"];
+          print("uv runs Python " + v + ", requested " + want);
+          sys.exit(0 if v == want else 1)'
+
+      - name: Run tests
+        run: uv run pytest -n auto -v --ignore=tests/benchmarks/
+
+      # Windows only: run doit tasks end to end, the way a Windows developer
+      # does (#1293). Each guards a bug that reached main because pytest alone
+      # does not run doit. The lint job covers the same tasks on Linux.
+      #
+      # format_check: ruff on a checkout made with autocrlf=true (#1288).
+      - name: Check code formatting (Windows)
+        if: ${{ !cancelled() && runner.os == 'Windows' && steps.install.outcome == 'success' }}
+        run: uv run doit format_check
+
+      # security: install_check_or_skip runs bandit through cmd.exe (#1291).
+      - name: Run security scan (Windows)
+        if: ${{ !cancelled() && runner.os == 'Windows' && steps.install.outcome == 'success' }}
+        run: uv run doit security
+
+      # cleanup: prints a Rich panel with a non-cp1252 character through doit's
+      # piped stdout, which defaults to cp1252 on a runner (#1287). Last, since
+      # it deletes caches.
+      - name: Run cleanup (Windows)
+        if: ${{ !cancelled() && runner.os == 'Windows' && steps.install.outcome == 'success' }}
+        run: uv run doit cleanup
+
+  # Coverage runs in its own job so the slower measured run does not make one
+  # matrix entry the slowest Linux job (#1260). Skipped on full_matrix runs,
+  # which test only the middle versions.
+  coverage:
+    needs: setup
+    if: ${{ !inputs.full_matrix }}
+    runs-on: ubuntu-latest
+    # id-token: write lets the Codecov upload authenticate with OIDC. The
+    # calling workflow must grant it too, or GitHub rejects the call.
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      HYPOTHESIS_PROFILE: ci
+      BASTPROXY_HOME: ${{ github.workspace }}/tmp/bastproxy_home
+      # uv builds .venv from .python-version unless told otherwise (#1261).
+      UV_PYTHON: ${{ needs.setup.outputs.newest }}
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Create BASTPROXY_HOME directory
+        run: mkdir -p "$BASTPROXY_HOME"
+
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
-          path: ${{ env.UV_CACHE_DIR }}
-          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
+          python-version: ${{ needs.setup.outputs.newest }}
+
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
+        with:
+          version: "latest"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Install dependencies
         run: uv sync --all-extras --dev
 
-      - name: Run tests with coverage
-        if: matrix.python-version == needs.setup.outputs.newest && matrix.os == 'ubuntu-latest'
-        run: uv run pytest -n auto --cov --cov-report=xml:tmp/coverage.xml --cov-report=term -v --ignore=tests/benchmarks/
+      # Fails the job when uv runs another Python than the one requested
+      # above (#1261). Assumes the requested version is in X.Y form.
+      - name: Check the Python version
+        shell: bash
+        run: >-
+          uv run python -c 'import os, sys;
+          v = "%d.%d" % sys.version_info[:2];
+          want = os.environ["UV_PYTHON"];
+          print("uv runs Python " + v + ", requested " + want);
+          sys.exit(0 if v == want else 1)'
 
-      - name: Run tests
-        if: "!(matrix.python-version == needs.setup.outputs.newest && matrix.os == 'ubuntu-latest')"
-        run: uv run pytest -n auto -v --ignore=tests/benchmarks/
+      - name: Run tests with coverage
+        env:
+          # Logs which coverage core (sysmon or ctrace) ran.
+          COVERAGE_DEBUG: core
+          COVERAGE_DEBUG_FILE: tmp/coverage-debug.txt
+        run: |
+          mkdir -p tmp
+          uv run pytest -n auto --cov --cov-report=xml:tmp/coverage.xml --cov-report=term -v --ignore=tests/benchmarks/
+
+      - name: Show the coverage core
+        if: always()
+        run: grep "Using core=" tmp/coverage-debug.txt || echo "No coverage core line found"
 
       - name: Upload coverage to Codecov
-        if: matrix.python-version == needs.setup.outputs.newest && matrix.os == 'ubuntu-latest' && vars.CODECOV_ENABLED == 'true'
+        if: vars.CODECOV_ENABLED == 'true'
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           files: ./tmp/coverage.xml
@@ -176,7 +254,8 @@ jobs:
     if: ${{ needs.setup.outputs.matrix != '{"include":[]}' }}
     runs-on: ubuntu-latest
     env:
-      UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
+      # uv builds .venv from .python-version unless told otherwise (#1261).
+      UV_PYTHON: ${{ needs.setup.outputs.newest }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -188,17 +267,22 @@ jobs:
       - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           version: "latest"
-
-      - name: Cache uv dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ env.UV_CACHE_DIR }}
-          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
+          enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Install dependencies
         run: uv sync --all-extras --dev
+
+      # Fails the job when uv runs another Python than the one requested
+      # above (#1261). Assumes the requested version is in X.Y form.
+      - name: Check the Python version
+        shell: bash
+        run: >-
+          uv run python -c 'import os, sys;
+          v = "%d.%d" % sys.version_info[:2];
+          want = os.environ["UV_PYTHON"];
+          print("uv runs Python " + v + ", requested " + want);
+          sys.exit(0 if v == want else 1)'
 
       - name: Build documentation
         run: uv run doit docs_build
@@ -208,9 +292,10 @@ jobs:
     if: ${{ needs.setup.outputs.matrix != '{"include":[]}' }}
     runs-on: ubuntu-latest
     env:
-      UV_CACHE_DIR: ${{ github.workspace }}/.uv-cache
       # wheel_check imports the built package, which requires an existing BASTPROXY_HOME
       BASTPROXY_HOME: ${{ github.workspace }}/tmp/bastproxy_home
+      # uv builds .venv from .python-version unless told otherwise (#1261).
+      UV_PYTHON: ${{ needs.setup.outputs.newest }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -225,18 +310,24 @@ jobs:
       - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           version: "latest"
-
-      - name: Cache uv dependencies
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ${{ env.UV_CACHE_DIR }}
-          key: ${{ runner.os }}-uv-${{ hashFiles('uv.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-uv-
+          enable-cache: true
+          cache-dependency-glob: uv.lock
 
       - name: Install dependencies
         id: install
         run: uv sync --all-extras --dev
+
+      # Fails the job when uv runs another Python than the one requested
+      # above (#1261). Assumes the requested version is in X.Y form.
+      - name: Check the Python version
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        shell: bash
+        run: >-
+          uv run python -c 'import os, sys;
+          v = "%d.%d" % sys.version_info[:2];
+          want = os.environ["UV_PYTHON"];
+          print("uv runs Python " + v + ", requested " + want);
+          sys.exit(0 if v == want else 1)'
 
       # Each check runs whether or not the one before it failed, so a PR shows
       # every failing check at once instead of one per push (#952).
@@ -278,18 +369,20 @@ jobs:
 
   ci-complete:
     if: always()
-    needs: [setup, test, lint, docs]
+    needs: [setup, test, coverage, lint, docs]
     runs-on: ubuntu-latest
     steps:
       - name: Check CI status
         run: |
           setup_result="${{ needs.setup.result }}"
           test_result="${{ needs.test.result }}"
+          coverage_result="${{ needs.coverage.result }}"
           lint_result="${{ needs.lint.result }}"
           docs_result="${{ needs.docs.result }}"
 
           echo "Setup result: $setup_result"
           echo "Test result: $test_result"
+          echo "Coverage result: $coverage_result"
           echo "Lint result: $lint_result"
           echo "Docs result: $docs_result"
 
@@ -302,6 +395,12 @@ jobs:
           # Test must succeed or be skipped (skipped = no middle versions)
           if [[ "$test_result" != "success" && "$test_result" != "skipped" ]]; then
             echo "Test job failed"
+            exit 1
+          fi
+
+          # Coverage must succeed or be skipped (skipped = full_matrix run)
+          if [[ "$coverage_result" != "success" && "$coverage_result" != "skipped" ]]; then
+            echo "Coverage job failed"
             exit 1
           fi
 

@@ -219,6 +219,22 @@ def _hermetic_path(
     monkeypatch.setenv("PATH", f"{bin_dir}{os.pathsep}{os.environ['PATH']}")
 
 
+@pytest.fixture(autouse=True)
+def _isolated_git_config(
+    tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Make every git subprocess ignore the developer's global and system config.
+
+    A developer's ``tag.gpgsign`` / ``commit.gpgsign`` / hooks would otherwise
+    make tests that run real ``git commit`` or ``git tag`` in ``tmp_path``
+    repositories depend on the machine (#1292).
+    """
+    config = tmp_path_factory.mktemp("git-config") / "gitconfig"
+    config.write_text("", encoding="utf-8")
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(config))
+    monkeypatch.setenv("GIT_CONFIG_NOSYSTEM", "1")
+
+
 # ---------------------------------------------------------------------------
 # bastproxy fixtures
 # ---------------------------------------------------------------------------

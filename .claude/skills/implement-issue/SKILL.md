@@ -306,6 +306,7 @@ name, the worktree root as an absolute path, and any issue-specific notes:
    All new code is type-annotated for mypy strict mode. Start from the plan's locations: read the
    named symbols and ranges, not whole files. If the plan's base commit differs from `HEAD`, treat
    the ranges as hints only. Explore beyond the plan's pointers only when one is wrong or missing.
+   Before writing an exact-value assertion, check it against the `portable-tests` rule.
 4. Checking budget, run from the worktree root through `uv run`: the tests covering the change; one
    revert check (undo the fix, confirm the new tests fail, restore — using `git show HEAD:<path>`
    or a WIP commit); only what project rules require, such as the `mutation-triage` and

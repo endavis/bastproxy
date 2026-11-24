@@ -11,7 +11,6 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
-from doit.action import CmdAction
 from doit.tools import title_with_actions
 from rich.console import Console
 
@@ -26,17 +25,36 @@ def task_build() -> dict[str, Any]:
     }
 
 
+def _publish_env() -> dict[str, str]:
+    """Return the parent environment plus ``UV_PUBLISH_TOKEN`` taken from ``PYPI_TOKEN``.
+
+    Raises ``RuntimeError`` when ``PYPI_TOKEN`` is unset or empty. Read when the
+    action runs, so ``doit list`` works without the token.
+    """
+    token = os.environ.get("PYPI_TOKEN")
+    if not token:
+        raise RuntimeError("PYPI_TOKEN environment variable must be set.")
+    return {**os.environ, "UV_PUBLISH_TOKEN": token}
+
+
+def _run_uv_publish() -> bool:
+    """Run ``uv publish`` with the token in the environment, never on the command line.
+
+    A command-line token would show in doit's printed title and the process
+    list, and needs shell quoting that differs between POSIX and cmd.exe.
+    """
+    result = subprocess.run(
+        ["uv", "publish"],
+        env=_publish_env(),
+        check=False,
+    )
+    return result.returncode == 0
+
+
 def task_publish() -> dict[str, Any]:
     """Build and publish package to PyPI."""
-
-    def publish_cmd() -> str:
-        token = os.environ.get("PYPI_TOKEN")
-        if not token:
-            raise RuntimeError("PYPI_TOKEN environment variable must be set.")
-        return "uv publish --token '{token}'"
-
     return {
-        "actions": ["uv build", CmdAction(publish_cmd)],
+        "actions": ["uv build", _run_uv_publish],
         "title": title_with_actions,
     }
 

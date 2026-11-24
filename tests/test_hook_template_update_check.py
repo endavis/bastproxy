@@ -138,28 +138,54 @@ def test_sha_shorter_than_seven_chars_needs_exact_match(hook: types.ModuleType) 
     assert hook.shas_match("aaa", "aaa")
 
 
-def test_cache_hit_skips_network(
+def test_success_is_never_cached(
     hook: types.ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _write_settings(tmp_path, OLD)
     git = FakeGit()
     assert _run(hook, monkeypatch, tmp_path, git) is not None
     assert git.ls_remote_calls == 1
+    assert not (tmp_path / "tmp" / "template-update-check.json").exists()
     assert _run(hook, monkeypatch, tmp_path, git, now=NOW + 60) is not None
-    assert git.ls_remote_calls == 1
+    assert git.ls_remote_calls == 2
 
 
-def test_expired_cache_refetches_and_rewrites(
+def test_cached_success_triggers_live_fetch(
     hook: types.ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     _write_settings(tmp_path, OLD)
+    cache = tmp_path / "tmp" / "template-update-check.json"
+    cache.parent.mkdir()
+    cache.write_text(json.dumps({"checked_at": NOW, "sha": "9" * 40}))
     git = FakeGit()
-    _run(hook, monkeypatch, tmp_path, git)
+    assert _run(hook, monkeypatch, tmp_path, git, now=NOW + 10) is not None
+    assert git.ls_remote_calls == 1
+    assert not cache.exists()
+
+
+def test_stale_cached_head_with_matching_live_head_is_silent(
+    hook: types.ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _write_settings(tmp_path, REMOTE)
+    cache = tmp_path / "tmp" / "template-update-check.json"
+    cache.parent.mkdir()
+    cache.write_text(json.dumps({"checked_at": NOW, "sha": OLD}))
+    git = FakeGit()
+    assert _run(hook, monkeypatch, tmp_path, git, now=NOW + 10) is None
+    assert git.ls_remote_calls == 1
+
+
+def test_expired_failure_cache_refetches(
+    hook: types.ModuleType, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _write_settings(tmp_path, OLD)
+    cache = tmp_path / "tmp" / "template-update-check.json"
+    cache.parent.mkdir()
+    cache.write_text(json.dumps({"checked_at": NOW, "sha": None}))
+    git = FakeGit()
     later = NOW + hook.CACHE_TTL_SECONDS + 1
-    _run(hook, monkeypatch, tmp_path, git, now=later)
-    assert git.ls_remote_calls == 2
-    cache = json.loads((tmp_path / "tmp" / "template-update-check.json").read_text())
-    assert cache == {"checked_at": later, "sha": REMOTE}
+    assert _run(hook, monkeypatch, tmp_path, git, now=later) is not None
+    assert git.ls_remote_calls == 1
 
 
 def test_cached_null_is_silent_without_fetch(

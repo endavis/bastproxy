@@ -528,6 +528,11 @@ def action_configure(manager: SettingsManager, dry_run: bool, *, yes: bool = Fal
         "author_name": manager.settings.author_name,
         "author_email": manager.settings.author_email,
         "github_user": manager.settings.github_user,
+        "github_repo": manager.settings.github_repo,
+        # Without these, load_defaults' template placeholder would fill the
+        # empty keys below and SECURITY.md would keep a placeholder (#1268).
+        "maintainer_name": manager.settings.maintainer_name or manager.settings.author_name,
+        "maintainer_email": manager.settings.maintainer_email or manager.settings.author_email,
     }
 
     # Merge with pyproject.toml defaults

@@ -37,12 +37,28 @@ jobs:
         with:
           python-version: ${{ steps.pv.outputs.newest }}
 
+      - name: Point uv at the installed Python
+        env:
+          PYTHON_VERSION: ${{ steps.pv.outputs.newest }}
+        run: echo "UV_PYTHON=${PYTHON_VERSION}" >> "$GITHUB_ENV"
+
       - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           version: "latest"
 
       - name: Install dependencies
         run: uv sync --all-extras --dev
+
+      # Fails the job when uv runs another Python than the one requested
+      # above (#1261). Assumes the requested version is in X.Y form.
+      - name: Check the Python version
+        shell: bash
+        run: >-
+          uv run python -c 'import os, sys;
+          v = "%d.%d" % sys.version_info[:2];
+          want = os.environ["UV_PYTHON"];
+          print("uv runs Python " + v + ", requested " + want);
+          sys.exit(0 if v == want else 1)'
 
       - name: Show resolved version
         run: |
