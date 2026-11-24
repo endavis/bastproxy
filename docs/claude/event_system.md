@@ -460,7 +460,7 @@ The long history is in the records manager (`RMANAGER` keeps a `ProcessRaisedEve
 - `ev_libs.net.mud_telopt_<n>`, `ev_libs.net.mud_telopt_<n>_enabled`, `ev_libs.net.mud_telopt_<n>_disabled`, `ev_libs.net.client_telopt_<n>` - Telnet option `<n>` that a plugin owns with `telopt.register` (see the table in the protocol events section); added at register time
 
 ### Proxy Events
-- `ev_bastproxy_proxy_ready` - Proxy is ready to accept connections
+- `ev_bastproxy_proxy_ready` - Proxy is ready to accept connections. The startup objects are frozen out of the garbage collector before it is raised, see [Garbage collector freeze](plugin_system.md#garbage-collector-freeze)
 - `ev_plugins.core.proxy_shutdown` - Proxy is shutting down
 - `ev_plugins.core.events_all_events_registered` - All events registered at startup
 

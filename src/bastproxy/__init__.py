@@ -49,7 +49,7 @@ except ImportError:  # pragma: no cover - source tree without a build
     __version__ = "0.0.0"
 
 # The modules below are imported to add their functions to the API
-from bastproxy.libs import argp, timing
+from bastproxy.libs import argp, gcfreeze, timing
 from bastproxy.libs.api import API as BASEAPI
 from bastproxy.libs.asynch import run_asynch
 from bastproxy.libs.logger import ERROR_BUFFER, get_logger
@@ -183,6 +183,9 @@ class MudProxy:
 
         self._apply_cli_overrides(args)
 
+        # freeze the startup heap out of full garbage collections (#758)
+        self._freeze_gc(args)
+
         # done starting up, set the flag to False and raise the
         # ev_bastproxy_proxy_ready event
         BASEAPI.startup = False
@@ -202,6 +205,16 @@ class MudProxy:
         run_asynch()
 
         get_logger("mudproxy").info("__main__ - exiting")
+
+    def _freeze_gc(self, args: dict[str, Any]) -> None:
+        """Freeze the startup objects out of the garbage collector (#758).
+
+        --no-gc-freeze skips the freeze, for chasing memory or cycle leaks.
+        """
+        if args.get("no_gc_freeze"):
+            get_logger("mudproxy").info("gc freeze disabled by --no-gc-freeze")
+            return
+        gcfreeze.freeze_long_lived_objects("startup")
 
     def _apply_cli_overrides(self, args: dict[str, Any]) -> None:
         """Apply the --port and --IPv4-address overrides to the proxy settings.
@@ -285,6 +298,13 @@ def main() -> None:
         "-q",
         "--quiet",
         help="suppress console output (logs still written to file)",
+        action="store_true",
+        default=False,
+    )
+
+    parser.add_argument(
+        "--no-gc-freeze",
+        help="do not freeze startup objects out of the garbage collector (for memory debugging)",
         action="store_true",
         default=False,
     )

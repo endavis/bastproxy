@@ -67,6 +67,7 @@ uv run bastproxy --port 9999 --IPv4-address localhost
 - `--IPv4-address`: IP address to bind to (default: localhost)
 - `--profile` or `-pf`: Enable code profiling
 - `--quiet` or `-q`: Suppress console output (logs are still written to file)
+- `--no-gc-freeze`: Do not freeze startup objects out of the garbage collector (for memory debugging)
 
 ### Connecting
 

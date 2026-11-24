@@ -449,6 +449,7 @@ pytest_add_cli_args_test_selection = [
     "tests/libs/",
     "tests/plugins/",
     "tests/test_mudproxy_cli_overrides.py",
+    "tests/test_mudproxy_gc_freeze.py",
 ]
 # tests/plugins/test_api_name_grammar.py reads ADR-0004 from docs/decisions/.
 also_copy = ["docs/decisions/"]
