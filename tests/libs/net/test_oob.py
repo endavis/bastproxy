@@ -69,6 +69,43 @@ def test_gmcp_deep_nesting_is_rejected() -> None:
         oob.decode_gmcp(b"Char.Deep " + body)
 
 
+def _nested(depth: int) -> bytes:
+    return b"[" * depth + b"]" * depth
+
+
+def test_gmcp_depth_at_limit_decodes() -> None:
+    package, data = oob.decode_gmcp(b"Char.Deep " + _nested(oob.GMCP_MAX_DEPTH))
+    assert package == "Char.Deep"
+    assert data is not None
+
+
+def test_gmcp_depth_over_limit_is_rejected() -> None:
+    with pytest.raises(OobDecodeError) as info:
+        oob.decode_gmcp(b"Char.Deep " + _nested(oob.GMCP_MAX_DEPTH + 1))
+    assert info.value.name == "Char.Deep"
+    assert "too deep" in str(info.value)
+
+
+def test_gmcp_brackets_in_strings_do_not_count() -> None:
+    body = json.dumps({"a": "[" * 500 + "{" * 500}).encode()
+    assert oob.decode_gmcp(b"A.B " + body)[1] == {"a": "[" * 500 + "{" * 500}
+
+
+def test_gmcp_escaped_quote_stays_inside_string() -> None:
+    value = '\\"' + "[" * 500 + "\\\\"
+    body = json.dumps({"a": value}).encode()
+    assert oob.decode_gmcp(b"A.B " + body)[1] == {"a": value}
+
+
+def test_gmcp_mixed_nesting_counts() -> None:
+    limit = oob.GMCP_MAX_DEPTH
+    at = b'{"a":[' * (limit // 2) + b"1" + b"]}" * (limit // 2)
+    assert oob.decode_gmcp(b"A.B " + at)[0] == "A.B"
+    over = b'{"a":[' * (limit // 2) + b"[1]" + b"]}" * (limit // 2)
+    with pytest.raises(OobDecodeError):
+        oob.decode_gmcp(b"A.B " + over)
+
+
 @pytest.mark.parametrize("name", [b"", b"9Bad", b"Bad Name x", b"Bad/Name", b"A" * 65])
 def test_gmcp_invalid_package_is_rejected(name: bytes) -> None:
     with pytest.raises(OobDecodeError):
