@@ -22,10 +22,11 @@ Issue #754: bastproxy has no mapper, and the only mappers so far (the old Aardwo
 
 - **Split.** The mapper owns the map (areas, rooms, exits, notes), a Dijkstra pathfinder and a step-by-step walk engine. A game plugin is an adapter: it feeds rooms and exits, reports the current room and registers two callbacks.
 - **Storage.** One sqlite database `map` per proxy home, created with `plugins.core.sqldb:database.add` (ADR-0014) and no `directory`, so the default plugin data directory applies. The tables follow the MUSHclient layout: `areas`, `rooms`, `exits`, `bookmarks`, `storage`. Exits from anywhere are exits from the virtual rooms `*` (portals) and `**` (recall). The Aardwolf `level` column becomes `requirement`, JSON text.
-- **Requirement callback.** `requirement.register(owner_id, callback)` with `callback(requirement, exit_dict) -> bool`. The requirement is an opaque JSON value. It is only called for an exit that has one, once per distinct value in one search. A callback that raises blocks the exit. With no callback, exits are allowed.
+- **Requirement callback.** `requirement.register(owner_id, callback)` with `callback(requirement, exit_dict) -> bool`. The requirement is an opaque JSON value. It is only called for an exit that has one, once per distinct value in one search, on the event loop: a walk or command search asks it for every distinct requirement in the map before the search starts and gives the worker a lookup. A callback that raises blocks the exit. With no callback, exits are allowed.
 - **Movement callback.** `movement.register(owner_id, callback)` with `callback(steps: list[dict]) -> list[str]`. A walk calls it with one step; `goto` calls it with the whole path, so a game can send a speedwalk. A callback that raises or returns bad data falls back to each step's direction. The most recent registration is active and an unloading owner's callbacks are dropped.
 - **Arrival.** The adapter calls `room.current.set(uid)`. The mapper does not parse GMCP. It raises `ev_plugins.client.mapper_room_arrived` and gives the arrival to the walk in the same call.
-- **Walking.** A walk sends the next step only when `room.current.set` confirms the last one. An arrival at the room the step left is ignored. An unexpected room is rerouted (setting `reroute`, at most 3 times) or stops the walk. `walk.restart` resumes a stopped walk. A walk starts only from `walk.start` or a command, and a MUD disconnect stops it.
+- **Walking.** A walk sends the next step only when `room.current.set` confirms the last one. An arrival at the room the step left is ignored. An unexpected room is rerouted (setting `reroute`, at most 3 times) or stops the walk. `walk.restart` resumes a stopped walk. `walk.start` and `walk.restart` return True once a search has started, the walk is `searching` and a missing path arrives later as `walk_failed`, with the extra reasons `moved during search` and `search failed`. A walk starts only from `walk.start` or a command, and a MUD disconnect stops it.
+- **Searching.** Walks and the commands `find`, `goto`, `where`, `walkto` and `resume` run the pathfinder with `asyncio.to_thread` on a copy-on-write view of the graph, queued with `libs.asynch:task.add`. Commands answer at once and report the result in a later line.
 - **Change detection.** `room.add` on a stored room raises `ev_plugins.client.mapper_room_mismatch` when the area changed or a known exit target differs or exists on one side only. It never deletes stored exits and an unexplored target (`-1`) never overwrites a known one. Purging is left to the adapter or the user.
 - **Names.** The API names follow ADR-0004's closed action list, which has no `find`, `search`, `resume`, `purge` or `stop`: `path.get`, `room.list` and `room.list.unexplored`, `walk.restart`, `walk.clear` and `area.remove`. Commands keep the issue's names: `find`, `goto`, `walkto`, `resume`, `stop`, `where`, `showroom`, `purge`, `note`.
 
@@ -38,6 +39,11 @@ Rooms, exits, costs and paths are the same in every game, while requirements, po
 - **Fixed level and tier fields on exits.** Rejected: they are Aardwolf rules. A JSON requirement checked by a game callback serves any game.
 - **The mapper parsing GMCP.** Rejected: GMCP room data is game specific. `room.current.set` keeps the mapper independent of it.
 - **Walking by sending the whole path.** Rejected for walks: it cannot stop or reroute on an unexpected room. `goto` still does it, through the movement callback.
+- **A lock around the graph.** Rejected: every write on the loop would wait for the whole search.
+- **A full snapshot per search.** Rejected: copying every room and exit on the loop for every search costs more than copying the two outer dicts once after a write.
+- **Requirement callbacks in the worker thread.** Rejected: adapters call the API and log, and neither is thread-safe.
+- **An awaitable `path.get`.** Rejected: ADR-0004 has no fitting action word, and the walks and commands are the long searches.
+- **Loading the graph in a thread.** Rejected for now: the database connection belongs to the loop thread, and an adapter may write right after load. Possible follow-up.
 - **A core plugin.** Rejected: the loader forces core plugins to be required.
 
 ## Consequences
@@ -45,10 +51,13 @@ Rooms, exits, costs and paths are the same in every game, while requirements, po
 - A game plugin needs an adapter before the mapper is useful. Importing an existing MUSHclient database is adapter work.
 - The depth limit prunes by step count, so a target whose cheapest route is longer than the limit is unreachable even when a costlier, shorter route exists.
 - The map is held in memory as well as in the database, and written to both.
+- `path.get` still searches on the event loop, and the graph is still loaded synchronously at plugin load.
+- `walk.start` and `walk.restart` no longer report a missing path in their return value; it arrives as `walk_failed`.
 
 ## Related Issues
 
 - Issue #754: add a mapper plugin with pathfinding and walking
+- Issue #756: run mapper path searches off the event loop
 
 ## Related Documentation
 

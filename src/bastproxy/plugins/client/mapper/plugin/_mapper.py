@@ -7,9 +7,11 @@
 """The map, pathfinding and walking, with game plugins as adapters (ADR-0021)."""
 
 # Standard Library
+import asyncio
 import json
 import logging
 from collections.abc import Callable
+from functools import partial
 from typing import Any
 
 # Project
@@ -18,10 +20,10 @@ from bastproxy.libs.logger import log_to
 from bastproxy.libs.records import NetworkData, SendDataDirectlyToClient, SendDataDirectlyToMud
 from bastproxy.libs.validators import int_range
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.plugins.client.mapper.libs._graph import Exit, MapGraph, find_path
+from bastproxy.plugins.client.mapper.libs._graph import Exit, MapGraph, find_path, requirement_key
 from bastproxy.plugins.client.mapper.libs._schema import DB_NAME, DB_VERSION, TABLES, UNKNOWN_UID
 from bastproxy.plugins.client.mapper.libs._store import MapStore, room_differences
-from bastproxy.plugins.client.mapper.libs._walk import MAX_REROUTES, Walk, WalkUpdate
+from bastproxy.plugins.client.mapper.libs._walk import MAX_REROUTES, SEARCHING, Walk, WalkUpdate
 from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
@@ -74,6 +76,14 @@ class MapperPlugin(BasePlugin):
         self.walk = Walk()
         self.requirement_callbacks: dict[str, Callable[[Any, dict[str, Any]], bool]] = {}
         self.movement_callbacks: dict[str, Callable[[list[dict[str, Any]]], list[str]]] = {}
+        self._search_token = 0
+        self._unload_token = 0
+
+    @RegisterPluginHook("uninitialize")
+    def _phook_mapper_uninitialize(self) -> None:
+        """Drop the results of searches still running."""
+        self._search_token += 1
+        self._unload_token += 1
 
     @RegisterPluginHook("after_load")
     def _phook_initialize(self) -> None:
@@ -386,6 +396,20 @@ class MapperPlugin(BasePlugin):
         self._api_walk_clear("disconnected")
 
     # paths
+    def _ask(self, callback: Callable[[Any, dict[str, Any]], bool], exit_: Exit) -> bool:
+        """Ask the requirement callback about an exit; a callback that raises blocks it."""
+        try:
+            return bool(callback(exit_.requirement, exit_.to_dict()))
+        except Exception:
+            log_to(
+                [self.plugin_id],
+                logging.ERROR,
+                "requirement callback failed for %s, the exit is blocked",
+                requirement_key(exit_.requirement),
+                exc_info=True,
+            )
+            return False
+
     def _allowed(self) -> Callable[[Exit], bool]:
         """Build the exit filter for one search, asking the callback once per requirement."""
         callback = self._active(self.requirement_callbacks)
@@ -394,22 +418,81 @@ class MapperPlugin(BasePlugin):
         def allowed(exit_: Exit) -> bool:
             if exit_.requirement is None or callback is None:
                 return True
-            key = json.dumps(exit_.requirement, sort_keys=True)
+            key = requirement_key(exit_.requirement)
             if key not in memo:
-                try:
-                    memo[key] = bool(callback(exit_.requirement, exit_.to_dict()))
-                except Exception:
-                    log_to(
-                        [self.plugin_id],
-                        logging.ERROR,
-                        "requirement callback failed for %s, the exit is blocked",
-                        key,
-                        exc_info=True,
-                    )
-                    memo[key] = False
+                memo[key] = self._ask(callback, exit_)
             return memo[key]
 
         return allowed
+
+    def _prejudged(self) -> Callable[[Exit], bool]:
+        """Ask the callback about every requirement in the map, here on the loop.
+
+        The filter returned only looks the answers up, so a worker thread can use it.
+        """
+        callback = self._active(self.requirement_callbacks)
+        if callback is None:
+            return lambda _exit: True
+        verdicts = {
+            key: self._ask(callback, sample) for key, sample in self.graph.requirements().items()
+        }
+
+        def allowed(exit_: Exit) -> bool:
+            if exit_.requirement is None:
+                return True
+            return verdicts.get(requirement_key(exit_.requirement), False)
+
+        return allowed
+
+    def _in_thread(
+        self,
+        work: Callable[[], Any],
+        done: Callable[[Any, Exception | None], None],
+        name: str,
+    ) -> None:
+        """Run ``work`` in a worker thread, then ``done(result, error)`` on the loop."""
+        self.api("libs.asynch:task.add")(
+            self._run_in_thread(work, done, self._unload_token), f"{self.plugin_id}:{name}"
+        )
+
+    async def _run_in_thread(
+        self,
+        work: Callable[[], Any],
+        done: Callable[[Any, Exception | None], None],
+        unload_token: int,
+    ) -> None:
+        """Await the worker, then hand its result or error to ``done``."""
+        result: Any = None
+        error: Exception | None = None
+        try:
+            result = await asyncio.to_thread(work)
+        except Exception as exc:
+            error = exc
+            log_to([self.plugin_id], logging.ERROR, "path search failed", exc_info=True)
+        if unload_token != self._unload_token:
+            return
+        try:
+            done(result, error)
+        except Exception:
+            log_to([self.plugin_id], logging.ERROR, "path search completion failed", exc_info=True)
+
+    def _search(
+        self,
+        start: str,
+        target: str,
+        done: Callable[[Any, Exception | None], None],
+        name: str,
+    ) -> None:
+        """Search a frozen view of the graph in a worker thread."""
+        view = self.graph.freeze()
+        allowed = self._prejudged()
+        depth = int(self._setting("maxdepth"))
+        work = partial(find_path, view, start, target, max_depth=depth, allowed=allowed)
+        self._in_thread(work, done, name)
+
+    def _tell(self, lines: list[str]) -> None:
+        """Send lines to the client."""
+        SendDataDirectlyToClient(NetworkData(lines, owner_id=self.plugin_id))()
 
     def _find(self, start: str, target: str, max_depth: int | None = None) -> Any:
         """Run the pathfinder and return a PathResult or None."""
@@ -428,7 +511,8 @@ class MapperPlugin(BasePlugin):
 
         This function returns ``{"start", "target", "cost", "steps"}`` with each step a dict
         of fromuid, touid, dir, cost and requirement, or None when the target cannot be
-        reached.
+        reached. The search runs on the event loop, so a long one stalls it; walks and
+        commands search in a worker thread instead.
         """
         result = self._find(start, target, max_depth)
         if result is None:
@@ -485,54 +569,83 @@ class MapperPlugin(BasePlugin):
     def _reroute(self, uid: str) -> None:
         """The character is in a room the walk did not expect."""
         target = self.walk.target
-        if (
-            target is not None
-            and self._setting("reroute")
-            and self.walk.reroutes < MAX_REROUTES
-            and (result := self._find(uid, target)) is not None
-        ):
-            if not result.steps:
-                self.walk.finish()
-                self._raise("walk_done", target=target)
-                return
-            self.walk.reroute(result.steps, uid)
-            self._send_walk_step(result.steps[0])
+        if target is not None and self._setting("reroute") and self.walk.reroutes < MAX_REROUTES:
+            self._begin_walk(target, uid, "reroute", False)
             return
         self.walk.stop()
         self._fail(target, "unexpected room")
 
-    @AddAPI("walk.start", description="walk to a room one step at a time")
-    def _api_walk_start(self, target: str) -> bool:
-        """Start a walk from the current room.
+    def _begin_walk(self, target: str, start: str, mode: str, report: bool) -> None:
+        """Put the walk in the searching state and search in a worker thread."""
+        self._search_token += 1
+        token = self._search_token
+        self.walk.searching(target, start)
+        self._search(
+            start, target, partial(self._walk_found, token, mode, start, target, report), "walk"
+        )
 
-        Each step is sent when the previous one is confirmed by room.current.set. This
-        function returns False, raising walk_failed, when the current room is not known
-        or there is no path.
-        """
+    def _walk_found(
+        self,
+        token: int,
+        mode: str,
+        start: str,
+        target: str,
+        report: bool,
+        result: Any,
+        error: Exception | None,
+    ) -> None:
+        """Act on the result of a walk search, unless the walk moved on meanwhile."""
+        if token != self._search_token or self.walk.state != SEARCHING:
+            return
+        reason = ""
+        if error is not None:
+            reason = "search failed"
+        elif self.current_room != start:
+            reason = "moved during search"
+        elif result is None:
+            reason = "unexpected room" if mode == "reroute" else "no path"
+        if reason:
+            if reason == "no path" and mode == "start":
+                self.walk.finish()
+            else:
+                self.walk.stop()
+            self._fail(target, reason)
+            if report:
+                self._tell([f"could not walk to {target}: {reason}"])
+            return
+        steps: list[Exit] = result.steps
+        if mode == "reroute":
+            if not steps:
+                self.walk.finish()
+                self._raise("walk_done", target=target)
+                return
+            self.walk.reroute(steps, start)
+            self._send_walk_step(steps[0])
+            return
+        if mode == "start":
+            self.walk.start(target, steps, start)
+        else:
+            self.walk.restart(steps, start)
+        if report:
+            self._tell([f"walking to {target}"])
+        self._raise("walk_started", target=target, steps=[s.to_dict() for s in steps])
+        if not steps:
+            self.walk.finish()
+            self._raise("walk_done", target=target)
+        else:
+            self._send_walk_step(steps[0])
+
+    def _start_walk(self, target: str, report: bool) -> bool:
+        """Start the search for a walk from the current room."""
         start = self.current_room
         if start is None:
             self._fail(target, "current room unknown")
             return False
-        result = self._find(start, target)
-        if result is None:
-            self._fail(target, "no path")
-            return False
-        self.walk.start(target, result.steps, start)
-        self._raise("walk_started", target=target, steps=[s.to_dict() for s in result.steps])
-        if not result.steps:
-            self.walk.finish()
-            self._raise("walk_done", target=target)
-        else:
-            self._send_walk_step(result.steps[0])
+        self._begin_walk(target, start, "start", report)
         return True
 
-    @AddAPI("walk.restart", description="resume a stopped walk")
-    def _api_walk_restart(self) -> bool:
-        """Walk to the target of a stopped walk, from the current room.
-
-        This function returns False when no walk is stopped, the current room is not
-        known or there is no path.
-        """
+    def _restart_walk(self, report: bool) -> bool:
+        """Start the search for resuming a stopped walk."""
         target = self.walk.target
         if not self.walk.can_restart() or target is None:
             return False
@@ -540,18 +653,30 @@ class MapperPlugin(BasePlugin):
         if start is None:
             self._fail(target, "current room unknown")
             return False
-        result = self._find(start, target)
-        if result is None:
-            self._fail(target, "no path")
-            return False
-        self.walk.restart(result.steps, start)
-        self._raise("walk_started", target=target, steps=[s.to_dict() for s in result.steps])
-        if not result.steps:
-            self.walk.finish()
-            self._raise("walk_done", target=target)
-        else:
-            self._send_walk_step(result.steps[0])
+        self._begin_walk(target, start, "restart", report)
         return True
+
+    @AddAPI("walk.start", description="walk to a room one step at a time")
+    def _api_walk_start(self, target: str) -> bool:
+        """Start a walk from the current room.
+
+        The path is searched in a worker thread. This function returns True once the search
+        has started and the walk is ``searching``; walk_started follows when the path is
+        found, and walk_failed with the reason ``no path`` when there is none. Each step is
+        sent when the previous one is confirmed by room.current.set. This function returns
+        False, raising walk_failed, when the current room is not known.
+        """
+        return self._start_walk(target, False)
+
+    @AddAPI("walk.restart", description="resume a stopped walk")
+    def _api_walk_restart(self) -> bool:
+        """Walk to the target of a stopped walk, from the current room.
+
+        Like walk.start, this returns True once the search has started and reports a missing
+        path later as walk_failed. It returns False when no walk is stopped or the current
+        room is not known.
+        """
+        return self._restart_walk(False)
 
     @AddAPI("walk.clear", description="stop the walk, keeping its target")
     def _api_walk_clear(self, reason: str = "stopped") -> bool:
@@ -567,7 +692,10 @@ class MapperPlugin(BasePlugin):
 
     @AddAPI("walk.get", description="get the state of the walk")
     def _api_walk_get(self) -> dict[str, Any]:
-        """Get ``{state, target, steps, index, reroutes}``."""
+        """Get ``{state, target, steps, index, reroutes}``.
+
+        The state is idle, searching, walking or stopped.
+        """
         return self.walk.as_dict()
 
     # commands
@@ -576,14 +704,20 @@ class MapperPlugin(BasePlugin):
         args: dict[str, Any] = self.api("plugins.core.commands:command.current.args.get")()
         return args
 
-    def _room_line(self, room: dict[str, Any]) -> str:
+    def _room_line(self, room: dict[str, Any], steps: str) -> str:
         """Format a room for a list, with the steps to it from the current room."""
         escape = self.api("plugins.core.colors:colorcode.escape")
-        steps = "-"
-        if self.current_room is not None:
-            result = self._find(self.current_room, room["uid"])
-            steps = str(len(result.steps)) if result is not None else "-"
         return f"{room['uid']} | {escape(room['name'])} | {escape(room['area'])} | {steps}"
+
+    def _find_lines(self, rooms: list[dict[str, Any]], total: int, steps: list[str]) -> list[str]:
+        """Format the find table."""
+        lines = [
+            "uid | name | area | steps",
+            *(self._room_line(r, n) for r, n in zip(rooms, steps, strict=True)),
+        ]
+        if total > FIND_LIMIT:
+            lines.append(f"{total} rooms found, showing {FIND_LIMIT}")
+        return lines
 
     @AddParser(description="find rooms by name, area or flag")
     @AddArgument("text", help="a part of the room name", nargs="*", default=[])
@@ -591,7 +725,11 @@ class MapperPlugin(BasePlugin):
     @AddArgument("-f", "--flag", help="only rooms with this flag", default=None)
     @AddArgument("-u", "--unexplored", help="list rooms with unexplored exits", action="store_true")
     def _command_find(self) -> CommandResult:
-        """Find rooms."""
+        """Find rooms.
+
+        With a known current room the step counts are searched in a worker thread and the
+        table is sent to the client when they are ready.
+        """
         args = self._args()
         if args["unexplored"]:
             rooms = self.store.unexplored(args["area"])
@@ -602,45 +740,75 @@ class MapperPlugin(BasePlugin):
         if not rooms:
             return CommandResult(True, ["No rooms found"])
         shown = rooms[:FIND_LIMIT]
-        lines = ["uid | name | area | steps", *(self._room_line(r) for r in shown)]
-        if len(rooms) > FIND_LIMIT:
-            lines.append(f"{len(rooms)} rooms found, showing {FIND_LIMIT}")
-        return CommandResult(True, lines)
+        start = self.current_room
+        if start is None:
+            return CommandResult(True, self._find_lines(shown, len(rooms), ["-"] * len(shown)))
+        view = self.graph.freeze()
+        allowed = self._prejudged()
+        depth = int(self._setting("maxdepth"))
+        uids = [room["uid"] for room in shown]
 
-    def _path_for(self, target: str) -> tuple[Any, str]:
-        """Find the path from the current room, returning it or an error message."""
+        def work() -> list[str]:
+            counts: list[str] = []
+            for uid in uids:
+                found = find_path(view, start, uid, max_depth=depth, allowed=allowed)
+                counts.append(str(len(found.steps)) if found is not None else "-")
+            return counts
+
+        def done(counts: Any, error: Exception | None) -> None:
+            if error is not None:
+                self._tell(["the path search for find failed"])
+                return
+            self._tell(self._find_lines(shown, len(rooms), counts))
+
+        self._in_thread(work, done, "find")
+        return CommandResult(True, [f"{len(rooms)} rooms found, finding the steps"])
+
+    def _path_command(self, uid: str, done: Callable[[Any, Exception | None], None]) -> str:
+        """Start the search of a path command from the current room; return the reply."""
         if self.current_room is None:
-            return None, "the current room is not known"
-        result = self._find(self.current_room, target)
-        if result is None:
-            return None, f"no path to {target}"
-        return result, ""
+            return ""
+        self._search(self.current_room, uid, done, "path")
+        return f"finding a path to {uid}"
 
     @AddParser(description="send the whole path to a room at once")
     @AddArgument("uid", help="the room uid")
     def _command_goto(self) -> CommandResult:
         """Go to a room, sending the whole path through the movement callback."""
         uid = self._args()["uid"]
-        result, error = self._path_for(uid)
-        if result is None:
-            return CommandResult(False, [error])
-        commands = self._send_steps(result.steps)
-        return CommandResult(True, [f"going to {uid}: {', '.join(commands) or 'already there'}"])
+        reply = self._path_command(uid, partial(self._goto_found, self.current_room, uid))
+        if not reply:
+            return CommandResult(False, ["the current room is not known"])
+        return CommandResult(True, [reply])
+
+    def _goto_found(
+        self, start: str | None, uid: str, result: Any, error: Exception | None
+    ) -> None:
+        """Send the path found for goto, unless the character moved or there is no path."""
+        if error is not None:
+            self._tell([f"the path search to {uid} failed"])
+        elif self.current_room != start:
+            self._tell([f"not going to {uid}: you moved during the search"])
+        elif result is None:
+            self._tell([f"no path to {uid}"])
+        else:
+            commands = self._send_steps(result.steps)
+            self._tell([f"going to {uid}: {', '.join(commands) or 'already there'}"])
 
     @AddParser(description="walk to a room one step at a time")
     @AddArgument("uid", help="the room uid")
     def _command_walkto(self) -> CommandResult:
         """Start a walk."""
         uid = self._args()["uid"]
-        if self._api_walk_start(uid):
-            return CommandResult(True, [f"walking to {uid}"])
+        if self._start_walk(uid, True):
+            return CommandResult(True, [f"finding a path to {uid}"])
         return CommandResult(False, [f"could not start a walk to {uid}"])
 
     @AddParser(description="resume a stopped walk")
     def _command_resume(self) -> CommandResult:
         """Resume a stopped walk."""
-        if self._api_walk_restart():
-            return CommandResult(True, ["walk resumed"])
+        if self._restart_walk(True):
+            return CommandResult(True, [f"finding a path to {self.walk.target}"])
         return CommandResult(False, ["there is no stopped walk to resume"])
 
     @AddParser(description="stop the walk")
@@ -655,11 +823,20 @@ class MapperPlugin(BasePlugin):
     def _command_where(self) -> CommandResult:
         """Show a path."""
         uid = self._args()["uid"]
-        result, error = self._path_for(uid)
-        if result is None:
-            return CommandResult(False, [error])
-        directions = ", ".join(step.dir for step in result.steps) or "already there"
-        return CommandResult(True, [f"cost {result.cost}: {directions}"])
+        reply = self._path_command(uid, partial(self._where_found, uid))
+        if not reply:
+            return CommandResult(False, ["the current room is not known"])
+        return CommandResult(True, [reply])
+
+    def _where_found(self, uid: str, result: Any, error: Exception | None) -> None:
+        """Send the path found for where."""
+        if error is not None:
+            self._tell([f"the path search to {uid} failed"])
+        elif result is None:
+            self._tell([f"no path to {uid}"])
+        else:
+            directions = ", ".join(step.dir for step in result.steps) or "already there"
+            self._tell([f"cost {result.cost}: {directions}"])
 
     @AddParser(description="show a room, its exits and its note")
     @AddArgument("uid", help="the room uid, default the current room", nargs="?", default=None)

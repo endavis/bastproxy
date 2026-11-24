@@ -40,6 +40,8 @@ Example, after a game plugin has filled the map:
 
 ## Walking
 
+`find`, `goto`, `where`, `walkto` and `resume` search the path in the background. Each answers at once with a line such as "finding a path to X", and its result (the table, the path, or "no path") comes as a separate line after the search.
+
 A walk only starts when you run `walkto` (or a plugin calls `walk.start`); it never starts by itself. If the character ends up in a room the walk did not expect, the mapper finds a new path from there, up to 3 times, and then stops. A MUD disconnect stops a walk. `stop` keeps the target so `resume` can continue.
 
 ## Paths

@@ -1,5 +1,6 @@
 """Fixtures for the mapper tests: a shared test map and a stand-in plugin."""
 
+import asyncio
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
@@ -38,6 +39,7 @@ class Harness:
         self.client: list[Any] = []
         self.settings: dict[str, Any] = {"maxdepth": 300, "shownotes": True, "reroute": True}
         self.args: dict[str, Any] = {}
+        self.tasks: list[asyncio.Task[Any]] = []
 
     def names(self) -> list[str]:
         """Return the short names of the raised events."""
@@ -74,6 +76,8 @@ def harness(tmp_path: Path) -> Iterator[Harness]:
     plugin.current_room = None
     plugin.walk = Walk()
     plugin.requirement_callbacks = {}
+    plugin._search_token = 0
+    plugin._unload_token = 0
     plugin.movement_callbacks = {}
     db = create_database(OWNER, "map", TABLES, directory=tmp_path)
     plugin.store = MapStore(db)
@@ -83,8 +87,17 @@ def harness(tmp_path: Path) -> Iterator[Harness]:
     def raise_event(name: str, event_args: dict[str, Any] | None = None) -> None:
         h.events.append((name, dict(event_args or {})))
 
+    def add_task(coro: Any, _name: str = "") -> None:
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            asyncio.run(coro)
+            return
+        h.tasks.append(loop.create_task(coro))
+
     plugin.api = FakeApi(
         {
+            "libs.asynch:task.add": add_task,
             "plugins.core.events:event.raise": raise_event,
             "plugins.core.settings:setting.get": lambda _pid, name: h.settings[name],
             "plugins.core.commands:command.current.args.get": lambda: h.args,

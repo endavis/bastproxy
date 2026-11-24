@@ -1,5 +1,7 @@
 """Tests for the mapper plugin: APIs, change detection and walking."""
 
+import asyncio
+import threading
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
@@ -198,7 +200,7 @@ def test_walk_start_failures(test_map: Harness) -> None:
     assert p._api_walk_start("C") is False
     assert test_map.event("walk_failed")["reason"] == "current room unknown"
     p._api_room_current_set("A")
-    assert p._api_walk_start("nowhere") is False
+    assert p._api_walk_start("nowhere") is True
     assert test_map.event("walk_failed")["reason"] == "no path"
     assert test_map.mud == []
 
@@ -412,3 +414,201 @@ def test_events_have_descriptions(name: str) -> None:
     description, args = EVENTS[name]
     assert description
     assert args
+
+
+# searches in a worker thread
+def _blocking_find(gate: threading.Event, seen: list[int]) -> Any:
+    """Wrap find_path so it waits for ``gate`` in the worker thread."""
+    real = mapper_module.find_path
+
+    def blocked(*args: Any, **kwargs: Any) -> Any:
+        seen.append(threading.get_ident())
+        assert gate.wait(5)
+        return real(*args, **kwargs)
+
+    return blocked
+
+
+async def _finish(h: Harness) -> None:
+    await asyncio.wait_for(asyncio.gather(*h.tasks), 10)
+
+
+async def test_search_does_not_block_loop(
+    test_map: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The loop keeps running while a walk search waits in its worker."""
+    p = test_map.plugin
+    p._api_room_current_set("A")
+    gate = threading.Event()
+    seen: list[int] = []
+    monkeypatch.setattr(mapper_module, "find_path", _blocking_find(gate, seen))
+    assert p._api_walk_start("C") is True
+    assert p._api_walk_get()["state"] == "searching"
+    ran: list[bool] = []
+
+    async def other() -> None:
+        ran.append(True)
+        gate.set()
+
+    await asyncio.wait_for(other(), 5)
+    await _finish(test_map)
+    assert ran == [True]
+    assert seen
+    assert seen[0] != threading.get_ident()
+    assert "walk_started" in test_map.names()
+    assert test_map.mud == ["n"]
+
+
+async def test_graph_changes_during_search(
+    test_map: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Writes while the search waits do not change its result or the database match."""
+    p = test_map.plugin
+    p._api_room_current_set("A")
+    gate = threading.Event()
+    monkeypatch.setattr(mapper_module, "find_path", _blocking_find(gate, []))
+    p._api_walk_start("C")
+    p._api_exit_remove("A", "n")
+    p._api_room_remove("B")
+    p._api_exit_add("A", "x", "F")
+    gate.set()
+    await _finish(test_map)
+    steps = test_map.event("walk_started")["steps"]
+    assert [s["dir"] for s in steps] == ["n", "n"]
+    assert p.graph.snapshot() == p.store.load_graph().snapshot()
+
+
+async def test_requirement_callback_on_loop(
+    test_map: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The callback runs on the loop thread once per requirement in the map."""
+    p = test_map.plugin
+    p._api_exit_add("A", "up", "F", 1, {"level": 99})
+    threads: list[int] = []
+    asked: list[Any] = []
+
+    def callback(requirement: Any, _exit: dict[str, Any]) -> bool:
+        threads.append(threading.get_ident())
+        asked.append(requirement)
+        return False
+
+    p._api_requirement_register("t", callback)
+    p._api_room_current_set("A")
+    p._api_walk_start("C")
+    await _finish(test_map)
+    assert set(threads) == {threading.get_ident()}
+    assert sorted(asked, key=str) == [{"level": 50}, {"level": 99}]
+
+
+async def test_raising_callback_blocks_in_thread_search(test_map: Harness) -> None:
+    """A callback that raises blocks the exit for a threaded search."""
+    p = test_map.plugin
+
+    def broken(_r: Any, _e: dict[str, Any]) -> bool:
+        raise RuntimeError("boom")
+
+    p._api_requirement_register("t", broken)
+    p._api_room_current_set("D")
+    p._api_walk_start("E")
+    await _finish(test_map)
+    steps = test_map.event("walk_started")["steps"]
+    assert [s["dir"] for s in steps] == ["recall", "s"]
+
+
+async def test_clear_during_search_drops_result(
+    test_map: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """walk.clear stops the search; restart gives one walk_started."""
+    p = test_map.plugin
+    p._api_room_current_set("A")
+    gate = threading.Event()
+    monkeypatch.setattr(mapper_module, "find_path", _blocking_find(gate, []))
+    p._api_walk_start("C")
+    assert p._api_walk_clear("stopped") is True
+    assert p._api_walk_get()["state"] == "stopped"
+    gate.set()
+    await _finish(test_map)
+    assert "walk_started" not in test_map.names()
+    p._api_walk_start("C")
+    await _finish(test_map)
+    assert test_map.names().count("walk_started") == 1
+
+
+async def test_superseded_start_gives_one_walk_started(
+    test_map: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """clear then restart before the first search ends leaves a single walk_started."""
+    p = test_map.plugin
+    p._api_room_current_set("A")
+    gate = threading.Event()
+    monkeypatch.setattr(mapper_module, "find_path", _blocking_find(gate, []))
+    p._api_walk_start("C")
+    p._api_walk_clear("stopped")
+    assert p._api_walk_restart() is True
+    gate.set()
+    await _finish(test_map)
+    assert test_map.names().count("walk_started") == 1
+
+
+async def test_moved_during_search(test_map: Harness, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A move while searching fails the walk, which can be resumed."""
+    p = test_map.plugin
+    p._api_room_current_set("A")
+    gate = threading.Event()
+    monkeypatch.setattr(mapper_module, "find_path", _blocking_find(gate, []))
+    p._api_walk_start("C")
+    p._api_room_current_set("B")
+    gate.set()
+    await _finish(test_map)
+    assert test_map.event("walk_failed")["reason"] == "moved during search"
+    assert p._api_walk_get()["state"] == "stopped"
+    monkeypatch.undo()
+    assert p._api_walk_restart() is True
+    await _finish(test_map)
+    assert p._api_walk_get()["state"] == "walking"
+
+
+async def test_reroute_while_searching(test_map: Harness, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A second arrival during a reroute search is ignored."""
+    p = test_map.plugin
+    p._api_room_current_set("A")
+    p._api_walk_start("C")
+    await _finish(test_map)
+    test_map.tasks.clear()
+    gate = threading.Event()
+    monkeypatch.setattr(mapper_module, "find_path", _blocking_find(gate, []))
+    p._api_room_current_set("D")
+    assert p._api_walk_get()["state"] == "searching"
+    p._api_room_current_set("D")
+    gate.set()
+    await _finish(test_map)
+    assert p.walk.reroutes == 1
+    assert p._api_walk_get()["state"] == "walking"
+
+
+async def test_search_error_fails_walk(test_map: Harness, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A worker that raises is logged and fails the walk instead of hanging."""
+    p = test_map.plugin
+    p._api_room_current_set("A")
+
+    def boom(*_a: Any, **_k: Any) -> Any:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(mapper_module, "find_path", boom)
+    p._api_walk_start("C")
+    await _finish(test_map)
+    assert test_map.event("walk_failed")["reason"] == "search failed"
+    assert p._api_walk_get()["state"] == "stopped"
+
+
+async def test_unload_during_search(test_map: Harness, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A search that ends after unload does nothing."""
+    p = test_map.plugin
+    p._api_room_current_set("A")
+    gate = threading.Event()
+    monkeypatch.setattr(mapper_module, "find_path", _blocking_find(gate, []))
+    p._api_walk_start("C")
+    p._phook_mapper_uninitialize()
+    gate.set()
+    await _finish(test_map)
+    assert "walk_started" not in test_map.names()

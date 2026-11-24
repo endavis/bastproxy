@@ -11,6 +11,7 @@ This module imports nothing from bastproxy, so it is tested on its own.
 
 import heapq
 import itertools
+import json
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any
@@ -45,6 +46,11 @@ class Exit:
         }
 
 
+def requirement_key(requirement: Any) -> str:
+    """Return a stable string for a requirement, the same whatever its dict key order."""
+    return json.dumps(requirement, sort_keys=True)
+
+
 @dataclass
 class PathResult:
     """A found path: its total cost and the exits to take."""
@@ -54,15 +60,45 @@ class PathResult:
 
 
 class MapGraph:
-    """Rooms with flags and the exits between them, kept in memory."""
+    """Rooms with flags and the exits between them, kept in memory.
+
+    ``freeze`` hands out a view that a worker thread can read while the graph keeps
+    changing: the view shares the outer dicts and the next write copies them first
+    (copy-on-write). The per-room exit dicts are replaced on a write, never mutated,
+    so a shared outer dict never changes under a reader.
+    """
 
     def __init__(self) -> None:
         """Initialize an empty graph."""
         self._flags: dict[str, frozenset[str]] = {}
         self._exits: dict[str, dict[str, Exit]] = {}
+        self._shared = False
+        self._requirements: dict[str, Exit] = {}
+
+    def _unshare(self) -> None:
+        """Copy the outer dicts when a frozen view shares them."""
+        if self._shared:
+            self._flags = dict(self._flags)
+            self._exits = dict(self._exits)
+            self._shared = False
+
+    def freeze(self) -> "MapGraph":
+        """Return a view of the graph as it is now that no later write changes."""
+        view = object.__new__(MapGraph)
+        view._flags = self._flags
+        view._exits = self._exits
+        view._shared = True
+        view._requirements = dict(self._requirements)
+        self._shared = True
+        return view
+
+    def requirements(self) -> dict[str, Exit]:
+        """Return a sample exit for every distinct requirement ever set, by key."""
+        return dict(self._requirements)
 
     def set_room(self, uid: str, flags: Iterable[str] = ()) -> None:
         """Add a room or replace its flags."""
+        self._unshare()
         self._flags[uid] = frozenset(flags)
 
     def room_flags(self, uid: str) -> frozenset[str]:
@@ -75,19 +111,31 @@ class MapGraph:
 
     def remove_room(self, uid: str) -> None:
         """Remove a room and every exit from and to it."""
+        self._unshare()
         self._flags.pop(uid, None)
         self._exits.pop(uid, None)
-        for exits in self._exits.values():
-            for direction in [d for d, e in exits.items() if e.touid == uid]:
-                del exits[direction]
+        replacements: dict[str, dict[str, Exit]] = {}
+        for fromuid, exits in self._exits.items():
+            if any(e.touid == uid for e in exits.values()):
+                replacements[fromuid] = {d: e for d, e in exits.items() if e.touid != uid}
+        self._exits.update(replacements)
 
     def set_exit(self, exit_: Exit) -> None:
         """Add an exit or replace the exit with the same room and direction."""
-        self._exits.setdefault(exit_.fromuid, {})[exit_.dir] = exit_
+        self._unshare()
+        inner = dict(self._exits.get(exit_.fromuid, {}))
+        inner[exit_.dir] = exit_
+        self._exits[exit_.fromuid] = inner
+        if exit_.requirement is not None:
+            self._requirements.setdefault(requirement_key(exit_.requirement), exit_)
 
     def remove_exit(self, fromuid: str, direction: str) -> None:
         """Remove an exit if it exists."""
-        self._exits.get(fromuid, {}).pop(direction, None)
+        self._unshare()
+        if direction in self._exits.get(fromuid, {}):
+            inner = dict(self._exits[fromuid])
+            del inner[direction]
+            self._exits[fromuid] = inner
 
     def exits_from(self, uid: str) -> list[Exit]:
         """Return the exits stored for a room, not counting exits from anywhere."""

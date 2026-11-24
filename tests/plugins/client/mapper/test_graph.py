@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 
-from bastproxy.plugins.client.mapper.libs._graph import Exit, MapGraph, find_path
+from bastproxy.plugins.client.mapper.libs._graph import Exit, MapGraph, find_path, requirement_key
 
 
 def _graph() -> MapGraph:
@@ -138,3 +138,66 @@ def test_exit_to_dict() -> None:
         "cost": 2,
         "requirement": {"x": 1},
     }
+
+
+def _small_graph() -> MapGraph:
+    g = MapGraph()
+    for uid in "ABC":
+        g.set_room(uid)
+    g.set_exit(Exit("A", "n", "B"))
+    g.set_exit(Exit("B", "n", "C", 1, {"level": 5}))
+    return g
+
+
+def test_freeze_shares_until_write() -> None:
+    """A view shares the dicts until the original is written to."""
+    g = _small_graph()
+    view = g.freeze()
+    assert view._flags is g._flags
+    before = view.snapshot()
+    g.set_room("D")
+    assert view._flags is not g._flags
+    assert view.snapshot() == before
+
+
+def test_frozen_view_unchanged_by_every_write() -> None:
+    """set_exit, remove_exit and remove_room leave a view alone."""
+    for write in (
+        lambda g: g.set_exit(Exit("A", "s", "C")),
+        lambda g: g.set_exit(Exit("A", "n", "C")),
+        lambda g: g.remove_exit("A", "n"),
+        lambda g: g.remove_room("B"),
+    ):
+        g = _small_graph()
+        view = g.freeze()
+        before = view.snapshot()
+        write(g)
+        assert view.snapshot() == before
+        assert g.snapshot() != before
+        found = find_path(view, "A", "C", max_depth=9, allowed=lambda _e: True)
+        assert found is not None
+        assert found.cost == 2
+
+
+def test_two_freezes_stay_intact() -> None:
+    """Views taken at different times keep their own state."""
+    g = _small_graph()
+    first = g.freeze()
+    g.set_exit(Exit("A", "s", "C"))
+    second = g.freeze()
+    g.remove_room("C")
+    assert "s" in {e.dir for e in second.exits_from("A")}
+    assert "s" not in {e.dir for e in first.exits_from("A")}
+    assert second.has_room("C")
+    assert first.has_room("C")
+
+
+def test_requirement_index() -> None:
+    """The index keeps one entry per distinct requirement, even after removal."""
+    g = _small_graph()
+    g.set_exit(Exit("A", "e", "C", 1, {"level": 5}))
+    g.set_exit(Exit("A", "w", "C", 1, {"level": 9}))
+    assert len(g.requirements()) == 2
+    g.remove_room("C")
+    assert len(g.requirements()) == 2
+    assert requirement_key({"a": 1, "b": 2}) == requirement_key({"b": 2, "a": 1})

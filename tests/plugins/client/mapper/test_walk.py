@@ -61,3 +61,25 @@ def test_as_dict() -> None:
     data = _started().as_dict()
     assert set(data) == {"state", "target", "steps", "index", "reroutes"}
     assert data["steps"][0]["dir"] == "n"
+
+
+def test_searching_state() -> None:
+    """A search ignores arrivals, can be stopped and then restarted."""
+    walk = _started()
+    walk.searching("C", "A")
+    assert walk.as_dict()["state"] == "searching"
+    assert walk.steps == []
+    assert walk.arrived("B").kind == "ignored"
+    assert walk.stop() is True
+    assert walk.state == "stopped"
+    assert walk.can_restart()
+
+
+def test_reroute_sets_walking() -> None:
+    """A reroute after a search puts the walk back to walking."""
+    walk = Walk()
+    walk.start("C", STEPS, "A")
+    walk.searching("C", "B")
+    walk.reroute(STEPS[1:], "B")
+    assert walk.state == "walking"
+    assert walk.reroutes == 1
