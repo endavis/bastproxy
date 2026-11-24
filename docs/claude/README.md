@@ -232,6 +232,21 @@ The utils plugin holds shared formatting, time and value-conversion APIs.
 - Showing uptimes and durations
 - Validating setting values
 
+### 13. [Mapper System](mapper_system.md)
+
+The mapper plugin stores the map, finds paths and walks them. Game plugins adapt it.
+
+**Key Concepts:**
+- Rooms, exits and areas in one `map` database
+- Requirement and movement callbacks registered by a game plugin
+- Dijkstra pathfinding with exits from anywhere
+- Walking one step per confirmed arrival
+
+**Primary Use Cases:**
+- Finding a path between rooms
+- Walking to a room safely
+- Detecting that a room changed
+
 ## System Integration
 
 ### How the Systems Work Together
@@ -314,7 +329,8 @@ bastproxy/
 │       ├── timers_system.md
 │       ├── triggers_system.md
 │       ├── sqldb_system.md
-│       └── utils_system.md
+│       ├── utils_system.md
+│       └── mapper_system.md
 │
 └── data/                   # Runtime data
     ├── plugins/            # Plugin data

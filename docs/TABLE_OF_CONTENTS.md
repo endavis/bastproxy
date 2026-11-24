@@ -16,6 +16,8 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [GitHub Repository Settings](development/github-repository-settings.md) - Complete reference for all GitHub repository settings the template expects
 - [Keeping Up to Date](template/updates.md) - Stay in sync with improvements to the pyproject-template
 - [Loop](client/loop.md) - Run a line a number of times, with the counter in the line, through aliases and variables
+- [Mapper](client/mapper.md) - Find rooms, show paths and walk to a room with the mapper plugin, which game plugins feed with rooms and exits
+- [Mapper System](claude/mapper_system.md) - How the mapper plugin stores the map, finds paths and walks them, and what a game plugin adapter does
 - [Migration Guide](template/migration.md) - Migrate existing Python projects to use this template
 - [New Project Setup](template/new-project.md) - Create a new Python project from this template
 - [Substitutes](client/substitutes.md) - Rewrite text in MUD output before it reaches the client, keeping colour, with plain or regex matching
@@ -48,6 +50,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [ADR-0018: User actions substitute trigger groups into commands and escape matched text](decisions/0018-user-actions-substitute-trigger-groups-into-commands-and-escape-matched-text.md) - Actions put trigger groups into commands as %1-%9, %* and %<name>, and escape matched MUD text per part.
 - [ADR-0019: User substitutions rewrite MUD lines after triggers and keep colour codes](decisions/0019-user-substitutions-rewrite-mud-lines-after-triggers-and-keep-colour-codes.md) - Substitutions rewrite MUD lines at priority 60, after triggers, rebuilding colour codes token by token.
 - [ADR-0020: Client sends made while MUD data is processed follow its lines](decisions/0020-client-sends-made-while-mud-data-is-processed-follow-its-lines.md) - Client sends made while MUD data is processed are held and sent after the data's last line, in the order made.
+- [ADR-0021: The mapper owns the map and walking, and game plugins adapt it through callbacks](decisions/0021-the-mapper-owns-the-map-and-walking-and-game-plugins-adapt-it-through-callbacks.md) - The mapper plugin owns the map, pathfinding and walking; game plugins feed it rooms and register requirement and movement callbacks.
 - [ADR-9001: Use uv for package management](decisions/9001-use-uv-for-package-management.md) - Use uv for dependency management, virtual environments and package installation
 - [ADR-9002: Use doit for task automation](decisions/9002-use-doit-for-task-automation.md) - Use doit as the task runner for testing, linting, building and other routine operations
 - [ADR-9003: Use ruff for linting and formatting](decisions/9003-use-ruff-for-linting-and-formatting.md) - Use ruff as the one tool for linting and formatting, in place of flake8, black and isort
@@ -110,6 +113,8 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Logging System](claude/logging_system.md) - How bastproxy code logs through standard-library loggers, how thresholds and handlers route messages, and how to migrate from LogRecord
 - [Loop](client/loop.md) - Run a line a number of times, with the counter in the line, through aliases and variables
 - [LSP Tool and Diagnostic Noise](development/ai/lsp-tool.md) - What the LSP tool gives an AI agent, why pyright diagnostics arrive stale, and the two opt-outs agents can flip on themselves
+- [Mapper](client/mapper.md) - Find rooms, show paths and walk to a room with the mapper plugin, which game plugins feed with rooms and exits
+- [Mapper System](claude/mapper_system.md) - How the mapper plugin stores the map, finds paths and walks them, and what a game plugin adapter does
 - [Network Layer Analysis and Findings](claude/network_system_findings.md) - Audit of the network layer and its use of telnetlib3 - private API, deprecations, reimplemented features, patches, the 5.0.2 release, test coverage, the status of the open network issues and patterns, with defects and a patterns review
 - [Optional Extensions](development/extensions.md) - Additional tools and extensions for testing, security, and more
 - [Per-Stack Rule Files](development/ai/rule-files.md) - How to author, load and mirror the short self-check rule files in .claude/rules/
@@ -202,6 +207,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [ADR-0018: User actions substitute trigger groups into commands and escape matched text](decisions/0018-user-actions-substitute-trigger-groups-into-commands-and-escape-matched-text.md) - Actions put trigger groups into commands as %1-%9, %* and %<name>, and escape matched MUD text per part.
 - [ADR-0019: User substitutions rewrite MUD lines after triggers and keep colour codes](decisions/0019-user-substitutions-rewrite-mud-lines-after-triggers-and-keep-colour-codes.md) - Substitutions rewrite MUD lines at priority 60, after triggers, rebuilding colour codes token by token.
 - [ADR-0020: Client sends made while MUD data is processed follow its lines](decisions/0020-client-sends-made-while-mud-data-is-processed-follow-its-lines.md) - Client sends made while MUD data is processed are held and sent after the data's last line, in the order made.
+- [ADR-0021: The mapper owns the map and walking, and game plugins adapt it through callbacks](decisions/0021-the-mapper-owns-the-map-and-walking-and-game-plugins-adapt-it-through-callbacks.md) - The mapper plugin owns the map, pathfinding and walking; game plugins feed it rooms and register requirement and movement callbacks.
 - [ADR-9001: Use uv for package management](decisions/9001-use-uv-for-package-management.md) - Use uv for dependency management, virtual environments and package installation
 - [ADR-9002: Use doit for task automation](decisions/9002-use-doit-for-task-automation.md) - Use doit as the task runner for testing, linting, building and other routine operations
 - [ADR-9003: Use ruff for linting and formatting](decisions/9003-use-ruff-for-linting-and-formatting.md) - Use ruff as the one tool for linting and formatting, in place of flake8, black and isort
@@ -267,6 +273,8 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Logging System](claude/logging_system.md) - How bastproxy code logs through standard-library loggers, how thresholds and handlers route messages, and how to migrate from LogRecord
 - [Loop](client/loop.md) - Run a line a number of times, with the counter in the line, through aliases and variables
 - [LSP Tool and Diagnostic Noise](development/ai/lsp-tool.md) - What the LSP tool gives an AI agent, why pyright diagnostics arrive stale, and the two opt-outs agents can flip on themselves
+- [Mapper](client/mapper.md) - Find rooms, show paths and walk to a room with the mapper plugin, which game plugins feed with rooms and exits
+- [Mapper System](claude/mapper_system.md) - How the mapper plugin stores the map, finds paths and walks them, and what a game plugin adapter does
 - [Migration Guide](template/migration.md) - Migrate existing Python projects to use this template
 - [Network Layer Analysis and Findings](claude/network_system_findings.md) - Audit of the network layer and its use of telnetlib3 - private API, deprecations, reimplemented features, patches, the 5.0.2 release, test coverage, the status of the open network issues and patterns, with defects and a patterns review
 - [New Project Setup](template/new-project.md) - Create a new Python project from this template

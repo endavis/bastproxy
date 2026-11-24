@@ -169,3 +169,4 @@ The Issue contains the full discussion; the ADR summarizes the outcome.
 | [0018](0018-user-actions-substitute-trigger-groups-into-commands-and-escape-matched-text.md) | User actions substitute trigger groups into commands and escape matched text | Accepted |
 | [0019](0019-user-substitutions-rewrite-mud-lines-after-triggers-and-keep-colour-codes.md) | User substitutions rewrite MUD lines after triggers and keep colour codes | Accepted |
 | [0020](0020-client-sends-made-while-mud-data-is-processed-follow-its-lines.md) | Client sends made while MUD data is processed follow its lines | Accepted |
+| [0021](0021-the-mapper-owns-the-map-and-walking-and-game-plugins-adapt-it-through-callbacks.md) | The mapper owns the map and walking, and game plugins adapt it through callbacks | Accepted |

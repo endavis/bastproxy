@@ -1,0 +1,57 @@
+---
+title: Mapper
+description: Find rooms, show paths and walk to a room with the mapper plugin, which game plugins feed with rooms and exits
+audience:
+  - users
+  - contributors
+tags:
+  - client
+  - mapper
+---
+
+# Mapper
+
+The `plugins.client.mapper` plugin stores a map of rooms, exits and areas, finds the cheapest path between two rooms and walks it. It does not know any game: a game plugin has to feed it rooms and exits and tell it where the character is. Without one the map is empty. The map is a sqlite database under the proxy home, one per proxy home. How a game plugin does this, the APIs and the events are in the [mapper system](../claude/mapper_system.md) page, and the design is in [ADR-0021](../decisions/0021-the-mapper-owns-the-map-and-walking-and-game-plugins-adapt-it-through-callbacks.md).
+
+The plugin can be unloaded. Its commands are `#bp.client.mapper.<name>`.
+
+## Commands
+
+| Command | What it does |
+| :--- | :--- |
+| `find <text> [-a area] [-f flag] [-u]` | Lists rooms whose name has the text (case-insensitive), with uid, name, area and the steps from the current room. `-a` and `-f` filter by area and flag, `-u` lists rooms with unexplored exits. At most 50 are shown. |
+| `goto <uid>` | Sends the whole path to the MUD at once, through the game plugin's movement callback when it has one. |
+| `walkto <uid>` | Walks to the room one step at a time. Each step is sent after the previous one is confirmed. |
+| `stop` | Stops the walk and keeps its target. |
+| `resume` | Walks on to the target of a stopped walk, from the current room. |
+| `where <uid>` | Shows the directions and cost of the path without moving. |
+| `showroom [uid]` | Shows a room (default the current room): name, area, terrain, coordinates, flags, note and exits. |
+| `purge -r <uid>` or `purge -a <area>` | Removes a room, or an area with its rooms. |
+| `note [uid] [text...] [-d]` | Shows, sets or deletes a note. The first word is the room uid when that room is stored, otherwise the current room is used and every word is the note. |
+
+Example, after a game plugin has filled the map:
+
+```text
+#bp.client.mapper.find fountain -a example
+#bp.client.mapper.walkto 1234
+#bp.client.mapper.stop
+#bp.client.mapper.resume
+```
+
+## Walking
+
+A walk only starts when you run `walkto` (or a plugin calls `walk.start`); it never starts by itself. If the character ends up in a room the walk did not expect, the mapper finds a new path from there, up to 3 times, and then stops. A MUD disconnect stops a walk. `stop` keeps the target so `resume` can continue.
+
+## Paths
+
+The path is the cheapest by exit cost. Exits from anywhere (portals and recall) are used when the room allows them, and the game plugin decides which exits the character may take. The `maxdepth` setting limits the number of steps: a room whose cheapest route is longer than the limit is reported as unreachable, even if a costlier but shorter route exists.
+
+## Settings
+
+Set with `#bp.client.mapper.set <name> <value>`.
+
+| Setting | Default | Meaning |
+| :--- | :--- | :--- |
+| `maxdepth` | 300 | the most steps a path may have |
+| `shownotes` | True | show a room's note when entering it |
+| `reroute` | True | find a new path when a walk ends up elsewhere |
