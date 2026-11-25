@@ -258,6 +258,8 @@ class WebPlugin(BasePlugin):
         handler: Callable[..., Any],
         title: str,
         columns: list[dict[str, str]] | None = None,
+        *,
+        listed: bool = True,
     ) -> str | None:
         """Serve a page at ``/<plugin path>/<subpath>`` for a logged in browser.
 
@@ -268,6 +270,7 @@ class WebPlugin(BasePlugin):
         @Ycolumns@w   = for a table route, a list of dicts with name, label and type
                         (text, int or float); the handler then gets ``request.table`` and
                         returns a ``table`` dict
+        @Ylisted@w    = False keeps the route out of the index at /; it is still served
 
         The path comes from the plugin id: plugins.aardwolf.mapper is served at
         /aardwolf/mapper/<subpath>. Returns the path, or None (and logs an error) when the
@@ -281,7 +284,7 @@ class WebPlugin(BasePlugin):
             error = f"{owner} is not a plugin id"
         else:
             try:
-                return self.routes.add(owner, subpath, handler, title, columns)
+                return self.routes.add(owner, subpath, handler, title, columns, listed=listed)
             except ValueError as exc:
                 error = str(exc)
         log_to(

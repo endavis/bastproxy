@@ -19,14 +19,30 @@ def handler(request: Any) -> dict[str, Any]:
     return {"kind": "json", "data": 1}
 
 
-def add(stub: Any, owner: str = OWNER, subpath: str = "area") -> str | None:
-    result: str | None = WebPlugin._api_web_route_add(stub, owner, subpath, handler, "Area")
+def add(stub: Any, owner: str = OWNER, subpath: str = "area", **kwargs: Any) -> str | None:
+    result: str | None = WebPlugin._api_web_route_add(
+        stub, owner, subpath, handler, "Area", **kwargs
+    )
     return result
 
 
 def test_a_route_is_added_under_the_owner_prefix(stub: Any) -> None:
     assert add(stub) == "/test/caller/area"
     assert stub.routes.match("/test/caller/area") is not None
+
+
+def test_listed_defaults_to_true_and_can_be_turned_off(stub: Any) -> None:
+    assert add(stub, subpath="one") == "/test/caller/one"
+    assert add(stub, subpath="two", listed=False) == "/test/caller/two"
+    assert stub.routes.match("/test/caller/one").listed is True
+    assert stub.routes.match("/test/caller/two").listed is False
+
+
+def test_unload_removes_unlisted_routes_too(stub: Any) -> None:
+    add(stub, subpath="one", listed=False)
+    stub.unloaded = OWNER
+    WebPlugin._eventcb_plugin_unloaded(stub)
+    assert stub.routes.count() == 0
 
 
 def test_the_owner_must_be_the_caller(stub: Any, caplog: pytest.LogCaptureFixture) -> None:
@@ -182,6 +198,12 @@ async def test_status_shows_routes_by_owner_and_sessions(stub: Any) -> None:
     text = status_text(stub)
     assert "Routes        : 3 - plugins.test.caller (2), plugins.test.other (1)" in text
     assert "Sessions      : 1" in text
+
+
+async def test_status_counts_unlisted_routes(stub: Any) -> None:
+    add(stub, subpath="one")
+    add(stub, subpath="two", listed=False)
+    assert "Routes        : 2 - plugins.test.caller (2)" in status_text(stub)
 
 
 async def test_status_with_no_routes(stub: Any) -> None:

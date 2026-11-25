@@ -51,6 +51,7 @@ WEB_ROUTES: dict[str, str] = {
     "room": "Room",
     "find": "Find rooms",
 }
+UNLISTED_WEB_ROUTES: frozenset[str] = frozenset({"area", "room"})
 
 EVENT_PREFIX = "ev_plugins.client.mapper_"
 EVENTS: dict[str, tuple[str, dict[str, str]]] = {
@@ -163,7 +164,14 @@ class MapperPlugin(BasePlugin):
         self.web_paths = {}
         for subpath, title in WEB_ROUTES.items():
             handler, columns = handlers[subpath]
-            path = add(self.plugin_id, subpath, handler, title, columns)
+            path = add(
+                self.plugin_id,
+                subpath,
+                handler,
+                title,
+                columns,
+                listed=subpath not in UNLISTED_WEB_ROUTES,
+            )
             if path:
                 self.web_paths[subpath] = path
 
