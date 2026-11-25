@@ -11,6 +11,7 @@ from bastproxy.plugins.core.proxy.plugin._proxy import ProxyPlugin
 
 def test_callback_builds_a_literal_regex(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(API, "command_split_regex", None)
+    monkeypatch.setattr(API, "command_separator", "|")  # restored on teardown
     stub = MagicMock()
     stub.api.__class__ = API
     stub.api.side_effect = lambda _name: lambda *_a, **_k: {"newvalue": "."}
@@ -24,6 +25,7 @@ def test_callback_builds_a_literal_regex(monkeypatch: pytest.MonkeyPatch) -> Non
 
 def test_callback_publishes_the_separator(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(API, "command_separator", "|")
+    monkeypatch.setattr(API, "command_split_regex", None)  # restored on teardown
     stub = MagicMock()
     stub.api.__class__ = API
     stub.api.side_effect = lambda _name: lambda *_a, **_k: {"newvalue": ";"}
