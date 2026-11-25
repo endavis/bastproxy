@@ -52,7 +52,7 @@ Example: `#bp.client.actions.add dead '^(\w+) is dead' stand||kill %1`.
 
 ## Variables in commands
 
-Each part of the command goes through the input path, so `%{name}` in a command is expanded by the [variables](variables.md) plugin, and `%%{name}` reaches the MUD as `%{name}`.
+Each part of the command goes through the input path, so `%{name}` in a command is expanded by the [variables](variables.md) plugin, and `%%{name}` reaches the MUD as `%{name}`. In a part that starts with the command prefix, matched text is quoted but its `%{` is not escaped, so a matched `%{name}` is expanded when the target command does not keep its arguments literal (see [Command arguments](variables.md#command-arguments); tracked in #816).
 
 ## How matched text is escaped
 

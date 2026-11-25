@@ -111,7 +111,7 @@ class LoopPlugin(BasePlugin):
             return False
         return done > 0
 
-    @AddCommand(default=True)
+    @AddCommand(default=True, literal_args=True)
     @AddParser(description="run a line a number of times, with %1 as the counter")
     @AddArgument("count", help="how many times, 1 to 50")
     @AddArgument("template", help="the line to run, %%1 is the counter", nargs="*")

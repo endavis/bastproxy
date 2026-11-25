@@ -43,6 +43,50 @@ from bastproxy.plugins.core.commands.libs._command import (
 )
 from bastproxy.plugins.core.events import RegisterToEvent
 
+COMMAND_ARGS_MODIFY_EVENT = "ev_plugins.core.commands_args_modify"
+
+
+def modify_command_args(
+    api: Callable[[str], Callable[..., Any]],
+    command_item: CommandClass,
+    command_args: str,
+    event_record: Any,
+) -> str:
+    """Let event callbacks rewrite a command's argument string (#776).
+
+    Only the returned string changes; the line in the event record, and so the
+    history, stays as typed.
+    """
+    try:
+        processed_event = api("plugins.core.events:event.raise")(
+            COMMAND_ARGS_MODIFY_EVENT,
+            event_args={
+                "plugin_id": command_item.plugin_id,
+                "command": command_item.name,
+                "args": command_args,
+                "client_id": event_record["client_id"],
+            },
+        )
+    except Exception:
+        # the command still runs, with its arguments as typed
+        log_to(
+            ["plugins.core.commands"],
+            logging.ERROR,
+            "Could not raise %s for %s.%s",
+            COMMAND_ARGS_MODIFY_EVENT,
+            command_item.plugin_id,
+            command_item.name,
+            exc_info=True,
+        )
+        return command_args
+    if processed_event is None:
+        return command_args
+    new_args = processed_event.event_data.get("args")
+    if not isinstance(new_args, str) or new_args == command_args:
+        return command_args
+    event_record.addupdate(UpdateFlag.MODIFY, "command arguments modified", savedata=False)
+    return new_args
+
 
 def validate_cmdprefix(value: str) -> str:
     """Validate a command prefix; return an error message, or "" when valid.
@@ -250,6 +294,20 @@ class CommandsPlugin(BasePlugin):
             True,
             bool,
             "include the date in the output of a command",
+        )
+        self.api("plugins.core.events:event.add")(
+            COMMAND_ARGS_MODIFY_EVENT,
+            self.plugin_id,
+            description=[
+                "Raised before a command parses its arguments so callbacks can rewrite them",
+                "Not raised for a command declared with literal_args",
+            ],
+            arg_descriptions={
+                "plugin_id": "The plugin id of the command",
+                "command": "The command name",
+                "args": "The argument string; callbacks may replace it",
+                "client_id": "The client that sent the line",
+            },
         )
 
     @AddAPI("command.indent.get", description="indent for commands")
@@ -1286,6 +1344,15 @@ class CommandsPlugin(BasePlugin):
                     get_logger(self.plugin_id).debug(
                         "found command %s.%s", command_item.plugin_id, command_item.name
                     )
+
+                    if (
+                        command_args
+                        and not command_item.literal_args
+                        and not event_record["line"].mask_log
+                    ):
+                        command_args = modify_command_args(
+                            self.api, command_item, command_args, event_record
+                        )
 
                     result = command_item.run(command_args, format=command_item.format)
                     success, error = result.success, result.reason

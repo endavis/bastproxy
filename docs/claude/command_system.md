@@ -57,7 +57,7 @@ Represents a single command:
 ```python
 class CommandClass:
     def __init__(self, plugin_id, name, function, arg_parser,
-                 format=True, group=None, preamble=True, show_in_history=True, shelp="", default=False):
+                 format=True, group=None, preamble=True, show_in_history=True, shelp="", default=False, literal_args=False):
         self.plugin_id = plugin_id          # Owning plugin
         self.name = name                    # Command name
         self.function = function            # Bound method to execute
@@ -65,6 +65,7 @@ class CommandClass:
         self.group = group or ""            # the plugin sets the plugin id when no group is given
         self.show_in_history = show_in_history   # read by find_command: False = not recorded in the history
         self.default = default              # read by find_command: True = runs on a bare #bp.<plugin> (#778)
+        self.literal_args = literal_args    # True = the argument string is not offered to ev_plugins.core.commands_args_modify (#776)
         self.format = format                # read when a client types the command: False = output not framed
         self.preamble = preamble            # read by format_return_message: False = no Begin/End Command lines
         self.full_cmd = "#bp.core.commands.list"  # the prefix, plugin and name, as typed
@@ -165,6 +166,7 @@ The system:
 3. Matches the package and the plugin (fuzzy, loaded plugins only), then the command. With no command typed, the
    plugin's default command runs (#778), or the plugin's help shows when it has none. Otherwise: an exact name, else the
    only name that starts with the text, else the best `token_set_ratio` score above 80 if it is unique
+3a. Raises `ev_plugins.core.commands_args_modify` (args `plugin_id`, `command`, `args`, `client_id`) so a callback can rewrite the argument string. The variables plugin expands `%{name}` there (#776). It is skipped for a command with `literal_args`, for an empty argument string and for a `mask_log` line. Only the string passed to the command changes; the history keeps the typed line.
 4. Parses arguments with `shlex` and argparse; an unknown argument or an abbreviated option is an error, reported with the command's help.
    A lone `help` acts as `-h` when the command has no positional argument (#791); with a positional, the word
    is the positional's value, because it could be meant as one
@@ -242,6 +244,7 @@ Marks a method as a command:
     shelp="Short help text",    # One-line help
     autoadd=True,               # False: do not register at load (add with command.add.by.func, force=True)
     default=True,               # run on a bare #bp.<plugin>; one per plugin
+    literal_args=True,          # keep the argument string as typed: no args-modify event (#776)
 )
 ```
 

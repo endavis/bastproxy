@@ -347,6 +347,7 @@ class SubstitutesPlugin(BasePlugin):
         if changed:
             line.line = self.api("plugins.core.colors:colorcode.to.ansicode")(text)
 
+    @AddCommand(literal_args=True)
     @AddParser(description="add a substitution or change it")
     @AddArgument("-r", "--regex", help="read the pattern as a regex", action="store_true")
     @AddArgument(
@@ -383,6 +384,7 @@ class SubstitutesPlugin(BasePlugin):
             ],
         )
 
+    @AddCommand(literal_args=True)
     @AddParser(description="remove a substitution")
     @AddArgument("name", help="the substitution name")
     def _command_remove(self) -> CommandResult:
@@ -393,7 +395,7 @@ class SubstitutesPlugin(BasePlugin):
             return CommandResult(True, [f"substitution {name} removed"])
         return CommandResult(False, [f"substitution {name} does not exist"])
 
-    @AddCommand(default=True)
+    @AddCommand(default=True, literal_args=True)
     @AddParser(description="list substitutions")
     @AddArgument(
         "match",
@@ -419,6 +421,7 @@ class SubstitutesPlugin(BasePlugin):
             )
         return CommandResult(True, lines)
 
+    @AddCommand(literal_args=True)
     @AddParser(description="remove every substitution")
     def _command_clear(self) -> CommandResult:
         """Remove every substitution."""

@@ -312,6 +312,7 @@ class AliasesPlugin(BasePlugin):
         )
         return outcome == "resend"
 
+    @AddCommand(literal_args=True)
     @AddParser(description="add an alias or change its expansion")
     @AddArgument("-g", "--group", help="the group of the alias", default="")
     @AddArgument("-d", "--disabled", help="add the alias disabled", action="store_true")
@@ -375,6 +376,7 @@ class AliasesPlugin(BasePlugin):
             "the cmdseperator setting of plugins.core.proxy"
         )
 
+    @AddCommand(literal_args=True)
     @AddParser(description="remove an alias")
     @AddArgument("name", help="the alias name or id")
     def _command_remove(self) -> CommandResult:
@@ -385,7 +387,7 @@ class AliasesPlugin(BasePlugin):
             return CommandResult(True, [f"alias {name} removed"])
         return CommandResult(False, [f"alias {args['name']} does not exist"])
 
-    @AddCommand(default=True)
+    @AddCommand(default=True, literal_args=True)
     @AddParser(description="list aliases")
     @AddArgument(
         "match",
@@ -433,6 +435,7 @@ class AliasesPlugin(BasePlugin):
             return (True, [f"alias {resolved} {word}"])
         return (False, [f"alias {name} does not exist"])
 
+    @AddCommand(literal_args=True)
     @AddParser(description="enable an alias or a group of aliases")
     @AddArgument("name", help="the alias name or id", default="", nargs="?")
     @AddArgument("-g", "--group", help="enable this group instead", default="")
@@ -441,6 +444,7 @@ class AliasesPlugin(BasePlugin):
         success, lines = self._set_enabled(True)
         return CommandResult(success, lines)
 
+    @AddCommand(literal_args=True)
     @AddParser(description="disable an alias or a group of aliases")
     @AddArgument("name", help="the alias name or id", default="", nargs="?")
     @AddArgument("-g", "--group", help="disable this group instead", default="")
@@ -449,6 +453,7 @@ class AliasesPlugin(BasePlugin):
         success, lines = self._set_enabled(False)
         return CommandResult(success, lines)
 
+    @AddCommand(literal_args=True)
     @AddParser(description="toggle an alias or a group of aliases")
     @AddArgument("name", help="the alias name or id", default="", nargs="?")
     @AddArgument("-g", "--group", help="toggle this group instead", default="")
@@ -468,6 +473,7 @@ class AliasesPlugin(BasePlugin):
         success, lines = self._set_enabled(enabled)
         return CommandResult(success, lines)
 
+    @AddCommand(literal_args=True)
     @AddParser(description="show an alias")
     @AddArgument("name", help="the alias name or id")
     def _command_show(self) -> CommandResult:
