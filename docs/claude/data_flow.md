@@ -297,10 +297,10 @@ An exception in a callback is caught and logged by `Event.raise_priority()`. The
 
 ### Core listeners
 
-Commands, watch and triggers register at the default priority, 50. Aliases registers at 55 and variables at 60, so both run after commands, aliases first. On `ev_to_client_data_modify`, substitutes registers at 60, after triggers.
+Commands and triggers register at the default priority, 50. Watch registers at 52, after commands and before aliases (55) and variables (60), so a watch rewrite is not run as a proxy command but is still expanded. Aliases run before variables. On `ev_to_client_data_modify`, substitutes registers at 60, after triggers.
 
 - **Commands** (`src/bastproxy/plugins/core/commands/plugin/_commands.py`, `_eventcb_check_for_command`): a line starting with the command prefix (`#bp`) is run as a proxy command, its `send` flag is cleared and the output is sent to the client. Other lines pass through. Lines not from the proxy are added to the command history when `showinhistory` is set.
-- **Watch** (`src/bastproxy/plugins/core/watch/plugin/_watch.py`, `_eventcb_check_command`): meant to match client input against registered watch regexes and raise a per-watch event. It skips lines that are not I/O (such as `COMMAND-TELNET`) and matches each regex against the line's text; the raised event's `data` argument is that text.
+- **Watch** (`src/bastproxy/plugins/core/watch/plugin/_watch.py`, `_eventcb_check_command`): priority 52: matches client input against registered watch regexes and raises a per-watch event. It skips lines that are not I/O (such as `COMMAND-TELNET`) and matches each regex against the line's text stripped of surrounding whitespace; the raised event's `data` argument is that stripped text. The event also carries `line`, the `NetworkDataLine`: a callback sets `line.line` to rewrite it or `line.send = False` to stop it, and the plugin records a MODIFY update on the event record. See [Watching client input](../plugin-developer-guide.md#watching-client-input).
 - **Triggers** (`src/bastproxy/plugins/core/triggers/plugin/_triggers.py`, `_eventcb_check_trigger`): skips internal lines, matches `line.noansi` (MXP markup already stripped for lines with an `mxp_mode`) against one combined regex of all triggers, and raises the matching trigger events. Triggers can gag or change the line.
 - **Aliases** (`src/bastproxy/plugins/client/aliases/plugin/_aliases.py`, `_eventcb_expand_line`, priority 55): replaces the first word of a client line that is sent, not masked and not a command line, when it is an enabled alias, or `name.tail` where `name` is an enabled alias that starts with the command prefix (`map.find` runs `#bp.client.mapper.find`). A single-line expansion rewrites the line in place. An expansion with the command separator or the command prefix sets `send` to False and goes back through `command.line.run`, and the re-sent lines are sent in the alias line's place (#714). See [Aliases](../client/aliases.md).
 - **Variables** (`src/bastproxy/plugins/client/variables/plugin/_variables.py`, `_eventcb_expand_line`, priority 60): expands `%{name}` references in client lines that are sent, not masked and not command lines. See [Variables](../client/variables.md).
@@ -316,7 +316,7 @@ Commands, watch and triggers register at the default priority, 50. Aliases regis
     └─ ProcessDataToMud(NetworkData(NetworkDataLine("say hello", originated="client")))()
          ├─ seperate_commands()                 split on the command separator
          ├─ raise ev_to_mud_data_modify          commands: "#bp..." → run, send=False
-         │                                       watch: match watch regexes
+         │                                       watch: match watch regexes, may rewrite/stop
          └─ SendDataDirectlyToMud(...)()
               ├─ lock message; per line: format() → "say hello\r\n", lock()
               ├─ MudConnection.send_to(line)     → send_queue
