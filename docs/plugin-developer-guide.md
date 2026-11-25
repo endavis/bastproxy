@@ -697,3 +697,18 @@ Notes:
 - A wait resolves to `None` on a timeout or an error (logged); it does not raise.
 
 Details: [triggers system](claude/triggers_system.md#waiting-for-output).
+
+## Serving web pages
+
+To show output that is too long for the client, publish it as a page and reply with the link. The web server is off by default, so the API returns `""` when it is not enabled.
+
+```python
+    url = self.api("plugins.core.web:web.page.add")(self.plugin_id, "My report", lines)
+    if not url:
+        return CommandResult(True, ["the web server is not enabled (#bp.core.web.set enabled true)"])
+    return CommandResult(True, [f"Report: {url}"])
+```
+
+`lines` holds `@@` colour codes; the page is HTML-escaped and colour-converted for you. The link is the credential and expires after an hour.
+
+Details: [web system](claude/web_system.md).

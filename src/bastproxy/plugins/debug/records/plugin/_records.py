@@ -156,6 +156,15 @@ class RecordPlugin(BasePlugin):
 
         return CommandResult(True, tmsg)
 
+    def _web_link(self, uid: str, data: list[str]) -> str:
+        """Publish the record detail as a web page and return the reply line."""
+        if not self.api("libs.api:api.exists")("plugins.core.web:web.page.add"):
+            return "the web plugin is not loaded"
+        url = self.api("plugins.core.web:web.page.add")(self.plugin_id, f"Record {uid}", data)
+        if not url:
+            return "the web server is not enabled (#bp.core.web.set enabled true)"
+        return f"Record detail: {url}"
+
     @AddParser(description="get details of a specific record")
     @AddArgument("uid", help="the uid of the record", default="", nargs="?")
     @AddArgument("-u", "--update", help="the update uuid", default="")
@@ -201,6 +210,13 @@ class RecordPlugin(BasePlugin):
         action="store_true",
         default=False,
     )
+    @AddArgument(
+        "-w",
+        "--web",
+        help="reply with a link to a web page of the record",
+        action="store_true",
+        default=False,
+    )
     def _command_detail(self) -> CommandResult:
         """Get the details of a specific record."""
         args = self.api("plugins.core.commands:command.current.args.get")()
@@ -232,6 +248,9 @@ class RecordPlugin(BasePlugin):
             if self.api("plugins.core.settings:setting.get")(self.plugin_id, SHOW_LOG_SETTING):
                 data = [*data, *_format_record_logs(record.uuid)]
 
+            if args.get("web"):
+                tmsg.append(self._web_link(args["uid"], data))
+
             if args["dump"]:
                 save_path = self.api.BASEDATAPATH / "dumps"
                 save_path.mkdir(parents=True, exist_ok=True)
@@ -242,7 +261,7 @@ class RecordPlugin(BasePlugin):
                     f.write("\n".join(data))
 
                 tmsg.append(f"Record dumped to {file_path}")
-            else:
+            elif not args.get("web"):
                 tmsg.extend(data)
 
         return CommandResult(True, tmsg)

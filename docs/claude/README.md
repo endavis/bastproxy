@@ -247,6 +247,19 @@ The mapper plugin stores the map, finds paths and walks them. Game plugins adapt
 - Walking to a room safely
 - Detecting that a room changed
 
+### 14. [Web System](web_system.md)
+
+The web plugin runs a GET-only HTTP server that plugins publish pages through. It is off by default.
+
+**Key Concepts:**
+- `web.page.add` stores a page behind an unguessable, expiring link
+- Plain HTTP only on loopback, TLS from a certificate file that reloads when it changes
+- Escaped, colour-converted pages under a strict Content-Security-Policy
+
+**Primary Use Cases:**
+- Showing output that is too long for the client, such as a record detail
+- Opening a page in a browser from another machine
+
 ## System Integration
 
 ### How the Systems Work Together
@@ -330,7 +343,8 @@ bastproxy/
 │       ├── triggers_system.md
 │       ├── sqldb_system.md
 │       ├── utils_system.md
-│       └── mapper_system.md
+│       ├── mapper_system.md
+│       └── web_system.md
 │
 └── data/                   # Runtime data
     ├── plugins/            # Plugin data
