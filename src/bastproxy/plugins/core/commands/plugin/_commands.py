@@ -751,6 +751,23 @@ class CommandsPlugin(BasePlugin):
                 line, owner_id=owner_id, client_id=client_id, show_in_history=show_in_history
             )
 
+    @AddAPI(
+        "command.literal.args.get",
+        description="check if a command line keeps its arguments literal",
+    )
+    def _api_command_literal_args_get(self, line: str) -> bool | None:
+        """Check if the command a line would run keeps its arguments literal.
+
+        @Yline@w  = the command line, with or without leading whitespace
+
+        Returns True for a command declared literal_args, False for a command whose
+        arguments are offered to the args-modify event, None if no command matches.
+        """
+        lookup = self.find_command(line.lstrip())
+        if lookup.command is None:
+            return None
+        return bool(lookup.command.literal_args)
+
     @AddAPI("command.run", description="run a command and return the output")
     def _api_command_run(
         self, plugin_id: str, command_name: str, argument_string: str = "", format: bool = False

@@ -18,6 +18,7 @@ The `plugins.client.variables` plugin stores named string values and expands `%{
 - A reference is `%{name}`. A name is letters, digits and underscores, does not start with a digit, and is case-sensitive.
 - `%%{name}` is an escape: it is sent as the literal `%{name}`. Only a doubled `%` directly before a valid `{name}` is touched, so `100%%` and `%%{ x` are sent as typed.
 - A reference to an undefined variable stays as typed.
+- Matched text an [action](actions.md) puts into a `#bp` command has its `%{` escaped for a command that expands, so it is never read as a variable (#816). A literal command gets it unchanged.
 - Expansion is a single pass. A value that contains `%{other}` is sent as is, so a variable cannot loop.
 
 Example: after `#bp.client.variables.add target orc`, the line `kill %{target}` is sent as `kill orc`.

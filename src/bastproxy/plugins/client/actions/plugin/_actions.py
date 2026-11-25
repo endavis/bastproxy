@@ -87,6 +87,7 @@ def expand_command(
     prefix: str,
     is_alias: Callable[[str], bool] | None = None,
     alias_resends: Callable[[str], bool] | None = None,
+    expands_args: Callable[[str], bool] | None = None,
     colorline: str = "",
 ) -> list[str] | None:
     """Split a stored command into parts and substitute the matched text in each.
@@ -108,6 +109,10 @@ def expand_command(
       would be split or reach a proxy command unescaped;
     - a value substituted into a proxy command part starts with ``-``, which the
       command would read as an option.
+
+    In a proxy command part holding matched text, ``%{`` from the match is escaped
+    to ``%%{`` when ``expands_args`` says the command expands variable references
+    in its arguments, so the command gets the text as matched.
     """
     parts = regex.split(split_regex, command) if split_regex else [command]
     result: list[str] = []
@@ -116,6 +121,7 @@ def expand_command(
         escape = _escape_command if is_command else _escape_mud
         segments: list[tuple[str, bool]] = []
         option_like = False
+        has_match_text = False
         position = 0
         for match in ACTION_REF_RE.finditer(part):
             segments.append((part[position : match.start()], False))
@@ -136,12 +142,16 @@ def expand_command(
             text_value = "" if value is None else str(value)
             if is_command and _clean(text_value, separator).lstrip().startswith("-"):
                 option_like = True
+            has_match_text = has_match_text or bool(text_value)
             segments.append((escape(text_value, separator), True))
         segments.append((part[position:], False))
         if is_command:
             if option_like:
                 return None
-            result.append("".join(text for text, _ in segments))
+            command_text = "".join(text for text, _ in segments)
+            if expands_args is not None and has_match_text and expands_args(command_text):
+                command_text = _escape_references(segments)
+            result.append(command_text)
             continue
         text = _escape_references(segments)
         if starts_with_command_prefix(text, prefix):
@@ -538,6 +548,15 @@ class ActionsPlugin(BasePlugin):
             return False
         return bool(self.api(location)(text))
 
+    def _expands_command_args(self, text: str) -> bool:
+        """Check if text is a command whose arguments get variable references expanded.
+
+        False without the variables plugin, since nothing would undo the escape.
+        """
+        if not self.api("libs.api:api.exists")("plugins.client.variables:variable.get"):
+            return False
+        return self.api("plugins.core.commands:command.literal.args.get")(text) is False
+
     def _trigger_matched(self) -> None:
         """Run the command of the action whose trigger fired."""
         record = self.api("plugins.core.events:event.current.record.get")()
@@ -566,6 +585,7 @@ class ActionsPlugin(BasePlugin):
                 prefix=self.api("plugins.core.commands:command.prefix.get")(),
                 is_alias=self._is_alias,
                 alias_resends=self._alias_resends,
+                expands_args=self._expands_command_args,
                 colorline=colorline,
             )
             if parts is None:
