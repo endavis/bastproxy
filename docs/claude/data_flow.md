@@ -459,6 +459,29 @@ The inspection commands live in `plugins.debug.records`, which is not loaded by 
 
 Every line these commands print is itself a `NetworkDataLine`, so a long `detail` or `children` listing adds many records and can push the record you are looking for out of the store. Look up the UUIDs you need right after the data of interest arrives.
 
+### Inspecting GMCP
+
+The GMCP commands live in `plugins.debug.gmcp`, which is not loaded by default (#784):
+
+```
+#bp.core.pluginm.load plugins.debug.gmcp
+#bp.debug.gmcp.cache                          the cached GMCP modules
+#bp.debug.gmcp.cache Char.Vitals              one cached value as indented JSON
+#bp.debug.gmcp.cache Char.Vitals.hp           a dotted path into a cached value
+#bp.debug.gmcp.send "request char"            send a bare package to the MUD
+#bp.debug.gmcp.send Char.Test {"a": 1}        send a package with JSON data
+```
+
+`cache` reads `gmcp.cache.get` (the listing) and `gmcp.value.get` (one value, so the longest cached
+prefix of the path is used); a module that is not cached fails. `send` goes through
+`libs.net.protocols:gmcp.send`, so it needs a MUD link with GMCP enabled and fails otherwise (the API
+logs the reason). Everything after the package is the JSON as typed; a quoted package such as
+`"request char"` works, and the single-quoted form `'{"a": 1}'` is accepted too. Invalid JSON sends
+nothing. `send` is a `literal_args` command (a `%{name}` in the JSON is not expanded) and stays out
+of the command history. Known limitation: an unquoted JSON string that starts with `-` after
+whitespace is read as an option by the argument parser, so single-quote it. Output lines are
+colour-escaped, since the data comes from the MUD.
+
 ## Async Queue Pattern
 
 Both connection classes write through an `asyncio.Queue`:

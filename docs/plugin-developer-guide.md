@@ -567,6 +567,10 @@ package. It returns `True` when sent and `False` (with a logged warning, never a
 there is no MUD link or GMCP is not enabled on it. Each send is recorded as a
 `TelnetProtocolMessage` with `Direction.SENT`.
 
+To try a send, or to see what the MUD has sent, load `plugins.debug.gmcp` and use
+`#bp.debug.gmcp.send` and `#bp.debug.gmcp.cache` (see
+[Inspecting GMCP](claude/data_flow.md#inspecting-gmcp)).
+
 ```python
 @RegisterToEvent(event_name="ev_libs.net.mud_mudconnect")
 def _eventcb_connect(self) -> None:
