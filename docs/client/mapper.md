@@ -27,6 +27,8 @@ The plugin can be unloaded. Its commands are `#bp.client.mapper.<name>`.
 | `where <uid>` | Shows the directions and cost of the path without moving. |
 | `showroom [uid]` | Shows a room (default the current room): name, area, terrain, coordinates, flags, note and exits. |
 | `purge -r <uid>` or `purge -a <area>` | Removes a room, or an area with its rooms. |
+| `accept [uid]` | Accepts the area and exit changes a room update held (default the current room), and removes the plain exits that went stale. |
+| `ignoreexits [uid] [-c]` | Sets the `ignoreexits` flag on a room (default the current room): its exits are no longer compared with the game. `-c` clears it. |
 | `note [uid] [text...] [-d]` | Shows, sets or deletes a note. The first word is the room uid when that room is stored, otherwise the current room is used and every word is the note. |
 
 Example, after a game plugin has filled the map:
@@ -37,6 +39,10 @@ Example, after a game plugin has filled the map:
 #bp.client.mapper.stop
 #bp.client.mapper.resume
 ```
+
+## Room changes
+
+When the game sends a stored room again, its name, terrain, coordinates and details are updated. A different area and exits that contradict stored ones are kept and reported (the `room_mismatch` event) until you run `accept`; a stored custom exit is never reported as removed. `accept` is gentler than `purge -r`, which deletes the room, its note and every exit leading to it. Use `purge -a` for a replaced area. For a room whose exits vary, set `ignoreexits`; list those rooms with `find -f ignoreexits`.
 
 ## Importing maps
 

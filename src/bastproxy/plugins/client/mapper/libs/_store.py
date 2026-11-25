@@ -18,7 +18,7 @@ from typing import Any, Protocol
 
 from ._batch import BatchResult, exit_problem, merge_exit, merge_room, normalize_room
 from ._graph import Exit, MapGraph
-from ._schema import INDEX_SQL, UNKNOWN_UID
+from ._schema import IGNORE_EXITS_FLAG, INDEX_SQL, PLAIN_DIRECTIONS, UNKNOWN_UID
 
 
 class Database(Protocol):
@@ -100,19 +100,43 @@ def room_differences(
 ) -> dict[str, Any]:
     """Compare a room update with what is stored.
 
-    Returns a dict with ``area`` as ``(old, new)`` when the room moved to another area,
-    and ``exits`` as ``{direction: (old touid, new touid)}`` for an exit whose known
-    touid differs, or a direction present on one side only (``None`` for the missing
-    side). An unexplored touid (``-1``) on either side is never a difference. Exits
-    are only compared when the update has an ``exits`` key. A room that is not stored
-    has no differences.
+    Returns a dict with these keys, each present only when it differs:
+
+    - ``name``, ``terrain``, ``x``, ``y``, ``z`` as ``(old, new)``. An update value that
+      is missing or ``None`` is not compared.
+    - ``details`` as ``{key: (old, new)}``, for the keys both sides have.
+    - ``area`` as ``(old, new)``, only when both areas are non-empty.
+    - ``exits`` as ``{direction: (old touid, new touid)}`` for an exit whose known touid
+      differs, or a direction present on one side only (``None`` for the missing side).
+      A stored exit that the update lacks is reported only when it is a plain direction,
+      never a custom exit. An unexplored touid (``-1``) on either side is never a
+      difference. Exits are only compared when the update has an ``exits`` key, and
+      not at all when the stored room has the ``ignoreexits`` flag.
+
+    A room that is not stored has no differences.
     """
     differences: dict[str, Any] = {}
     if stored_room is None:
         return differences
-    if "area" in update and update["area"] != stored_room.get("area"):
-        differences["area"] = (stored_room.get("area"), update["area"])
-    if "exits" in update:
+    for key in ("name", "terrain", "x", "y", "z"):
+        new = update.get(key)
+        if new is not None and new != stored_room.get(key):
+            differences[key] = (stored_room.get(key), new)
+    new_details = update.get("details")
+    if isinstance(new_details, Mapping):
+        old_details = stored_room.get("details") or {}
+        changed = {
+            key: (old_details[key], value)
+            for key, value in new_details.items()
+            if key in old_details and value is not None and old_details[key] != value
+        }
+        if changed:
+            differences["details"] = changed
+    old_area = stored_room.get("area")
+    new_area = update.get("area")
+    if old_area and new_area and old_area != new_area:
+        differences["area"] = (old_area, new_area)
+    if "exits" in update and IGNORE_EXITS_FLAG not in (stored_room.get("flags") or []):
         stored = {exit_.dir: exit_.touid for exit_ in stored_exits}
         given = {str(d): str(t) for d, t in update["exits"].items()}
         exits: dict[str, tuple[str | None, str | None]] = {}
@@ -122,7 +146,7 @@ def room_differences(
             elif UNKNOWN_UID not in (stored[direction], touid) and stored[direction] != touid:
                 exits[direction] = (stored[direction], touid)
         for direction, touid in stored.items():
-            if direction not in given:
+            if direction not in given and direction in PLAIN_DIRECTIONS:
                 exits[direction] = (touid, None)
         if exits:
             differences["exits"] = exits
@@ -182,6 +206,13 @@ class MapStore:
                 json.dumps(dict(room.get("details", {}))),
             ),
         )
+
+    def set_room_flags(self, uid: str, flags: Iterable[str]) -> bool:
+        """Set the flags of a room and nothing else. Returns True when the room exists."""
+        if self.get_room(uid) is None:
+            return False
+        self.db.modify("UPDATE rooms SET flags = ? WHERE uid = ?", (json.dumps(list(flags)), uid))
+        return True
 
     def get_room(self, uid: str) -> dict[str, Any] | None:
         """Get a room without its exits, or None."""

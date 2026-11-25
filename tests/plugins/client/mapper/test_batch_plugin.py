@@ -52,7 +52,7 @@ def tables(h: Harness) -> dict[str, list[dict[str, Any]]]:
 def per_item(h: Harness, rooms: Any, exits: Any, overwrite: bool = True) -> None:
     """Write the same data with the per-item apis, in the batch order."""
     for room in rooms:
-        h.plugin._api_room_add(room)
+        h.plugin._api_room_add(room, accept=True)
     for e in exits:
         h.plugin._api_exit_add(
             e["fromuid"], e["dir"], e.get("touid", "-1"), e.get("cost", 1), e.get("requirement")
