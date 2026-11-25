@@ -9,13 +9,29 @@
 # Standard Library
 import asyncio
 import contextlib
+import dataclasses
+import html
+import inspect
+import json
+from collections.abc import Callable
 from http import HTTPStatus
+from typing import Any
 
 from bastproxy.libs.logger import get_logger
 
 from . import _http
-from ._http import HttpError, Request, Response, message_response, read_request, serialize
-from ._store import PageStore
+from ._http import (
+    HttpError,
+    Request,
+    Response,
+    message_response,
+    read_request,
+    redirect,
+    serialize,
+    text_response,
+)
+from ._render import render_index, render_page
+from ._store import LoginTokens, PageStore, Route, RouteTable, SessionStore
 from ._tls import LOGGER_NAME, CertManager
 
 CANRELOAD = False
@@ -23,26 +39,115 @@ CANRELOAD = False
 TLS_HANDSHAKE_TIMEOUT = 10
 CLOSE_TIMEOUT = 5
 PAGE_PREFIX = "/p/"
+LOGIN_PREFIX = "/login/"
+SESSION_COOKIE = "bpsession"
 
 
 class WebApp:
     """Turns a request into a response."""
 
-    def __init__(self, pages: PageStore) -> None:
+    def __init__(
+        self,
+        pages: PageStore,
+        *,
+        routes: RouteTable | None = None,
+        logins: LoginTokens | None = None,
+        sessions: SessionStore | None = None,
+        to_html: Callable[[str], str] = html.escape,
+        login_command: Callable[[], str] = lambda: "the login command",
+        secure_cookie: Callable[[], bool] = lambda: False,
+        session_seconds: Callable[[], float] = lambda: 12 * 3600,
+    ) -> None:
         self.pages = pages
+        self.routes = routes if routes is not None else RouteTable()
+        self.logins = logins if logins is not None else LoginTokens()
+        self.sessions = sessions if sessions is not None else SessionStore()
+        self._to_html = to_html
+        self._login_command = login_command
+        self._secure_cookie = secure_cookie
+        self._session_seconds = session_seconds
 
     async def dispatch(self, request: Request) -> Response:
         """Answer one request.
 
-        The order is: a method other than GET (405), a page token link, anything else (404).
+        The order is: a method other than GET (405), a page token link, a login link, the
+        index, a plugin route (the last two need a session, else 401), anything else (404).
         """
         if request.method != "GET":
             return message_response(HTTPStatus.METHOD_NOT_ALLOWED, extra=[("Allow", "GET")])
-        if request.path.startswith(PAGE_PREFIX):
-            page = self.pages.get(request.path[len(PAGE_PREFIX) :])
+        path = request.path
+        if path.startswith(PAGE_PREFIX):
+            page = self.pages.get(path[len(PAGE_PREFIX) :])
             if page is not None:
                 return Response(HTTPStatus.OK, "text/html; charset=utf-8", page.body)
+        elif path.startswith(LOGIN_PREFIX):
+            return self._login(path[len(LOGIN_PREFIX) :])
+        elif path == "/":
+            if not self._has_session(request):
+                return self._unauthorized()
+            return text_response(HTTPStatus.OK, render_index(self.routes.by_owner()))
+        elif (route := self.routes.match(path)) is not None:
+            if not self._has_session(request):
+                return self._unauthorized()
+            return await self._call_handler(route, request)
         return message_response(HTTPStatus.NOT_FOUND)
+
+    def _has_session(self, request: Request) -> bool:
+        return self.sessions.is_valid(request.cookies.get(SESSION_COOKIE))
+
+    def _unauthorized(self) -> Response:
+        text = f"Not logged in. Run {self._login_command()} in your MUD client and open the link."
+        return message_response(HTTPStatus.UNAUTHORIZED, text)
+
+    def _login(self, token: str) -> Response:
+        """Turn a login token into a session and a cookie, then go to the index."""
+        if not self.logins.consume(token):
+            return message_response(HTTPStatus.NOT_FOUND)
+        lifetime = int(self._session_seconds())
+        sid = self.sessions.create(lifetime)
+        cookie = f"{SESSION_COOKIE}={sid}; HttpOnly; SameSite=Strict; Path=/; Max-Age={lifetime}"
+        if self._secure_cookie():
+            cookie += "; Secure"
+        return redirect("/", [("Set-Cookie", cookie)])
+
+    async def _call_handler(self, route: Route, request: Request) -> Response:
+        """Run a plugin handler (sync or async) under the timeout and build the response."""
+        routed = dataclasses.replace(request, subpath=route.subpath)
+        try:
+            async with asyncio.timeout(_http.HANDLER_TIMEOUT):
+                result = route.handler(routed)
+                if inspect.isawaitable(result):
+                    result = await result
+        except TimeoutError:
+            get_logger(LOGGER_NAME).error("handler of %s timed out", route.path)
+            return message_response(HTTPStatus.GATEWAY_TIMEOUT)
+        except Exception:
+            get_logger(LOGGER_NAME).error("handler of %s failed", route.path, exc_info=True)
+            return message_response(HTTPStatus.INTERNAL_SERVER_ERROR)
+        try:
+            return self._convert(result)
+        except Exception:
+            get_logger(LOGGER_NAME).error(
+                "handler of %s returned an unusable response", route.path, exc_info=True
+            )
+            return message_response(HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    def _convert(self, result: Any) -> Response:
+        """Turn a handler's dict into a response; anything else is a 500."""
+        if isinstance(result, dict):
+            kind = result.get("kind")
+            if kind == "html":
+                document = render_page(str(result["title"]), result["lines"], self._to_html)
+                return text_response(HTTPStatus.OK, document)
+            if kind == "svg" and isinstance(result.get("svg"), str):
+                return Response(
+                    HTTPStatus.OK, "image/svg+xml; charset=utf-8", result["svg"].encode("utf-8")
+                )
+            if kind == "json":
+                body = json.dumps(result["data"], default=str).encode("utf-8")
+                return Response(HTTPStatus.OK, "application/json", body)
+        get_logger(LOGGER_NAME).error("a handler returned %s, not a response dict", type(result))
+        return message_response(HTTPStatus.INTERNAL_SERVER_ERROR)
 
 
 class WebServer:

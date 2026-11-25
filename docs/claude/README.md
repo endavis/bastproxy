@@ -253,6 +253,7 @@ The web plugin runs a GET-only HTTP server that plugins publish pages through. I
 
 **Key Concepts:**
 - `web.page.add` stores a page behind an unguessable, expiring link
+- `web.route.add` serves a page under the plugin's own path, behind a login session
 - Plain HTTP only on loopback, TLS from a certificate file that reloads when it changes
 - Escaped, colour-converted pages under a strict Content-Security-Policy
 

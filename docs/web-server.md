@@ -14,7 +14,7 @@ The `plugins.core.web` plugin runs a small web server inside the proxy. Plugins 
 
 The server is **off by default**. The plugin is a core plugin, so it is always loaded, but it only listens when `enabled` is true. How plugins publish pages is in the [web system](claude/web_system.md) page, and the design is in [ADR-0022](decisions/0022-the-web-plugin-serves-token-links-and-session-gated-plugin-routes-over-a-get-only-standard-library-server.md).
 
-The design of issue #424 lands in three pull requests. This page describes the first: the server and the one-off page links. Plugin routes, the login session and table pages come in the later two and will add to this page.
+The design of issue #424 lands in three pull requests. This page describes the first two: the server with its one-off page links, and plugin routes behind a login session. Table pages come in the last one and will add to this page.
 
 ## Quick start
 
@@ -37,7 +37,8 @@ Change them with `#bp.core.web.set <name> <value>`. A change to `enabled`, `port
 | `bindaddress` | `127.0.0.1` | The address to listen on: an IP address or `localhost`. |
 | `certfile` | empty | The certificate file (PEM). Setting it, with `keyfile`, turns TLS on. A relative path is relative to `BASTPROXY_HOME`. |
 | `keyfile` | empty | The private key file (PEM) of the certificate. |
-| `publicurl` | empty | The base URL put in links, for example `https://bastproxy.example.net:9998`. The proxy cannot know the name a client reaches it by. When empty, links use the bind address and port. |
+| `publicurl` | empty | The base URL put in links, for example `https://bastproxy.example.net:9998`. The proxy cannot know the name a client reaches it by. When empty, links use the bind address and port. When it starts with `https://`, the session cookie is marked `Secure`. |
+| `sessionhours` | `12` | How long a login session lasts, in hours (1 to 720). It is read when a session starts. |
 
 **Plain HTTP is allowed only on a loopback bind** (`127.0.0.1`, `::1`, `localhost`). If `bindaddress` is anything else and `certfile` or `keyfile` is empty, the server refuses to start and logs an error that names the setting. There is no override. Setting only one of `certfile` and `keyfile` also refuses to start.
 
@@ -45,7 +46,9 @@ Change them with `#bp.core.web.set <name> <value>`. A change to `enabled`, `port
 
 | Command | Does |
 | :--- | :--- |
-| `#bp.core.web.status` | Shows whether the server is running, on which address and port, and whether that is plain HTTP or TLS; the `publicurl`; in TLS mode the certificate's name, expiry and the file's modification time, when it was last reloaded, and the last reload error; and the number of pages held. |
+| `#bp.core.web.status` | Shows whether the server is running, on which address and port, and whether that is plain HTTP or TLS; the `publicurl`; in TLS mode the certificate's name, expiry and the file's modification time, when it was last reloaded, and the last reload error; and the number of pages held, the routes by owner, and the number of sessions. |
+| `#bp.core.web.login` | Replies with a one-time login link, `<base>/login/<token>`. The command is not kept in the command history. When the server is not enabled it says so. |
+| `#bp.core.web.logout` | Ends every session and reports how many there were. |
 | `#bp.core.web.reload` | Reloads the certificate and key now. A reload that fails keeps the previous certificate and says why. |
 
 `status` reads the certificate with a TLS handshake held in memory between two `ssl` objects, using only the standard library. If the certificate has expired, `status` says `expired` and shows the file's modification time. If the handshake fails for another reason, it shows the modification time and `details unavailable`.
@@ -54,7 +57,7 @@ Change them with `#bp.core.web.set <name> <value>`. A change to `enabled`, `port
 
 - **The link is the credential.** Each page has a random token (`secrets.token_urlsafe(32)`, 256 bits) in its URL, `/p/<token>`. Anyone who has the link can read that page until it expires; nobody can guess one. The proxy password is never used, because sending it over HTTP would expose it.
 - **Pages are kept in memory only.** At most 50 pages are held, and a page lasts one hour. The oldest page goes first. A restart drops them all. A reload of the web plugin keeps them.
-- **Unknown or expired tokens return 404.** Every other path returns 404 too.
+- **Unknown or expired tokens return 404.** An unknown path returns 404 too. The index and the plugin routes return 401 without a session; see [Sessions and login](#sessions-and-login).
 - **GET only.** Any other method returns 405.
 - **Limits.** The request head is at most 8 KiB (larger gets 431), a client has 10 seconds to send it, at most 32 connections are open at once (more are closed at once), the TLS handshake has 10 seconds, and no request body is ever read. Every response closes the connection.
 - **Output is escaped.** The text of a page is MUD output, so it is HTML-escaped. Colour codes become `span` elements with inline colours, and raw terminal escape sequences are dropped.
@@ -68,8 +71,30 @@ Change them with `#bp.core.web.set <name> <value>`. A change to `enabled`, `port
   | `X-Content-Type-Options` | `nosniff` |
 
   The page you get from a link contains no script at all.
+- **Sessions.** The cookie is `HttpOnly`, `SameSite=Strict` and `Path=/`, and `Secure` with TLS or an `https://` `publicurl`. Login links work once and last 5 minutes; sessions last `sessionhours` and live in memory only.
 - **Tokens show up in places.** The link is in the command's reply, so it is in the client's scrollback and in the record of that command (`#bp.debug.records` trees hold the reply text). Treat the reply like a password until the page expires, and do not paste it in a shared channel.
 - **Logs never hold a full token.** At most the first 6 characters are logged.
+
+## Sessions and login
+
+Pages that plugins serve at a path of their own (routes, see the [web system](claude/web_system.md#serving-a-route)) and the index at `/` need a session. A one-off page link does not.
+
+1. Run `#bp.core.web.login`. The reply is a link, `<base>/login/<token>`, built like the page links. You are already logged in to the proxy, so the proxy password never goes over HTTP.
+2. Open the link. It works once and expires after 5 minutes. The server starts a session, sends `303` to `/` and sets the cookie.
+3. `/` lists the registered pages by plugin and title.
+4. `#bp.core.web.logout` ends every session. A restart ends them too, because sessions are kept in memory only.
+
+The session cookie, `bpsession`, holds a random id (`secrets.token_urlsafe(32)`) and has these attributes:
+
+| Attribute | Value |
+| :--- | :--- |
+| `HttpOnly` | Always. |
+| `SameSite` | `Strict`. |
+| `Path` | `/`. |
+| `Max-Age` | `sessionhours` times 3600. |
+| `Secure` | When the server uses TLS, or when `publicurl` starts with `https://`. The second case covers a reverse proxy that ends TLS (Setup B). |
+
+At most 20 sessions are held; the oldest goes first. Without a valid session (none, expired or forged), `/` and every route return 401 with a page that tells you to run `#bp.core.web.login`, shown with your command prefix. An unknown path returns 404 with or without a session. The login link is a credential like a page link: see the notes on tokens below.
 
 ## Setup A: built-in TLS
 
