@@ -16,7 +16,6 @@ links in a table; the href is a same-origin absolute path.
 
 import html
 import math
-import re
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any
 from urllib.parse import urlencode
@@ -46,7 +45,21 @@ VECTORS: dict[str, tuple[int, int]] = {
 }
 
 # characters that cannot appear in an XML 1.0 document, not even escaped
-_XML_INVALID = re.compile("[^\u0009\u000a\u000d -퟿-�\U00010000-\U0010ffff]")
+# code points an XML 1.0 document can hold (the Char production), as inclusive ranges
+_XML_CHAR_RANGES = (
+    (0x9, 0xA),
+    (0xD, 0xD),
+    (0x20, 0xD7FF),
+    (0xE000, 0xFFFD),
+    (0x10000, 0x10FFFF),
+)
+
+
+def _xml_char(char: str) -> bool:
+    """Return True when ``char`` may appear in an XML 1.0 document."""
+    code = ord(char)
+    return any(low <= code <= high for low, high in _XML_CHAR_RANGES)
+
 
 _SVG_STYLE = (
     "rect.bg{fill:#000}.level-label{fill:#999;font:12px monospace}"
@@ -86,7 +99,7 @@ def xml_text(text: Any) -> str:
     Characters XML cannot hold (control characters such as ESC, lone surrogates) are dropped,
     then ``& < > "`` and ``'`` are escaped.
     """
-    return html.escape(_XML_INVALID.sub("", str(text)), quote=True)
+    return html.escape("".join(c for c in str(text) if _xml_char(c)), quote=True)
 
 
 def href(path: str, **params: str) -> str:
