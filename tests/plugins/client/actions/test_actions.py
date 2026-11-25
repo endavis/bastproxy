@@ -592,3 +592,77 @@ def test_expand_matches_prefix_in_any_case() -> None:
     )
     assert out == ["#BP.core.x 'a b'"]
     assert _expand("%1", ("#BP.x",)) is None
+
+
+def _expand_escaped(command: str, groups: tuple[str, ...], escape: bool = True) -> Any:
+    return expand_command(
+        command,
+        groups,
+        {},
+        "",
+        split_regex=SPLIT,
+        separator="|",
+        prefix="#bp",
+        escape_command_references=escape,
+    )
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "#bp.client.loop.run 2 %1",  # literal_args, but re-sends its arguments (#816)
+        "#bp.client.variables.add n %1",  # literal definition, expands the stored text later
+        "#bp.client.aliases.add n %1",
+        "#bp.test.go %1",
+    ],
+)
+def test_matched_reference_in_any_command_part_is_escaped(command: str) -> None:
+    """#816: matched %{x} never becomes a reference, whatever command the part runs."""
+    out = _expand_escaped(command, ("%{x}",))
+    assert out == [command.replace("%1", "'%%{x}'")]
+
+
+def test_literal_definition_stores_escaped_text() -> None:
+    """#816: a definition stores %%{x}, which expands later to the literal %{x}."""
+    from bastproxy.plugins.client.variables.plugin._variables import expand_references
+
+    out = _expand_escaped("#bp.client.variables.add n %1", ("%{x}",))
+    assert out == ["#bp.client.variables.add n '%%{x}'"]
+    assert expand_references("'%%{x}'", {"x": "SECRET"}) == "'%{x}'"
+
+
+def test_own_reference_in_command_part_is_not_escaped() -> None:
+    """#816: a %{dest} written in the action's command stays a reference."""
+    out = _expand_escaped("#bp.test.go %{dest} %1", ("%{x}",))
+    assert out == ["#bp.test.go %{dest} '%%{x}'"]
+
+
+def test_command_part_not_escaped_without_variables_plugin() -> None:
+    """#816: with no variables plugin nothing would undo the escape, so none is done."""
+    assert _expand_escaped("#bp.test.go %1", ("%{x}",), escape=False) == ["#bp.test.go '%{x}'"]
+
+
+def test_no_escape_without_matched_text() -> None:
+    """#816: a part with no matched text is left as written."""
+    assert _expand_escaped("#bp.test.go %{dest}", ()) == ["#bp.test.go %{dest}"]
+    assert _expand_escaped("#bp.test.go %1", ("",)) == ["#bp.test.go ''"]
+
+
+def test_option_like_refusal_wins_over_escaping() -> None:
+    """#816: an option-like value still refuses the firing."""
+    assert _expand_escaped("#bp.test.go %1", ("-d %{x}",)) is None
+
+
+@pytest.mark.parametrize(
+    ("loaded", "expected"), [(True, "#bp.t.go '%%{x}'"), (False, "#bp.t.go '%{x}'")]
+)
+def test_trigger_matched_escapes_when_variables_loaded(
+    tmp_path: Path, loaded: bool, expected: str
+) -> None:
+    """#816: end to end, matched %{x} is escaped only when the variables plugin is loaded."""
+    p = _plugin(tmp_path)
+    p.api.table["libs.api:api.exists"] = lambda location: loaded
+    p._api_action_add("a", r"^(.*)$", "#bp.t.go %1")
+    with patch.object(actions_module, "log_to"):
+        _fire(p, "a", ("%{x}",), {}, "%{x}")
+    assert [c.args[0] for c in p.mocks["command.line.run"].call_args_list] == [expected]

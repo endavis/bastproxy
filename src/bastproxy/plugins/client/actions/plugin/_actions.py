@@ -87,6 +87,7 @@ def expand_command(
     prefix: str,
     is_alias: Callable[[str], bool] | None = None,
     alias_resends: Callable[[str], bool] | None = None,
+    escape_command_references: bool = False,
     colorline: str = "",
 ) -> list[str] | None:
     """Split a stored command into parts and substitute the matched text in each.
@@ -108,6 +109,10 @@ def expand_command(
       would be split or reach a proxy command unescaped;
     - a value substituted into a proxy command part starts with ``-``, which the
       command would read as an option.
+
+    In a proxy command part holding matched text, ``%{`` from the match is escaped
+    to ``%%{`` when ``escape_command_references`` is set, so matched text never
+    becomes a variable reference, even in a command that re-sends its arguments.
     """
     parts = regex.split(split_regex, command) if split_regex else [command]
     result: list[str] = []
@@ -116,6 +121,7 @@ def expand_command(
         escape = _escape_command if is_command else _escape_mud
         segments: list[tuple[str, bool]] = []
         option_like = False
+        has_match_text = False
         position = 0
         for match in ACTION_REF_RE.finditer(part):
             segments.append((part[position : match.start()], False))
@@ -136,12 +142,16 @@ def expand_command(
             text_value = "" if value is None else str(value)
             if is_command and _clean(text_value, separator).lstrip().startswith("-"):
                 option_like = True
+            has_match_text = has_match_text or bool(text_value)
             segments.append((escape(text_value, separator), True))
         segments.append((part[position:], False))
         if is_command:
             if option_like:
                 return None
-            result.append("".join(text for text, _ in segments))
+            command_text = "".join(text for text, _ in segments)
+            if escape_command_references and has_match_text:
+                command_text = _escape_references(segments)
+            result.append(command_text)
             continue
         text = _escape_references(segments)
         if starts_with_command_prefix(text, prefix):
@@ -566,6 +576,9 @@ class ActionsPlugin(BasePlugin):
                 prefix=self.api("plugins.core.commands:command.prefix.get")(),
                 is_alias=self._is_alias,
                 alias_resends=self._alias_resends,
+                escape_command_references=bool(
+                    self.api("libs.api:api.exists")("plugins.client.variables:variable.get")
+                ),
                 colorline=colorline,
             )
             if parts is None:

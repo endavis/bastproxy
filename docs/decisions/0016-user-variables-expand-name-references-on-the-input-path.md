@@ -40,6 +40,7 @@ Command arguments go through an event, not a call from the commands plugin into 
 - Issue #707: add user variables expanded on the input path
 - Issue #592: user variables
 - Issue #776: expand variables in `#bp` command arguments
+- Issue #816: actions escape matched `%{` in a `#bp` command part, for every command, literal or not
 
 ## Related Documentation
 
