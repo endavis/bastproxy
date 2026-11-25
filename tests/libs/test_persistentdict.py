@@ -12,6 +12,7 @@ including saving, loading, and context manager behavior.
 """
 
 import os
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -637,3 +638,39 @@ class TestSkipCleanSync:
         pd = PersistentDict("test_owner", filepath)
         pd.sync()
         assert filepath.exists()
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX file mode bits")
+class TestReapplyMode:
+    """The 0600 mode is restored on load and on a skipped sync (#820)."""
+
+    @staticmethod
+    def _loose_file(temp_data_dir: Path) -> Path:
+        filepath = temp_data_dir / "test.json"
+        filepath.write_text('{"a": 1}', encoding="utf-8")
+        filepath.chmod(0o644)
+        return filepath
+
+    def test_load_tightens_mode(self, tmp_path: Path) -> None:
+        filepath = self._loose_file(tmp_path)
+        PersistentDict("test_owner", filepath)
+        assert filepath.stat().st_mode & 0o777 == 0o600
+
+    def test_skipped_sync_reapplies_mode_without_rewrite(self, tmp_path: Path) -> None:
+        filepath = self._loose_file(tmp_path)
+        pd = PersistentDict("test_owner", filepath)
+        filepath.chmod(0o644)
+        before = filepath.stat()
+        pd.sync()
+        after = filepath.stat()
+        assert after.st_mode & 0o777 == 0o600
+        assert after.st_ino == before.st_ino
+        assert after.st_mtime_ns == before.st_mtime_ns
+        assert filepath.read_text(encoding="utf-8") == '{"a": 1}'
+
+    def test_read_only_flag_does_not_chmod(self, tmp_path: Path) -> None:
+        filepath = self._loose_file(tmp_path)
+        pd = PersistentDict("test_owner", filepath, "r")
+        assert pd["a"] == 1
+        pd.sync()
+        assert filepath.stat().st_mode & 0o777 == 0o644
