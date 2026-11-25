@@ -232,20 +232,35 @@ $BASTPROXY_HOME/plugins/
         myplugin/          # plugin (PLUGIN_NAME in __init__.py, plugin/ subpackage)
 ```
 
-- **Import root vs ID:** the folder is registered as the import root
-  `userplugins`, so the plugin imports as `userplugins.mine.myplugin`. Its plugin
-  ID is `plugins.mine.myplugin`, the same namespace as bundled plugins, so
-  commands address it as `mine.myplugin` and its data lives in
-  `data/plugins/plugins.mine.myplugin`.
+- **Own-name import:** a package folder with an `__init__.py` is registered under its
+  own name, so the plugin imports as `mine.myplugin` and its package can use absolute
+  imports such as `from mine._libs import x`. Its `__init__.py` runs once, nothing is
+  added to `sys.path`, and no finder is installed. The plugin ID is
+  `plugins.mine.myplugin`, the same namespace as bundled plugins, so commands address it as
+  `mine.myplugin` and its data lives in `data/plugins/plugins.mine.myplugin`.
+- **Three routes:** each folder is sorted when plugins are discovered.
+  1. *Own name*, as above.
+  2. *`userplugins`* (the synthetic import root, `userplugins.mine.myplugin`): a folder whose
+     name is not an identifier or is a keyword, whose own `__init__.py` is a plugin, that
+     is named like a bundled package, or that matches an installed entry point.
+  3. *Refused*: a folder whose name is already importable (stdlib or third-party, such as
+     `json`) is skipped with an error log, so it cannot shadow that module.
+- **`__init__.py` is required:** a folder without one (namespace style) is ignored.
 - **Bundled names win:** a user plugin in a package named like a bundled one
   (`core`, `debug`, `test`, ...) is skipped with an error log and the bundled
   plugin is kept. Avoid package names ending in `plugins`; the command display
   name strips `plugins.` from the whole string.
+- **Installed names:** a folder named like an installed entry point, or like its import
+  name, stays on the `userplugins` route, keeping the per-plugin override. Its own-name
+  imports then resolve to the installed package.
+- **Migration:** imports of `userplugins.<pkg>...` for an own-name package become `<pkg>...`.
 - **Imports:** plugins import framework code from `bastproxy`, for example
   `from bastproxy.plugins._baseplugin import BasePlugin`. The top-level
   `plugins` import package no longer exists.
 
-See [ADR-0002](../decisions/0002-user-plugins-load-from-bastproxy-homeplugins-under-the-userplugins-import-root.md).
+See [ADR-0002](../decisions/0002-user-plugins-load-from-bastproxy-homeplugins-under-the-userplugins-import-root.md),
+[ADR-0013](../decisions/0013-plugins-are-discovered-from-installed-packages-through-the-bastproxyplugins-entry-point-group.md)
+and [ADR-0023](../decisions/0023-user-plugin-packages-import-under-their-own-name.md).
 
 ## Installed Plugin Packages
 
@@ -291,15 +306,15 @@ installed package (see [Installed Plugin Packages](#installed-plugin-packages)):
 self.plugin_search_paths = [
     {"path": <src/bastproxy/plugins>, "import_prefix": "bastproxy.plugins.",
      "id_prefix": "plugins.", "source": "bundled"},
-    {"path": self.base_plugin_dir, "import_prefix": "userplugins.",
+    {"path": self.base_plugin_dir, "import_prefix": "userplugins.",  # fallback route
      "id_prefix": "plugins.", "source": "user"},
     # then one per entry point: "source": "installed"
 ]
 ```
 
 The plugin ID is `id_prefix + import_name.removeprefix(import_prefix)`, so
-`bastproxy.plugins.core.x` and `userplugins.mine.x` get the IDs `plugins.core.x`
-and `plugins.mine.x`. See [User Plugins](#user-plugins).
+`bastproxy.plugins.core.x` and `userplugins.mine.x` (or `mine.x` for an own-name
+package) get the IDs `plugins.core.x` and `plugins.mine.x`. See [User Plugins](#user-plugins).
 
 For each directory found, it creates a `PluginInfo` object and extracts metadata from `__init__.py`.
 

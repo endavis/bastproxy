@@ -32,7 +32,10 @@ Usage:
 
 Plugin sources, searched in this order (bundled wins any collision):
     - bundled: the plugins shipped in ``bastproxy.plugins``.
-    - user: ``$BASTPROXY_HOME/plugins`` under the ``userplugins`` import root.
+    - user: ``$BASTPROXY_HOME/plugins``. Each package folder imports under its own
+      name; a folder that cannot (not an identifier, a bundled or installed name)
+      stays under the ``userplugins`` import root, and one that would shadow a
+      stdlib or third-party module is refused.
     - installed: packages registered in the ``bastproxy.plugins`` entry-point
       group of the running environment.
 
@@ -44,6 +47,8 @@ Classes:
 
 # Standard Library
 import datetime
+import importlib.util
+import keyword
 import logging
 import sys
 import traceback
@@ -54,7 +59,7 @@ from functools import partial
 from importlib.metadata import EntryPoint, entry_points
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import Any, Literal
 
 # 3rd Party
 # Project
@@ -577,6 +582,194 @@ class PluginLoader:
 
         return False
 
+    def _installed_import_names(self) -> set[str]:
+        """Return the entry names and top-level import names of installed plugin packages.
+
+        Returns:
+            The names, taken from the installed search paths already built.
+
+        """
+        names: set[str] = set()
+        for search in self.plugin_search_paths:
+            if search.get("source") != "installed":
+                continue
+            id_prefix = str(search["id_prefix"])
+            entry = id_prefix.removeprefix(PLUGIN_ID_PREFIX).rstrip(".")
+            if entry:
+                names.add(entry)
+            names.add(str(search["import_prefix"]).split(".", maxsplit=1)[0])
+        return names
+
+    def _classify_user_folder(
+        self, folder: Path, installed_names: set[str]
+    ) -> Literal["own", "userplugins", "refused"]:
+        """Decide how a user plugin package folder is imported.
+
+        Args:
+            folder: The package folder in the user plugin directory.
+            installed_names: Names of installed plugin packages.
+
+        Returns:
+            ``own`` to import under the folder's name, ``userplugins`` to keep it under
+            the synthetic root, or ``refused`` when the name shadows another module.
+
+        """
+        name = folder.name
+        if (
+            not name.isidentifier()
+            or keyword.iskeyword(name)
+            or imputils.is_plugin(str(folder / "__init__.py"))
+            or name in installed_names
+            or self._is_bundled_package_name(name)
+        ):
+            return "userplugins"
+        if imputils.is_registered_package_root(name):
+            return "own"
+        try:
+            spec = importlib.util.find_spec(name)
+        except (ImportError, ValueError) as exc:
+            logger.error(
+                "User plugin package %s not loaded: its name cannot be checked (%s)", name, exc
+            )
+            return "refused"
+        if spec is not None:
+            logger.error(
+                "User plugin package %s not loaded: its name is already importable (%s)",
+                name,
+                spec.origin,
+            )
+            return "refused"
+        return "own"
+
+    @staticmethod
+    def _is_bundled_package_name(name: str) -> bool:
+        """Check whether ``bastproxy.plugins.<name>`` is a bundled package.
+
+        Args:
+            name: The folder name.
+
+        Returns:
+            True if the bundled package exists.
+
+        """
+        try:
+            return importlib.util.find_spec(f"bastproxy.plugins.{name}") is not None
+        except (ImportError, ValueError):
+            return False
+
+    def _accept_plugins(
+        self,
+        scan: imputils.DiscoveryResult,
+        import_prefix: str,
+        id_prefix: str,
+        source: str,
+        seen: dict[str, dict[str, Any]],
+        bundled_packages: set[str],
+        result: imputils.DiscoveryResult,
+    ) -> None:
+        """Add a scan's plugins to the result, refusing collisions.
+
+        Args:
+            scan: The scan of one folder or search path.
+            import_prefix: The prefix the scan used for import names.
+            id_prefix: The prefix to put on plugin IDs.
+            source: The plugin source (bundled, user or installed).
+            seen: Accepted plugins by plugin ID.
+            bundled_packages: Packages provided by bundled plugins, updated here.
+            result: The overall result to add to.
+
+        """
+        result.errors.update(scan.errors)
+        result.packages.extend(scan.packages)
+
+        for p in scan.plugins:
+            plugin_id = PluginId(
+                id_prefix + p["package_import_location"].removeprefix(import_prefix)
+            )
+            p["plugin_id"] = plugin_id
+            package = plugin_id.package
+            winner = seen.get(plugin_id)
+            if source != "bundled" and (package in bundled_packages or winner is not None):
+                if winner is not None and winner["source"] == "user" and source == "installed":
+                    logger.warning(
+                        "Installed plugin %s not loaded: user plugin %s overrides %s",
+                        p["package_import_location"],
+                        winner["package_import_location"],
+                        plugin_id,
+                    )
+                elif winner is not None and winner["source"] == "installed":
+                    logger.error(
+                        "Installed plugin %s not loaded: %s is already provided by %s",
+                        p["package_import_location"],
+                        plugin_id,
+                        winner["package_import_location"],
+                    )
+                else:
+                    logger.error(
+                        "%s plugin %s not loaded: %s collides with a bundled plugin or package",
+                        source.capitalize(),
+                        p["package_import_location"],
+                        plugin_id,
+                    )
+                continue
+            p["source"] = source
+            seen[plugin_id] = p
+            if source == "bundled":
+                bundled_packages.add(package)
+            result.plugins.append(p)
+
+    def _discover_user_plugins(
+        self,
+        search_path: Path,
+        import_prefix: str,
+        id_prefix: str,
+        seen: dict[str, dict[str, Any]],
+        bundled_packages: set[str],
+        result: imputils.DiscoveryResult,
+    ) -> None:
+        """Discover the user plugins, one package folder at a time.
+
+        Args:
+            search_path: The user plugin directory.
+            import_prefix: The ``userplugins.`` prefix for folders kept under the root.
+            id_prefix: The prefix to put on plugin IDs.
+            seen: Accepted plugins by plugin ID.
+            bundled_packages: Packages provided by bundled plugins.
+            result: The overall result to add to.
+
+        """
+        search_path.mkdir(parents=True, exist_ok=True)
+        imputils.register_import_root(import_prefix.rstrip("."), search_path)
+        installed_names = self._installed_import_names()
+        folders = sorted(
+            p for p in search_path.iterdir() if p.is_dir() and (p / "__init__.py").is_file()
+        )
+        for folder in folders:
+            name = folder.name
+            route = self._classify_user_folder(folder, installed_names)
+            if route == "refused":
+                continue
+            if route == "own":
+                try:
+                    imputils.register_package_root(name, folder)
+                except Exception:
+                    logger.exception("User plugin package %s not loaded: its import failed", name)
+                    result.errors[name] = sys.exc_info()
+                    continue
+                scan = imputils.find_packages_and_plugins(folder, f"{name}.")
+                # the walk starts below the folder, so record the package itself
+                scan.packages.insert(0, {"package_id": name, "fullpath": folder})
+                prefix = f"{name}."
+                ids = f"{id_prefix}{name}."
+                self._accept_plugins(scan, prefix, ids, "user", seen, bundled_packages, result)
+            else:
+                scan = imputils.find_packages_and_plugins(
+                    search_path, import_prefix, include={name}
+                )
+                self._accept_plugins(
+                    scan, import_prefix, id_prefix, "user", seen, bundled_packages, result
+                )
+
     def _discover_plugins(self) -> imputils.DiscoveryResult:
         """Search every plugin search path and return the plugins and import errors.
 
@@ -584,7 +777,9 @@ class PluginLoader:
         ``id_prefix``. A user or installed plugin whose package matches a bundled package is
         refused with an error log and the bundled plugin is kept. A user plugin
         overrides an installed plugin with the same ID (warning); between
-        installed plugins the first entry name wins (error).
+        installed plugins the first entry name wins (error). Each user package
+        folder imports under its own name unless that name is unusable (see
+        `_classify_user_folder`).
 
         Returns:
             A `DiscoveryResult` with the discovered plugins, the packages found and
@@ -600,51 +795,17 @@ class PluginLoader:
             import_prefix = str(search["import_prefix"])
             id_prefix = str(search["id_prefix"])
             source = str(search.get("source"))
-            is_user = source == "user"
 
-            if is_user:
-                search_path.mkdir(parents=True, exist_ok=True)
-                imputils.register_import_root(import_prefix.rstrip("."), search_path)
+            if source == "user":
+                self._discover_user_plugins(
+                    search_path, import_prefix, id_prefix, seen, bundled_packages, result
+                )
+                continue
 
             scan = imputils.find_packages_and_plugins(search_path, import_prefix)
-            result.errors.update(scan.errors)
-            result.packages.extend(scan.packages)
-
-            for p in scan.plugins:
-                plugin_id = PluginId(
-                    id_prefix + p["package_import_location"].removeprefix(import_prefix)
-                )
-                p["plugin_id"] = plugin_id
-                package = plugin_id.package
-                winner = seen.get(plugin_id)
-                if source != "bundled" and (package in bundled_packages or winner is not None):
-                    if winner is not None and winner["source"] == "user" and source == "installed":
-                        logger.warning(
-                            "Installed plugin %s not loaded: user plugin %s overrides %s",
-                            p["package_import_location"],
-                            winner["package_import_location"],
-                            plugin_id,
-                        )
-                    elif winner is not None and winner["source"] == "installed":
-                        logger.error(
-                            "Installed plugin %s not loaded: %s is already provided by %s",
-                            p["package_import_location"],
-                            plugin_id,
-                            winner["package_import_location"],
-                        )
-                    else:
-                        logger.error(
-                            "%s plugin %s not loaded: %s collides with a bundled plugin or package",
-                            source.capitalize(),
-                            p["package_import_location"],
-                            plugin_id,
-                        )
-                    continue
-                p["source"] = source
-                seen[plugin_id] = p
-                if source == "bundled":
-                    bundled_packages.add(package)
-                result.plugins.append(p)
+            self._accept_plugins(
+                scan, import_prefix, id_prefix, source, seen, bundled_packages, result
+            )
 
         return result
 

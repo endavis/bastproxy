@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import logging
 import sys
 from collections.abc import Iterator
 from importlib.metadata import EntryPoint
@@ -17,13 +18,22 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from bastproxy.libs.plugins import imputils
 from bastproxy.libs.plugins import loader as loader_module
 from bastproxy.libs.plugins.loader import PluginLoader, installed_plugin_search_paths
 from bastproxy.libs.plugins.plugininfo import PluginInfo
 from tests.libs.plugins.test_user_plugins import ROOT, _write_plugin
 
 GROUP = "bastproxy.plugins"
-PREFIXES = ("userplugins", "zzinst579", "zzinst579b", "zzbundled579", "zzbroken579", "zzmod579")
+PREFIXES = (
+    "userplugins",
+    "zzinst",
+    "zzinst579",
+    "zzinst579b",
+    "zzbundled579",
+    "zzbroken579",
+    "zzmod579",
+)
 
 
 def _ep(name: str, value: str) -> EntryPoint:
@@ -222,3 +232,74 @@ def test_installed_plugin_imports_unloads_and_reloads(
 
     _write_plugin(site, "zzinst579", "zzp", "version-two")
     assert _import().version == "version-two"
+
+
+def _installed_with_libs(site: Path) -> None:
+    """Write the installed package ``zzinst579`` with plugins and a ``_libs`` module."""
+    _write_plugin(site, "zzinst579", "zzp")
+    _write_plugin(site, "zzinst579", "zzsibling")
+    (site / "zzinst579" / "_libs").mkdir()
+    (site / "zzinst579" / "_libs" / "__init__.py").write_text('ORIGIN = "installed"\n')
+
+
+def test_installed_import_name_folder_stays_userplugins(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A user folder named like an entry's import name overrides per plugin, not by shadowing."""
+    site = tmp_path / "site"
+    _installed_with_libs(site)
+    monkeypatch.syspath_prepend(str(site))
+    user = tmp_path / "user"
+    _write_plugin(user, "zzinst579", "zzp")
+    (user / "zzinst579" / "zzp" / "plugin" / "_plugin.py").write_text(
+        "from zzinst579._libs import ORIGIN\n\n\nclass Plugin:\n    origin = ORIGIN\n"
+    )
+    loader = _loader(user, [_ep("zz824e", "zzinst579")])
+    with caplog.at_level(logging.WARNING):
+        result = loader._discover_plugins()
+    by_loc = {p["package_import_location"]: p for p in result.plugins}
+    assert f"{ROOT}.zzinst579.zzp" in by_loc
+    assert by_loc[f"{ROOT}.zzinst579.zzp"]["source"] == "user"
+    assert by_loc["zzinst579.zzsibling"]["source"] == "installed"
+    assert not imputils.is_registered_package_root("zzinst579")
+    assert any(r.levelno == logging.ERROR for r in caplog.records) is False
+
+    plugin = by_loc[f"{ROOT}.zzinst579.zzp"]
+    info = PluginInfo(plugin_id=plugin["plugin_id"])
+    info.package_init_file_path = plugin["package_init_file_path"]
+    info.package_path = plugin["package_path"]
+    info.package_import_location = plugin["package_import_location"]
+    loader.plugins_info = {info.plugin_id: info}
+    assert loader._import_single_plugin(info.plugin_id)
+    assert sys.modules[info.plugin_class_import_location].Plugin.origin == "installed"
+    assert Path(str(sys.modules["zzinst579"].__file__)).is_relative_to(site)
+
+
+def test_installed_entry_name_folder_stays_userplugins(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A user folder named like the entry name keeps the per-plugin override."""
+    site = tmp_path / "site"
+    _write_plugin(site, "zzinst579", "zzp")
+    monkeypatch.syspath_prepend(str(site))
+    user = tmp_path / "user"
+    _write_plugin(user, "zzinst", "zzp")
+    with caplog.at_level(logging.WARNING):
+        plugins = _loader(user, [_ep("zzinst", "zzinst579")])._discover_plugins().plugins
+    assert [p["package_import_location"] for p in plugins] == [f"{ROOT}.zzinst.zzp"]
+    assert any("overrides" in r.getMessage() for r in caplog.records)
+
+
+def test_installed_value_name_folder_not_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A folder named like an installed import name is not refused by the name check."""
+    site = tmp_path / "site"
+    _write_plugin(site, "zzinst579", "zzp")
+    monkeypatch.syspath_prepend(str(site))
+    user = tmp_path / "user"
+    _write_plugin(user, "zzinst579", "zzother")
+    with caplog.at_level(logging.ERROR):
+        plugins = _loader(user, [_ep("zz824e", "zzinst579")])._discover_plugins().plugins
+    assert f"{ROOT}.zzinst579.zzother" in [p["package_import_location"] for p in plugins]
+    assert not any(r.levelno == logging.ERROR for r in caplog.records)

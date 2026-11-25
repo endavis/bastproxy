@@ -33,10 +33,13 @@ Plugins load from the bundled tree and from `$BASTPROXY_HOME/plugins` (ADR-0002)
 - Letting the user folder override an installed plugin allows local patches without uninstalling. The warning keeps the override visible.
 - Skipping a broken entry keeps one bad package from stopping the proxy.
 
+Note (#824): a user folder whose name matches an installed entry (its name or its import name) stays under the `userplugins` import root, so this per-plugin override is unchanged. See [ADR-0023](0023-user-plugin-packages-import-under-their-own-name.md).
+
 ## Related Issues
 
 - Issue #579: Discover plugins from installed packages through entry points
 - Issue #110: The user-plugin search path can never load a plugin
+- Issue #824: Import each user plugin package under its own name
 
 ## Related Documentation
 

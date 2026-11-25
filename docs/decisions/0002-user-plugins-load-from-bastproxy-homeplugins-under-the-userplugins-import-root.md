@@ -13,7 +13,7 @@ tags:
 
 ## Status
 
-Accepted
+Accepted; import root partly superseded by [ADR-0023](0023-user-plugin-packages-import-under-their-own-name.md)
 
 ## Context
 
@@ -24,6 +24,7 @@ The loader's user search path was `BASTPROXY_HOME/data/plugins` with import pref
 - User plugins load from `BASTPROXY_HOME/plugins`, separate from the data folder `BASTPROXY_HOME/data/plugins`. The folder is created at startup.
 - The folder is registered as the import root `userplugins` by placing a synthetic package module in `sys.modules` (`imputils.register_import_root`). Nothing is added to `sys.path`.
 - A user plugin at `plugins/<package>/<plugin>` imports as `userplugins.<package>.<plugin>` and has the plugin ID `plugins.<package>.<plugin>`, the same ID namespace as bundled plugins, so commands, data directories and ID lookups need no change.
+  - Note (#824): [ADR-0023](0023-user-plugin-packages-import-under-their-own-name.md) makes a package folder import under its own name (`<package>.<plugin>`) where it can; `userplugins` remains the fallback. Plugin IDs are unchanged.
 - Bundled plugins are searched first. A user plugin whose package matches a bundled package (`core`, `debug`, `test`, ...) is refused with an error log, and the bundled plugin is kept.
 - User plugins are two levels deep, `<package>/<plugin>`, like bundled plugins.
 - The top-level `plugins` import package (the shim) is removed. This is a breaking change. Migration: change `plugins.` imports to `bastproxy.plugins.`, for example `from bastproxy.plugins._baseplugin import BasePlugin`.
@@ -40,6 +41,7 @@ The loader's user search path was `BASTPROXY_HOME/data/plugins` with import pref
 - Issue #110: The user-plugin search path can never load a plugin
 - Issue #95: Import plugins under their real package name only
 - Issue #579: Discover plugins from installed packages through entry points
+- Issue #824: Import each user plugin package under its own name
 
 ## Related Documentation
 
