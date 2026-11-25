@@ -198,6 +198,15 @@ class ProxyPlugin(BasePlugin):
         self.api("plugins.core.settings:setting.add")(
             self.plugin_id, "username", "", str, "the mud username"
         )
+        self.api("plugins.core.settings:setting.add")(
+            self.plugin_id,
+            "autologinblanklines",
+            0,
+            int,
+            "blank lines sent to the mud after the auto-login password, for a "
+            "'press return' step (0 sends none)",
+            validator=int_range(0, 10, label="number of blank lines"),
+        )
 
         # Output and Command Settings
         self.api("plugins.core.settings:setting.add")(
@@ -320,7 +329,11 @@ class ProxyPlugin(BasePlugin):
 
     @RegisterToEvent(event_name=MUD_CONNECT_EVENT)
     def _eventcb_sendusernameandpw(self) -> None:
-        """Send the username, then the password, when the proxy connects to the mud."""
+        """Send the username, the password, then any blank lines, when the proxy connects.
+
+        The connect event fires once per connection, so the blank lines go out once per
+        connection. They are not masked in the log: only the password is.
+        """
         username = self.api("plugins.core.settings:setting.get")(self.plugin_id, "username")
         if username == "":
             return
@@ -330,6 +343,11 @@ class ProxyPlugin(BasePlugin):
             line = NetworkDataLine(pasw)
             line.mask_log = True
             SendDataDirectlyToMud(NetworkData(line))()
+            blank_lines: int = self.api("plugins.core.settings:setting.get")(
+                self.plugin_id, "autologinblanklines"
+            )
+            for _ in range(blank_lines):
+                SendDataDirectlyToMud(NetworkData(""))()
 
     @AddParser(description="list proxy info")
     def _command_info(self) -> CommandResult:

@@ -12,13 +12,15 @@ from bastproxy.plugins.core.proxy.plugin._proxy import ProxyPlugin
 SENTINEL_PW = "placeholder-secret-not-real"
 
 
-def _stub(username: str, password: str) -> MagicMock:
+def _stub(username: str, password: str, blank_lines: int = 0) -> MagicMock:
     stub = MagicMock()
     stub.plugin_id = "plugins.core.proxy"
 
     def api(name: str) -> Any:
         if name == "plugins.core.settings:setting.get":
-            return lambda _plugin, _setting: username
+            return lambda _plugin, setting: (
+                blank_lines if setting == "autologinblanklines" else username
+            )
         if name == "plugins.core.proxy:ssc.mudpw.get":
             return lambda: password
         return MagicMock()
@@ -47,6 +49,35 @@ def test_sends_username_then_password(sent: list[list[tuple[str, bool]]]) -> Non
 
     assert [lines[0][0] for lines in sent] == ["someuser", SENTINEL_PW]
     assert [lines[0][1] for lines in sent] == [False, True]
+
+
+def test_sends_blank_lines_after_the_password(sent: list[list[tuple[str, bool]]]) -> None:
+    ProxyPlugin._eventcb_sendusernameandpw(_stub("someuser", SENTINEL_PW, blank_lines=2))
+
+    assert [lines[0][0] for lines in sent] == ["someuser", SENTINEL_PW, "", ""]
+    assert [lines[0][1] for lines in sent] == [False, True, False, False]
+
+
+def test_sends_no_extra_lines_by_default(sent: list[list[tuple[str, bool]]]) -> None:
+    ProxyPlugin._eventcb_sendusernameandpw(_stub("someuser", SENTINEL_PW))
+
+    assert len(sent) == 2
+
+
+def test_sends_no_blank_lines_without_a_password(sent: list[list[tuple[str, bool]]]) -> None:
+    ProxyPlugin._eventcb_sendusernameandpw(_stub("someuser", "", blank_lines=2))
+
+    assert [lines[0][0] for lines in sent] == ["someuser"]
+
+
+def test_blank_lines_are_sent_once_per_connect_event(sent: list[list[tuple[str, bool]]]) -> None:
+    # the only trigger is the connect event, which fires once per connection
+    registrations = ProxyPlugin._eventcb_sendusernameandpw.event_registration
+    assert len(registrations) == 1
+
+    ProxyPlugin._eventcb_sendusernameandpw(_stub("someuser", SENTINEL_PW, blank_lines=1))
+
+    assert [lines[0][0] for lines in sent].count("") == 1
 
 
 def test_sends_username_only_without_a_password(sent: list[list[tuple[str, bool]]]) -> None:
