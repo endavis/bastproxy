@@ -7,12 +7,14 @@
 """Tests for `plugins.client.actions` (issues #774, #786-#790)."""
 
 import logging
+import shlex
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
 import pytest
 
+from bastproxy.libs import argp
 from bastproxy.libs.persistentdict import PersistentDict
 from bastproxy.plugins.client.actions.plugin import _actions as actions_module
 from bastproxy.plugins.client.actions.plugin._actions import expand_command, expand_text
@@ -275,3 +277,64 @@ def test_debug_logging_of_a_match_and_sends(
         "action c matched: 'x'",
         "action c sends to client: 'hi x'",
     ]
+
+
+def test_empty_command_is_allowed_only_for_mud(tmp_path: Path) -> None:
+    """An empty or blank command is stored as empty for `mud` and refused otherwise (#808)."""
+    p = _plugin(tmp_path)
+    assert p._api_action_add("m", "x", "", send="mud") is True
+    assert p.actions["m"]["command"] == ""
+    assert p._api_action_add("w", "x", "   ", send="mud") is True
+    assert p.actions["w"]["command"] == ""
+    for send in ("execute", "client"):
+        assert p._api_action_add(f"n_{send}", "x", "", send=send) is False
+        assert p._api_action_add(f"b_{send}", "x", "  ", send=send) is False
+        assert f"n_{send}" not in p.actions
+        assert f"b_{send}" not in p.actions
+    assert p._api_action_add("l", "x", "a\nb", send="mud") is False
+
+
+def test_empty_mud_action_sends_one_empty_line(tmp_path: Path) -> None:
+    """Firing an empty `mud` action sends one empty line, not zero (#808)."""
+    p = _plugin(tmp_path)
+    assert p._api_action_add("m", "x", "", send="mud")
+    client, mud = _patched()
+    with client as to_client, mud as to_mud:
+        _fire(p, "m", (), "x")
+    to_client.assert_not_called()
+    to_mud.assert_called_once()
+    assert [str(line.line) for line in to_mud.call_args.args[0]] == [""]
+    assert p.session_hits == {"m": 1}
+
+
+def test_command_add_empty_command(tmp_path: Path) -> None:
+    """add accepts `""` with -s mud, and refuses it for execute and client (#808)."""
+    base = {"regex": "x", "group": "", "disabled": False, "color": False, "command": [""]}
+    p = _plugin(tmp_path, {**base, "name": "m", "send": "mud"})
+    assert p._command_add().success is True
+    assert p.actions["m"]["command"] == ""
+    assert p.actions["m"]["send"] == "mud"
+    for send in ("execute", "client"):
+        sub = tmp_path / send
+        sub.mkdir()
+        q = _plugin(sub, {**base, "name": "n", "send": send})
+        result = q._command_add()
+        assert result.success is False
+        assert "empty only with -s mud" in str(result.message)
+        assert "n" not in q.actions
+    nothing = _plugin(tmp_path, {**base, "name": "z", "send": "mud", "command": []})
+    assert nothing._command_add().success is False
+
+
+def test_typed_empty_quotes_reach_the_add_command(tmp_path: Path) -> None:
+    """The documented syntax `add m "regex" "" -s mud` parses to an empty command word (#808)."""
+    parser = argp.ArgumentParser(add_help=False)
+    parser.add_argument("-s", "--send", default="execute")
+    parser.add_argument("name")
+    parser.add_argument("regex")
+    parser.add_argument("command", nargs="*")
+    parsed = parser.parse_args(shlex.split('-s mud m "\\[ Press Return" ""'))
+    assert parsed.command == [""]
+    p = _plugin(tmp_path, {**vars(parsed), "group": "", "disabled": False, "color": False})
+    assert p._command_add().success is True
+    assert p.actions["m"]["command"] == ""

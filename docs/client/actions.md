@@ -24,6 +24,8 @@ The `plugins.client.actions` plugin stores named actions. Each action has a rege
 - Substitution is a single pass, so matched text that contains `%2` is not substituted again. Nothing is appended when a command has no reference.
 - `action.add` refuses a command that references a group the regex does not have.
 
+- An empty command is allowed only for a `mud` action, which then sends one empty line to the MUD when it matches. `action.add` refuses it for `execute` and `client` (#808). Type it as two quotes.
+
 Example: after `#bp.client.actions.add dead '^(\w+) is dead' kill %1`, the line `orc is dead` runs `kill orc`.
 
 ## Targets (#774)
@@ -63,6 +65,16 @@ MUD output is untrusted, so a template is trusted and a matched value is data.
 - If a part that goes to the MUD would start with the command prefix after substitution, nothing runs and a warning names the action. A template part that starts with the prefix is allowed.
 - Aliases expand the first word of a MUD-bound part. If that word comes from a value and is an enabled alias, nothing runs and a warning names the action. An alias you write as the first word of the command runs as usual.
 - An alias you write as the first word runs as usual, unless the part holds matched text and the alias's expansion is re-sent: it contains the separator or starts with the command prefix, directly or through a chain of aliases. A re-sent expansion splits the matched text and passes it to proxy commands without the quoting above, so nothing runs and a warning names the action. `k %1`, with `k` = `kill %1`, runs; `n %1`, with `n` = `#bp.client.variables.add note %*`, does not. Write the `#bp` command in the action itself instead, where the matched text is quoted.
+
+## Answering a prompt with an empty line (#808)
+
+To press Return at a `[ Press Return to continue ]` prompt, add a `mud` action with an empty command:
+
+```text
+#bp.client.actions.add more "\[ Press Return to continue \]" "" -s mud
+```
+
+Each time the prompt appears, one empty line goes to the MUD. A command made only of spaces is stored as empty. Leaving the command out, or `""` with the default `execute` target or `-s client`, is refused. Actions stored before this change load as they were.
 
 ## Multi-command order
 

@@ -364,9 +364,11 @@ class ActionsPlugin(BasePlugin):
         @Ymatchcolor@w    = match against the line with colour codes
         @Ysend@w          = where the text goes: execute (run as commands), client or mud
 
-        An existing action is replaced and keeps its id and hit count. This function
-        returns True when the action was stored. It returns False, changing nothing,
-        for a bad name (digits only is refused), regex, command, group or send.
+        An empty command is allowed only for send mud: the action then sends one
+        empty line to the MUD. An existing action is replaced and keeps its id and
+        hit count. This function returns True when the action was stored. It returns
+        False, changing nothing, for a bad name (digits only is refused), regex, command,
+        group or send.
         """
         if not isinstance(name, str) or not NAME_RE.fullmatch(name) or name.isdigit():
             log_to([self.plugin_id], logging.WARNING, "_api_action_add: bad action name")
@@ -386,12 +388,15 @@ class ActionsPlugin(BasePlugin):
             return False
         if (
             not isinstance(command, str)
-            or not command.strip()
             or "\r" in command
             or "\n" in command
+            # only a mud action may send an empty line (#808)
+            or (not command.strip() and send != "mud")
         ):
             log_to([self.plugin_id], logging.WARNING, "_api_action_add: bad command for %s", name)
             return False
+        if not command.strip():
+            command = ""
         if not self._refs_fit(command, compiled):
             log_to(
                 [self.plugin_id],
@@ -610,7 +615,11 @@ class ActionsPlugin(BasePlugin):
     )
     @AddArgument("name", help="the action name")
     @AddArgument("regex", help="the regex a MUD line must match, quote it")
-    @AddArgument("command", help="the command to run", nargs="*")
+    @AddArgument(
+        "command",
+        help='the command to run; "" (two quotes) is an empty line, only with -s mud',
+        nargs="*",
+    )
     def _command_add(self) -> CommandResult:
         """Add an action or change it."""
         args = self.api("plugins.core.commands:command.current.args.get")()
@@ -645,7 +654,8 @@ class ActionsPlugin(BasePlugin):
                 f"could not set {name}: the name needs letters, digits and underscores, not only "
                 "digits, the "
                 "regex must compile, the group letters, digits and underscores, the command "
-                "can only reference groups the regex has, and neither can contain a line break"
+                "can only reference groups the regex has and is empty only with -s mud, and "
+                "neither can contain a line break"
             ],
         )
 

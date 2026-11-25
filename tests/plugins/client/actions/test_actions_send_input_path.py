@@ -33,3 +33,23 @@ def test_mud_action_sends_to_the_mud_without_dispatching(
     assert wired.sent == ["say #bp.y|#bp.x"]
     assert wired.dispatched == []
     assert wired.history == []
+
+
+@pytest.mark.usefixtures("split_regex")
+def test_mud_action_with_empty_command_sends_one_empty_line(
+    plugin_stand_ins: StandIns, tmp_path: Path
+) -> None:
+    """An empty `mud` action sends exactly one empty line and runs no command (#808)."""
+    wired = _wire(plugin_stand_ins, tmp_path)
+    assert wired.actions._api_action_add("more", r"\[ Press Return", "", send="mud")
+    record = {
+        "trigger_name": "more",
+        "groups": (),
+        "matches": {},
+        "line": SimpleNamespace(noansi="[ Press Return to continue ]"),
+    }
+    wired.actions.api.table["plugins.core.events:event.current.record.get"] = lambda: record
+    wired.actions._trigger_matched()
+    assert wired.sent == [""]
+    assert wired.dispatched == []
+    assert wired.history == []
