@@ -88,6 +88,7 @@ The repo admin decided on 2026-11-09:
     - keep the last N root trees, where N is configurable, and evict each tree whole, children included;
     - cap each record's changes with `tracking_max_changes`;
     - no persistence across restarts. Records stay in memory only (amended by #82, which was not pursued; the network data log keeps the raw I/O).
+    - Amendment 2026-11-25 (#809): the network data log is on by default, but the `networkdata_log` setting of `plugins.core.log` turns it off, and archived rotations are deleted after `archive_retention_days` (default 30, 0 keeps everything; #779, #783, PR #806). The raw I/O is kept while the log is on, for the retention period, and not at all when it is off. The decision stands because the log is on by default. See [Logging System](../claude/logging_system.md#network-data-log).
 7. **Cost targets, stacks off:** at most 50 us per line created and 20 us per change, measured by a benchmark in `tests/benchmarks/`.
 8. **Enums:** `StrEnum` for update flags and for `originated`, `line_type` and `message_type` (#237). `StrEnum` keeps the stored values readable.
 9. **Owner ID:** the class name, already done in #232. Whether records keep API stats at all stays open.
