@@ -19,7 +19,7 @@ from bastproxy.libs.plugins.dependency import DependencyResolution, PluginDepend
 from bastproxy.libs.plugins.imputils import DiscoveryResult
 from bastproxy.libs.plugins.plugininfo import PluginInfo
 from tests.libs.plugins.test_dependency_resolver import _infos
-from tests.libs.plugins.test_user_plugins import ROOT, _clean_modules, _loader, _write_plugin
+from tests.libs.plugins.test_user_plugins import _clean_modules, _loader, _write_plugin
 
 SCAN_ROOT = "zzdiscres426"
 
@@ -76,7 +76,7 @@ def test_discover_plugins_returns_discovery_result(tmp_path: Path) -> None:
     result = _loader(tmp_path)._discover_plugins()
     assert isinstance(result, DiscoveryResult)
     assert [p["plugin_id"] for p in result.plugins] == ["plugins.mine.zzu"]
-    assert f"{ROOT}.mine" in [p["package_id"] for p in result.packages]
+    assert "mine" in [p["package_id"] for p in result.packages]
     assert result.errors == {}
 
 

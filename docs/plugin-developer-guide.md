@@ -227,7 +227,9 @@ module is called. The name must be a valid identifier.
 - **Symlinks are not the same.** A symlink from `$BASTPROXY_HOME/plugins` runs the code in
   bastproxy's environment, without the package's own dependencies.
 - **Overriding.** A copy in `$BASTPROXY_HOME/plugins` with the same plugin ID wins over the
-  installed one, and a warning is logged. A bundled package name is never overridden.
+  installed one, and a warning is logged. A bundled package name is never overridden. A folder
+  named like an installed package keeps this per-plugin override, and its own-name imports
+  resolve to the installed package.
 
 See [Installed Plugin Packages](claude/plugin_system.md#installed-plugin-packages).
 

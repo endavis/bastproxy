@@ -13,6 +13,9 @@ packages and plugins in a directory, import a module, and delete a module.
 Key Components:
     - is_plugin: Checks if a module is a plugin.
     - DiscoveryResult: The packages, plugins and errors found by a scan.
+    - register_import_root: Registers a synthetic top-level package.
+    - register_package_root: Registers a real package folder under its own name.
+    - is_registered_package_root: Checks for a package registered that way.
     - find_packages_and_plugins: Finds all packages and plugins recursively in a
         directory, returning a `DiscoveryResult`.
     - importmodule: Imports a single module.
@@ -45,11 +48,11 @@ Functions:
 import pkgutil
 import re
 import sys
-from collections.abc import Iterable
+from collections.abc import Collection, Iterable
 from dataclasses import dataclass, field
 from importlib import import_module
 from importlib.machinery import SourceFileLoader
-from importlib.util import find_spec, module_from_spec, spec_from_loader
+from importlib.util import find_spec, module_from_spec, spec_from_file_location, spec_from_loader
 from pathlib import Path
 from types import ModuleType
 from typing import Any, cast
@@ -59,6 +62,9 @@ from typing import Any, cast
 # Project
 
 NAMERE = re.compile(r"PLUGIN_NAME = ['\"](?P<value>.*)['\"]")
+
+# attribute set on a package module this loader registered; its value is the directory
+USER_PACKAGE_MARKER = "__bastproxy_user_package__"
 
 
 def is_plugin(package_path: str) -> bool:
@@ -114,6 +120,60 @@ def register_import_root(name: str, directory: Path) -> ModuleType:
     return module
 
 
+def is_registered_package_root(name: str) -> bool:
+    """Check whether ``name`` in ``sys.modules`` is a package this loader registered.
+
+    Args:
+        name: The top-level import name.
+
+    Returns:
+        True if the module exists and carries `USER_PACKAGE_MARKER`.
+
+    """
+    module = sys.modules.get(name)
+    return module is not None and hasattr(module, USER_PACKAGE_MARKER)
+
+
+def register_package_root(name: str, directory: Path) -> ModuleType:
+    """Register a package folder as a top-level import package under its own name.
+
+    The folder's own ``__init__.py`` runs. Nothing is added to ``sys.path`` and no
+    meta-path finder is installed. A module already registered for the same
+    directory is reused; one registered for another directory is replaced.
+
+    Args:
+        name: The top-level import name, the folder's name.
+        directory: The package folder, which holds ``__init__.py``.
+
+    Returns:
+        The registered package module.
+
+    Raises:
+        ImportError: If no import spec can be built.
+        Exception: Whatever the package's ``__init__.py`` raises; the module is
+            removed from ``sys.modules`` first.
+
+    """
+    existing = sys.modules.get(name)
+    if existing is not None and getattr(existing, USER_PACKAGE_MARKER, None) == str(directory):
+        return existing
+    spec = spec_from_file_location(
+        name, directory / "__init__.py", submodule_search_locations=[str(directory)]
+    )
+    if spec is None or spec.loader is None:
+        msg = f"Could not create an import spec for '{name}'"
+        raise ImportError(msg)
+    module = module_from_spec(spec)
+    setattr(module, USER_PACKAGE_MARKER, str(directory))
+    sys.modules[name] = module
+    try:
+        spec.loader.exec_module(module)
+    except BaseException:
+        sys.modules.pop(name, None)
+        raise
+    return module
+
+
 @dataclass(slots=True)
 class DiscoveryResult:
     """The outcome of scanning for plugins.
@@ -130,7 +190,9 @@ class DiscoveryResult:
     errors: dict[str, tuple] = field(default_factory=dict)
 
 
-def find_packages_and_plugins(directory: Path, prefix: str) -> DiscoveryResult:
+def find_packages_and_plugins(
+    directory: Path, prefix: str, include: Collection[str] | None = None
+) -> DiscoveryResult:
     """Find all packages and plugins recursively in a directory.
 
     This function walks through the specified directory and identifies all
@@ -140,6 +202,8 @@ def find_packages_and_plugins(directory: Path, prefix: str) -> DiscoveryResult:
     Args:
         directory: The directory to search for packages and plugins.
         prefix: The prefix to use for the package names.
+        include: When set, only these top-level package names are scanned (and
+            walked), and no other top-level package is imported.
 
     Returns:
         A `DiscoveryResult` with:
@@ -176,7 +240,7 @@ def find_packages_and_plugins(directory: Path, prefix: str) -> DiscoveryResult:
         """
         errors[package] = sys.exc_info()
 
-    for module_info in pkgutil.walk_packages([directory.as_posix()], prefix, onerror=on_error):
+    def _record(module_info: pkgutil.ModuleInfo) -> None:
         if module_info.ispkg and (tspec := find_spec(module_info.name)):
             # packages found on disk are loaded by a SourceFileLoader, which has ``path``
             loader_path: str = cast(SourceFileLoader, tspec.loader).path
@@ -198,6 +262,21 @@ def find_packages_and_plugins(directory: Path, prefix: str) -> DiscoveryResult:
                             "fullpath": Path(loader_path).parent,
                         }
                     )
+
+    if include is None:
+        for module_info in pkgutil.walk_packages([directory.as_posix()], prefix, onerror=on_error):
+            _record(module_info)
+    else:
+        for top in pkgutil.iter_modules([directory.as_posix()], prefix):
+            short = top.name.removeprefix(prefix)
+            if short not in include:
+                continue
+            _record(top)
+            if top.ispkg:
+                for module_info in pkgutil.walk_packages(
+                    [str(directory / short)], f"{top.name}.", onerror=on_error
+                ):
+                    _record(module_info)
 
     return result
 
