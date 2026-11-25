@@ -1,7 +1,7 @@
 """Fixtures for the mapper tests: a shared test map and a stand-in plugin."""
 
 import asyncio
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -17,6 +17,21 @@ from bastproxy.plugins.client.mapper.plugin._mapper import MapperPlugin
 from bastproxy.plugins.core.sqldb.libs._sqlite import create_database
 
 OWNER = "plugins.client.mapper"
+
+
+def _table_format(
+    table_name: str, data: Iterable[Any], columns: list[dict[str, Any]], color: str = ""
+) -> list[str]:
+    """Format a table like ``plugins.core.utils:table.format``, without alignment or colour.
+
+    The title, the header and one line per row, the cells joined with ``" | "``.
+    """
+    del color
+    return [
+        table_name,
+        " | ".join(str(c["name"]) for c in columns),
+        *(" | ".join(str(row[c["key"]]) for c in columns) for row in data),
+    ]
 
 
 class FakeApi:
@@ -113,6 +128,7 @@ def harness(tmp_path: Path) -> Iterator[Harness]:
             "plugins.core.commands:command.current.args.get": lambda: h.args,
             "plugins.core.colors:colorcode.escape": lambda s: s.replace("@", "@@"),
             "plugins.core.events:event.current.record.get": lambda: None,
+            "plugins.core.utils:table.format": _table_format,
         }
     )
 
