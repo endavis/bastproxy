@@ -101,6 +101,7 @@ Configuration files are stored in `$BASTPROXY_HOME/data/plugins/`. Each plugin m
 - **triggers**: Handle triggers
 - **utils**: Utility functions
 - **watch**: Watch for specific commands from clients
+- **web**: Serve web pages that plugins publish
 
 ## Plugin Development
 

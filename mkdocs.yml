@@ -101,6 +101,7 @@ validation:
 nav:
   - Home: index.md
   - Plugin Developer Guide: plugin-developer-guide.md
+  - Web Server: web-server.md
   - Client Features:
       - Actions: client/actions.md
       - Aliases: client/aliases.md
@@ -132,6 +133,7 @@ nav:
       - SQLite Database System: claude/sqldb_system.md
       - Utils Plugin: claude/utils_system.md
       - Mapper System: claude/mapper_system.md
+      - Web System: claude/web_system.md
   - Development:
       - Coding Standards: development/coding-standards.md
       - CI/CD & Testing: development/ci-cd-testing.md
@@ -183,6 +185,7 @@ nav:
       - ADR-0019 User substitutions rewrite MUD lines after triggers and keep colour codes: decisions/0019-user-substitutions-rewrite-mud-lines-after-triggers-and-keep-colour-codes.md
       - ADR-0020 Client sends made while MUD data is processed follow its lines: decisions/0020-client-sends-made-while-mud-data-is-processed-follow-its-lines.md
       - "ADR-0021 The mapper owns the map and walking, and game plugins adapt it through callbacks": decisions/0021-the-mapper-owns-the-map-and-walking-and-game-plugins-adapt-it-through-callbacks.md
+      - ADR-0022 The web plugin serves token links and session-gated plugin routes over a GET-only standard-library server: decisions/0022-the-web-plugin-serves-token-links-and-session-gated-plugin-routes-over-a-get-only-standard-library-server.md
       - ADR-9001 uv: decisions/9001-use-uv-for-package-management.md
       - ADR-9002 doit: decisions/9002-use-doit-for-task-automation.md
       - ADR-9003 ruff: decisions/9003-use-ruff-for-linting-and-formatting.md

@@ -25,6 +25,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Template Tools Reference](template/tools-reference.md) - Complete reference for all template tools in tools/pyproject_template/
 - [Using This Template](template/index.md) - Overview of using pyproject-template for your Python projects
 - [Variables](client/variables.md) - Store named values and use them in the lines you type with %{name} references
+- [Web Server](web-server.md) - The web plugin serves pages that plugins publish over a small HTTP server, with its settings, commands, security model, and two ways to reach it remotely over TLS
 <!-- END:audience=users -->
 
 ### For Contributors
@@ -51,6 +52,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [ADR-0019: User substitutions rewrite MUD lines after triggers and keep colour codes](decisions/0019-user-substitutions-rewrite-mud-lines-after-triggers-and-keep-colour-codes.md) - Substitutions rewrite MUD lines at priority 60, after triggers, rebuilding colour codes token by token.
 - [ADR-0020: Client sends made while MUD data is processed follow its lines](decisions/0020-client-sends-made-while-mud-data-is-processed-follow-its-lines.md) - Client sends made while MUD data is processed are held and sent after the data's last line, in the order made.
 - [ADR-0021: The mapper owns the map and walking, and game plugins adapt it through callbacks](decisions/0021-the-mapper-owns-the-map-and-walking-and-game-plugins-adapt-it-through-callbacks.md) - The mapper plugin owns the map, pathfinding and walking; game plugins feed it rooms and register requirement and movement callbacks.
+- [ADR-0022: The web plugin serves token links and session-gated plugin routes over a GET-only standard-library server](decisions/0022-the-web-plugin-serves-token-links-and-session-gated-plugin-routes-over-a-get-only-standard-library-server.md) - The web plugin runs a GET-only standard-library HTTP server; plugins publish one-off token links and session-gated routes, tables and one static script.
 - [ADR-9001: Use uv for package management](decisions/9001-use-uv-for-package-management.md) - Use uv for dependency management, virtual environments and package installation
 - [ADR-9002: Use doit for task automation](decisions/9002-use-doit-for-task-automation.md) - Use doit as the task runner for testing, linting, building and other routine operations
 - [ADR-9003: Use ruff for linting and formatting](decisions/9003-use-ruff-for-linting-and-formatting.md) - Use ruff as the one tool for linting and formatting, in place of flake8, black and isort
@@ -138,6 +140,8 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Triggers System Analysis and Findings](claude/triggers_system_findings.md) - Audit of the triggers plugin - how a MUD line reaches a trigger, state consistency, failure handling, cost, test coverage, docs accuracy, patterns and a design assessment with alternatives measured
 - [Utils Plugin](claude/utils_system.md) - The formatting, time and value-conversion APIs of plugins.core.utils
 - [Variables](client/variables.md) - Store named values and use them in the lines you type with %{name} references
+- [Web Server](web-server.md) - The web plugin serves pages that plugins publish over a small HTTP server, with its settings, commands, security model, and two ways to reach it remotely over TLS
+- [Web System](claude/web_system.md) - How a plugin publishes a page through the web plugin's web.page.add API
 <!-- END:audience=contributors -->
 
 ### For AI Agents
@@ -182,6 +186,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Triggers System](claude/triggers_system.md) - Regex matching on MUD output that raises events for plugins to handle
 - [Triggers System Analysis and Findings](claude/triggers_system_findings.md) - Audit of the triggers plugin - how a MUD line reaches a trigger, state consistency, failure handling, cost, test coverage, docs accuracy, patterns and a design assessment with alternatives measured
 - [Utils Plugin](claude/utils_system.md) - The formatting, time and value-conversion APIs of plugins.core.utils
+- [Web System](claude/web_system.md) - How a plugin publishes a page through the web plugin's web.page.add API
 <!-- END:audience=ai-agents -->
 
 ## Complete Index
@@ -208,6 +213,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [ADR-0019: User substitutions rewrite MUD lines after triggers and keep colour codes](decisions/0019-user-substitutions-rewrite-mud-lines-after-triggers-and-keep-colour-codes.md) - Substitutions rewrite MUD lines at priority 60, after triggers, rebuilding colour codes token by token.
 - [ADR-0020: Client sends made while MUD data is processed follow its lines](decisions/0020-client-sends-made-while-mud-data-is-processed-follow-its-lines.md) - Client sends made while MUD data is processed are held and sent after the data's last line, in the order made.
 - [ADR-0021: The mapper owns the map and walking, and game plugins adapt it through callbacks](decisions/0021-the-mapper-owns-the-map-and-walking-and-game-plugins-adapt-it-through-callbacks.md) - The mapper plugin owns the map, pathfinding and walking; game plugins feed it rooms and register requirement and movement callbacks.
+- [ADR-0022: The web plugin serves token links and session-gated plugin routes over a GET-only standard-library server](decisions/0022-the-web-plugin-serves-token-links-and-session-gated-plugin-routes-over-a-get-only-standard-library-server.md) - The web plugin runs a GET-only standard-library HTTP server; plugins publish one-off token links and session-gated routes, tables and one static script.
 - [ADR-9001: Use uv for package management](decisions/9001-use-uv-for-package-management.md) - Use uv for dependency management, virtual environments and package installation
 - [ADR-9002: Use doit for task automation](decisions/9002-use-doit-for-task-automation.md) - Use doit as the task runner for testing, linting, building and other routine operations
 - [ADR-9003: Use ruff for linting and formatting](decisions/9003-use-ruff-for-linting-and-formatting.md) - Use ruff as the one tool for linting and formatting, in place of flake8, black and isort
@@ -302,6 +308,8 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [Using This Template](template/index.md) - Overview of using pyproject-template for your Python projects
 - [Utils Plugin](claude/utils_system.md) - The formatting, time and value-conversion APIs of plugins.core.utils
 - [Variables](client/variables.md) - Store named values and use them in the lines you type with %{name} references
+- [Web Server](web-server.md) - The web plugin serves pages that plugins publish over a small HTTP server, with its settings, commands, security model, and two ways to reach it remotely over TLS
+- [Web System](claude/web_system.md) - How a plugin publishes a page through the web plugin's web.page.add API
 <!-- END:all -->
 
 ---

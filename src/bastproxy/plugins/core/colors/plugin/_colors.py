@@ -6,6 +6,7 @@
 # By: Bast
 
 # Standard Library
+import html
 
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.logger import get_logger
@@ -77,7 +78,7 @@ def _html_line(tokens: list[Token]) -> str:
 
     for token in tokens:
         if token.kind in _VISIBLE_KINDS:
-            buffer.append(token.visible)
+            buffer.append(html.escape(token.visible))
         elif token.kind is TokenKind.COLOR:
             flush()
             foreground = None if token.value in ("w", "D") else convertcolorcodetohtml(token.value)
@@ -89,8 +90,6 @@ def _html_line(tokens: list[Token]) -> str:
         elif token.kind is TokenKind.XTERM_BG:
             flush()
             background = convertcolorcodetohtml(token.value)
-        elif token.kind is TokenKind.SGR:
-            buffer.append(token.raw)
     flush()
     return "".join(out)
 
@@ -148,7 +147,11 @@ class ColorsPlugin(BasePlugin):
     @AddAPI("colorcode.to.html", description="convert colorcodes to html")
     def _api_colorcode_to_html(self, sinput: str) -> str:
         # pylint: disable=no-self-use
-        """Convert colorcodes to html."""
+        """Convert colorcodes to html.
+
+        The visible text is html-escaped and raw ansi (SGR) sequences are dropped, so the
+        result is safe to put inside an html element.
+        """
         return "\n".join(_html_line(tokenize(line.rstrip())) for line in sinput.splitlines())
 
     @AddAPI(

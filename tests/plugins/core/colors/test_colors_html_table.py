@@ -68,6 +68,22 @@ def test_html_colors_reset_on_each_line() -> None:
     assert to_html("@rone\ntwo") == "<span style='color:#cd0000'>one</span>\ntwo"
 
 
+def test_html_escapes_visible_text() -> None:
+    assert to_html("<script>&\"'") == "&lt;script&gt;&amp;&quot;&#x27;"
+    assert to_html("@r<b>@w") == "<span style='color:#cd0000'>&lt;b&gt;</span>"
+
+
+def test_html_escapes_the_escaped_at_sign() -> None:
+    assert to_html("@@<") == "@&lt;"
+
+
+def test_html_drops_raw_sgr_sequences() -> None:
+    result = to_html("a\x1b[31m<b>\x1b[0m")
+    assert "\x1b" not in result
+    assert "<b>" not in result
+    assert "&lt;b&gt;" in result
+
+
 def test_length_difference() -> None:
     assert length_difference("@Rab@w") == 4
     assert length_difference("mail@@host") == 1

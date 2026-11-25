@@ -170,3 +170,4 @@ The Issue contains the full discussion; the ADR summarizes the outcome.
 | [0019](0019-user-substitutions-rewrite-mud-lines-after-triggers-and-keep-colour-codes.md) | User substitutions rewrite MUD lines after triggers and keep colour codes | Accepted |
 | [0020](0020-client-sends-made-while-mud-data-is-processed-follow-its-lines.md) | Client sends made while MUD data is processed follow its lines | Accepted |
 | [0021](0021-the-mapper-owns-the-map-and-walking-and-game-plugins-adapt-it-through-callbacks.md) | The mapper owns the map and walking, and game plugins adapt it through callbacks | Accepted |
+| [0022](0022-the-web-plugin-serves-token-links-and-session-gated-plugin-routes-over-a-get-only-standard-library-server.md) | The web plugin serves token links and session-gated plugin routes over a GET-only standard-library server | Accepted |
