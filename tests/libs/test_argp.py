@@ -106,6 +106,26 @@ class TestArgumentParser:
             pass
 
 
+class TestHasPositionals:
+    """has_positionals tells a lone ``help`` argument apart from a positional (#791)."""
+
+    def test_false_with_only_options(self) -> None:
+        parser = ArgumentParser(add_help=False)
+        parser.add_argument("-h", "--help", action="store_true")
+        parser.add_argument("--flag", default="x")
+        assert parser.has_positionals() is False
+
+    def test_true_with_required_positional(self) -> None:
+        parser = ArgumentParser(add_help=False)
+        parser.add_argument("name")
+        assert parser.has_positionals() is True
+
+    def test_true_with_optional_positional(self) -> None:
+        parser = ArgumentParser(add_help=False)
+        parser.add_argument("match", nargs="?", default="")
+        assert parser.has_positionals() is True
+
+
 class TestCustomFormatter:
     """Test CustomFormatter functionality."""
 

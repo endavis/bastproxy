@@ -15,7 +15,7 @@ from typing import Any
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.logger import log_to
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
+from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 
 COUNTER_RE = re.compile(r"%(%?)1")
 
@@ -111,6 +111,7 @@ class LoopPlugin(BasePlugin):
             return False
         return done > 0
 
+    @AddCommand(default=True)
     @AddParser(description="run a line a number of times, with %1 as the counter")
     @AddArgument("count", help="how many times, 1 to 50")
     @AddArgument("template", help="the line to run, %%1 is the counter", nargs="*")

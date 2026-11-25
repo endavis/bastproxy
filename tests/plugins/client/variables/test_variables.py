@@ -260,3 +260,10 @@ def test_command_names_do_not_shadow_base_plugin_commands() -> None:
     assert "set" in base_names
     assert own_names == {"add", "remove", "list"}
     assert not own_names & base_names
+
+
+def test_callback_skips_upper_case_command_line(tmp_path: Path) -> None:
+    """The prefix matches in any case, so the line is not expanded (#782)."""
+    line = NetworkDataLine("#BP.x %{t}", originated="client")
+    _run(line, tmp_path)
+    assert line.line == "#BP.x %{t}"

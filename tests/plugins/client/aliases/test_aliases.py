@@ -532,3 +532,14 @@ def test_expansion_is_resent_follows_the_chain(tmp_path: Path) -> None:
     assert p._api_alias_expansion_is_resent("look") is False
     assert p._api_alias_expansion_is_resent("#bp.client.aliases.list") is False
     assert p.session_hits == {}
+
+
+def test_prefix_is_matched_in_any_case(tmp_path: Path) -> None:
+    """#782: a name, an expansion and a typed line use the prefix in any case."""
+    p = _plugin(tmp_path)
+    assert p._api_alias_add("#BPx", "look") is False
+    p._api_alias_add("n", "#BP.core.proxy.info")
+    assert p._api_alias_expansion_is_resent("n") is True
+    assert p._api_alias_expansion_is_resent("#BP.core.proxy.info") is False
+    line, _ = _run(p, "#BP.x n")
+    assert line.line == "#BP.x n"

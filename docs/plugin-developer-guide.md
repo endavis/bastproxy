@@ -146,6 +146,8 @@ The `pluginm` plugin has the commands:
 #bp.core.pluginm.reload <plugin>
 ```
 
+Typing only `#bp.core.pluginm` runs its default command, `list`, which lists the plugins (#778).
+
 `<plugin>` is the plugin id without the `plugins.` prefix, for example `core.help`. `load` takes
 any number of plugins, and a package name such as `aardwolf` loads every `plugins.aardwolf.*`
 plugin that is not loaded, in one call and with dependencies. A partial name matches nothing.
@@ -384,7 +386,7 @@ The smallest example is `_command_raise` in `src/bastproxy/plugins/test/cmddec/p
 command's help to the output.
 
 A command is run as `#bp.<package>.<plugin>.<command>`, for example `#bp.core.pluginm.reload`.
-`#bp` is the `cmdprefix` setting.
+`#bp` is the `cmdprefix` setting; the prefix matches in any case (#782).
 
 The path from the client's input to the output uses two events, both handled by the commands
 plugin (`src/bastproxy/plugins/core/commands/plugin/_commands.py`):

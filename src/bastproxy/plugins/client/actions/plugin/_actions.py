@@ -18,11 +18,12 @@ import regex
 
 # Project
 from bastproxy.libs.api import AddAPI
+from bastproxy.libs.commandprefix import starts_with_command_prefix
 from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.persistentdict import PersistentDict
 from bastproxy.libs.records import NetworkData, SendDataDirectlyToClient, SendDataDirectlyToMud
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
+from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 
 NAME_RE = re.compile(r"[A-Za-z0-9_]+")
 GROUP_RE = re.compile(r"[A-Za-z0-9_]*")
@@ -111,7 +112,7 @@ def expand_command(
     parts = regex.split(split_regex, command) if split_regex else [command]
     result: list[str] = []
     for part in parts:
-        is_command = part.lstrip().startswith(prefix)
+        is_command = starts_with_command_prefix(part, prefix)
         escape = _escape_command if is_command else _escape_mud
         segments: list[tuple[str, bool]] = []
         option_like = False
@@ -143,7 +144,7 @@ def expand_command(
             result.append("".join(text for text, _ in segments))
             continue
         text = _escape_references(segments)
-        if text.lstrip().startswith(prefix):
+        if starts_with_command_prefix(text, prefix):
             return None
         if (
             is_alias is not None
@@ -658,6 +659,7 @@ class ActionsPlugin(BasePlugin):
             return CommandResult(True, [f"action {name} removed"])
         return CommandResult(False, [f"action {args['name']} does not exist"])
 
+    @AddCommand(default=True)
     @AddParser(description="list actions")
     @AddArgument(
         "match",

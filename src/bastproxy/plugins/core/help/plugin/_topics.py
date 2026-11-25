@@ -53,6 +53,10 @@ TOPICS: tuple[Topic, ...] = (
             " plugins or commands at that level.",
             "Command names are matched fuzzily.",
             "Add -h after any command to see its arguments.",
+            "help after a command that takes no positional argument shows its help, like -h.",
+            "A plugin with a default command runs it when you type only the plugin:"
+            " {prefix}.client.aliases lists aliases.",
+            "The prefix matches in any case.",
             "Proxy output lines start with '#BP: ', and commands print Begin/End banners.",
             "Change the prefix with: {prefix}.core.commands.set cmdprefix <new>",
             "Clients that use # for their own commands (TinTin++) need it escaped: \\#bp...",

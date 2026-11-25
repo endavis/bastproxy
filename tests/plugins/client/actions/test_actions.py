@@ -583,3 +583,12 @@ def test_alias_resends_without_aliases_plugin(tmp_path: Path) -> None:
     p.api.table["plugins.client.aliases:alias.expansion.is.resent"] = lambda text: text == "n x"
     assert p._alias_resends("n x") is True
     assert p._alias_resends("k x") is False
+
+
+def test_expand_matches_prefix_in_any_case() -> None:
+    """#782: an upper-case prefix is a command part, and a MUD part may not become one."""
+    out = expand_command(
+        "#BP.core.x %1", ("a b",), {}, "", split_regex=SPLIT, separator="|", prefix="#bp"
+    )
+    assert out == ["#BP.core.x 'a b'"]
+    assert _expand("%1", ("#BP.x",)) is None

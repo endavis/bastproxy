@@ -19,6 +19,8 @@ The `plugins.client.loop` plugin runs a line a number of times. Each pass goes t
 | :--- | :--- |
 | `#bp.client.loop.run COUNT LINE...` | Run LINE COUNT times. |
 
+Typing only `#bp.client.loop` runs `run`, the plugin's default command (#778). Without a count it shows the help of `run`.
+
 ```text
 #bp.client.loop.run 10 get all %1.corpse
 #bp.client.loop.run 3 stand||look %1

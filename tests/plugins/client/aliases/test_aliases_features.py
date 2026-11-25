@@ -237,3 +237,12 @@ def test_debug_logging_of_an_expansion(tmp_path: Path, caplog: pytest.LogCapture
     assert "'kill orc'" in messages[0]
     assert "alias map matched by prefix .find" in messages[1]
     assert "'#bp.client.mapper.find x'" in messages[1]
+
+
+def test_prefix_match_with_upper_case_expansion(tmp_path: Path) -> None:
+    """An alias whose expansion has the prefix in upper case still shortens a command (#782)."""
+    p = _plugin(tmp_path)
+    p._api_alias_add("map", "#BP.client.mapper")
+    p.run.reset_mock()
+    _run(p, "map.find orc")
+    p.run.assert_called_once_with("#BP.client.mapper.find orc", show_in_history=False)

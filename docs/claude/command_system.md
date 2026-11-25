@@ -57,13 +57,14 @@ Represents a single command:
 ```python
 class CommandClass:
     def __init__(self, plugin_id, name, function, arg_parser,
-                 format=True, group=None, preamble=True, show_in_history=True, shelp=""):
+                 format=True, group=None, preamble=True, show_in_history=True, shelp="", default=False):
         self.plugin_id = plugin_id          # Owning plugin
         self.name = name                    # Command name
         self.function = function            # Bound method to execute
         self.arg_parser = arg_parser        # argp.ArgumentParser, built by the commands plugin
         self.group = group or ""            # the plugin sets the plugin id when no group is given
         self.show_in_history = show_in_history   # read by find_command: False = not recorded in the history
+        self.default = default              # read by find_command: True = runs on a bare #bp.<plugin> (#778)
         self.format = format                # read when a client types the command: False = output not framed
         self.preamble = preamble            # read by format_return_message: False = no Begin/End Command lines
         self.full_cmd = "#bp.core.commands.list"  # the prefix, plugin and name, as typed
@@ -158,12 +159,15 @@ each part may be abbreviated (`#bp.c.comm.list`). A line is split on the command
 before anything else, so an argument cannot contain it.
 
 The system:
-1. Detects the command prefix (`#bp`) at the start of the line, ignoring leading whitespace, and keeps the
-   line from the MUD
+1. Detects the command prefix (`#bp`) at the start of the line, ignoring leading whitespace and the case
+   of the prefix (`#BP.core.proxy.info` runs, #782), and keeps the line from the MUD
 2. Splits the line into package, plugin and command name
-3. Matches the package and the plugin (fuzzy, loaded plugins only), then the command: an exact name, else the
+3. Matches the package and the plugin (fuzzy, loaded plugins only), then the command. With no command typed, the
+   plugin's default command runs (#778), or the plugin's help shows when it has none. Otherwise: an exact name, else the
    only name that starts with the text, else the best `token_set_ratio` score above 80 if it is unique
-4. Parses arguments with `shlex` and argparse; an unknown argument or an abbreviated option is an error, reported with the command's help
+4. Parses arguments with `shlex` and argparse; an unknown argument or an abbreviated option is an error, reported with the command's help.
+   A lone `help` acts as `-h` when the command has no positional argument (#791); with a positional, the word
+   is the positional's value, because it could be meant as one
 5. Executes the command function
 6. Frames the output and sends it to the client that typed the command
 
@@ -237,8 +241,16 @@ Marks a method as a command:
     group="MyGroup",            # Command group for organization
     shelp="Short help text",    # One-line help
     autoadd=True,               # False: do not register at load (add with command.add.by.func, force=True)
+    default=True,               # run on a bare #bp.<plugin>; one per plugin
 )
 ```
+
+A plugin has at most one default command (#778). Typing only the plugin, `#bp.client.aliases`, runs it with
+the arguments as typed (`#bp.client.aliases orc` runs `list orc`). A second command that asks to be the default
+is still registered, without the flag, and an ERROR line names the plugin and both commands. A plugin with no
+default shows its help, as before. `#bp.<plugin> help` also shows the plugin's help, not the default command.
+The client plugins `aliases`, `actions`, `substitutes` and `variables` and `core.pluginm` default to `list`,
+and `loop` to `run`.
 
 `show_in_history` decides whether the line is recorded in the history. `format=False` sends the output unframed
 and `preamble=False` drops the `Begin Command` and `End Command` lines (with the start and finish times), when the
@@ -579,6 +591,18 @@ command_prefix = self.api("plugins.core.settings:setting.get")(
     "cmdprefix"
 )
 ```
+
+The prefix matches in any case: `#BP.core.proxy.info` runs, and the lookup rewrites the prefix to the
+configured case before it splits the line (#782). Only the prefix is case-insensitive; the package, plugin and
+command parts keep their own matching. Output and help show the configured case. The aliases, actions and
+variables plugins decide whether a line is a command with the same rule, `bastproxy.libs.commandprefix`.
+
+### Commands Are Fixed Once Registered (#792)
+
+There is no API to change a registered command's attributes (the old `commands.change`, which no old plugin
+called). `command.data.get` is read-only. A plugin that needs a different `show_in_history` or group removes the
+command and adds it again: `command.remove.for.plugin`, or `command.add.by.func(..., force=True)` with the
+changed decorator values. Decided in #792.
 
 ### Programmatic Execution
 

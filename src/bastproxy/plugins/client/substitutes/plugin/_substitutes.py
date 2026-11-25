@@ -20,7 +20,7 @@ from bastproxy.libs.api import AddAPI
 from bastproxy.libs.logger import log_to
 from bastproxy.libs.persistentdict import PersistentDict
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
+from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
 NAME_RE = re.compile(r"[A-Za-z0-9_]+")
@@ -393,6 +393,7 @@ class SubstitutesPlugin(BasePlugin):
             return CommandResult(True, [f"substitution {name} removed"])
         return CommandResult(False, [f"substitution {name} does not exist"])
 
+    @AddCommand(default=True)
     @AddParser(description="list substitutions")
     @AddArgument(
         "match",
