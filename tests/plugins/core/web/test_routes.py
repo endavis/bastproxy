@@ -438,3 +438,47 @@ async def test_page_links_still_need_no_session(env: Env) -> None:
     token = env.app.pages.add("plugins.x", "t", b"body")
     assert (await env.get(f"/p/{token}"))[2] == b"body"
     assert (await http_get(env.port, get_request(f"/p/{token}")))[0] == 200
+
+
+# ---- the error kind and link cells (#766) ----
+
+
+@pytest.mark.parametrize("status", [400, 404])
+async def test_error_kind_serves_the_status_with_an_escaped_message(env: Env, status: int) -> None:
+    env.add(lambda request: {"kind": "error", "status": status, "message": "no <b>room</b> & co"})
+    sid = await env.login()
+    code, headers, body = await env.get("/test/web/page", sid)
+    assert code == status
+    assert headers["content-type"] == "text/html; charset=utf-8"
+    assert "no &lt;b&gt;room&lt;/b&gt; &amp; co" in body.decode()
+    assert "<b>room</b>" not in body.decode()
+
+
+@pytest.mark.parametrize("status", [200, 401, 500, 418, "404", None])
+async def test_error_kind_with_another_status_is_a_500(env: Env, status: object) -> None:
+    env.add(lambda request: {"kind": "error", "status": status, "message": "m"})
+    sid = await env.login()
+    assert (await env.get("/test/web/page", sid))[0] == 500
+
+
+async def test_a_bad_link_cell_is_a_500_and_a_good_one_is_served(env: Env) -> None:
+    columns = [{"name": "a", "label": "A"}]
+
+    def table(href: str) -> Callable[[Request], dict[str, Any]]:
+        def handler(request: Request) -> dict[str, Any]:
+            return {
+                "kind": "table",
+                "title": "T",
+                "rows": [[{"text": "go", "href": href}]],
+                "total": 1,
+            }
+
+        return handler
+
+    env.app.routes.add(OWNER, "bad", table("//evil.example/"), "Bad", columns)
+    env.app.routes.add(OWNER, "good", table("/test/web/good?x=1"), "Good", columns)
+    sid = await env.login()
+    assert (await env.get("/test/web/bad", sid))[0] == 500
+    status, _, body = await env.get("/test/web/good", sid)
+    assert status == 200
+    assert "<a href='/test/web/good?x=1'>go</a>" in body.decode()

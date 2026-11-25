@@ -18,4 +18,4 @@ PLUGIN_AUTHOR = "Bast"
 PLUGIN_VERSION = 1
 
 # plugins that must be loaded (and initialized) before this one
-PLUGIN_DEPENDENCIES = ["plugins.core.sqldb", "plugins.core.commands"]
+PLUGIN_DEPENDENCIES = ["plugins.core.sqldb", "plugins.core.commands", "plugins.core.web"]

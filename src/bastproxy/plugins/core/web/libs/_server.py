@@ -45,6 +45,7 @@ PAGE_PREFIX = "/p/"
 LOGIN_PREFIX = "/login/"
 SESSION_COOKIE = "bpsession"
 TABLE_SCRIPT_PATH = "/static/table.js"
+HANDLER_ERROR_STATUSES = (HTTPStatus.BAD_REQUEST, HTTPStatus.NOT_FOUND)
 
 
 @functools.cache
@@ -180,6 +181,8 @@ class WebApp:
                 return Response(
                     HTTPStatus.OK, "image/svg+xml; charset=utf-8", result["svg"].encode("utf-8")
                 )
+            if kind == "error" and result.get("status") in HANDLER_ERROR_STATUSES:
+                return message_response(int(result["status"]), str(result.get("message", "")))
             if kind == "json":
                 body = json.dumps(result["data"], default=str).encode("utf-8")
                 return Response(HTTPStatus.OK, "application/json", body)

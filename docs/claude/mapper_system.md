@@ -71,7 +71,25 @@ Walks (`walk.start`, `walk.restart` and reroutes) and the commands `find`, `goto
 - **Requirement callbacks stay on the loop.** Before the search the plugin asks the callback about every distinct requirement in the map and gives the worker a lookup, so adapters keep the API and the log. A requirement missing from the answers blocks its exit.
 - **`path.get` stays synchronous** and runs on the event loop.
 - **`load_graph` stays synchronous** at plugin load. The database connection belongs to the loop thread, and an adapter may write rooms right after load.
+- **Web pages draw in a worker too.** The `area` page reads the area and its rooms on the loop, takes `graph.freeze()` and `current_room`, then draws with `await asyncio.to_thread(draw_area_svg, ...)`. The worker only reads the frozen view and the room dicts; it never calls an API or the database.
 - A search result is dropped when the plugin unloads or the walk was stopped or restarted meanwhile.
+
+## Web pages
+
+`plugins.client.mapper` depends on `plugins.core.web` and, in an `after_load` hook (priority 60), registers four routes with `web.route.add`. It keeps each returned path in `web_paths`, so links use the real paths and a refused route only loses its links. Pages are GET only and need the web session; the web core enforces both (405, 401). See the [web system](web_system.md) and [ADR-0022](../decisions/0022-the-web-plugin-serves-token-links-and-session-gated-plugin-routes-over-a-get-only-standard-library-server.md).
+
+| Path | Kind | Content |
+| :--- | :--- | :--- |
+| `/client/mapper` | table | Areas with room and unexplored counts; the uid links to the area map. |
+| `/client/mapper/area?uid=` | svg | The area map, one nested `<svg>` per z level. |
+| `/client/mapper/room?uid=` | table | Room details as lines, exits as rows linking to the target rooms. |
+| `/client/mapper/find?name=` | table | Rooms whose name has the text, with column filters, sort and paging. |
+
+- **Map.** Rooms are boxes at their x and y (y grows downwards), with a `<title>` tooltip of uid and name and a link to the room page. A line joins two rooms of a level; an exit that leaves the area is a `leaves` stub (a dot when it has no compass direction); an exit to another z level or `u`/`d` is an arrow; an unexplored exit is a dashed stub. Room classes: `current`, `unexplored`, `noportal`, `norecall`.
+- **Errors.** A missing or empty `uid` is 400. An unknown area (no `areas` row and no rooms) or room is 404, through the web core's `error` kind. `find` never returns 404 and rejects a `name` over 200 characters with 400.
+- **Escaping.** MUD text in SVG goes through `xml_text` (invalid XML characters dropped, then `html.escape`). Text in HTML cells and lines goes through `colorcode.escape` first, as `showroom` does. Link hrefs are built with `urlencode`.
+- **SQL.** `find` builds its statement from fixed fragments (`SEARCH_COLUMNS`) and binds every value; `%`, `_` and `\` in a search text match literally.
+- The pure builders are in `src/bastproxy/plugins/client/mapper/libs/_pages.py`, the queries in `MapStore.area_counts`, `get_rooms` and `search_rooms`.
 
 ## Change detection
 

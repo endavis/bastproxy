@@ -73,6 +73,39 @@ def _link(base_path: str, query: TableQuery, extra: Mapping[str, str], **changes
     return html.escape(f"{base_path}?{urlencode(params)}", quote=True)
 
 
+def _safe_href(href: Any) -> str:
+    """Return ``href`` when it is a same-origin absolute path, else raise.
+
+    Raises:
+        ValueError: The href is not a string, does not start with ``/``, starts with ``//``,
+            or has a backslash, whitespace or a control character.
+
+    """
+    if not isinstance(href, str) or not href.startswith("/") or href.startswith("//"):
+        msg = f"a link must be a same-origin absolute path, got {href!r}"
+        raise ValueError(msg)
+    if any(char == "\\" or char.isspace() or not char.isprintable() for char in href):
+        msg = f"a link must not have a backslash, whitespace or control character: {href!r}"
+        raise ValueError(msg)
+    return href
+
+
+def _cell_html(cell: Any, to_html: Callable[[str], str]) -> str:
+    """Build the inner html of one cell: text, or a link for a ``{"text", "href"}`` dict.
+
+    Raises:
+        ValueError: A dict cell has no ``text`` and ``href`` or its href is not allowed.
+
+    """
+    if isinstance(cell, Mapping):
+        if set(cell) != {"text", "href"} or not isinstance(cell["text"], str):
+            msg = f"a link cell needs exactly a text string and an href, got {sorted(cell)}"
+            raise ValueError(msg)
+        href = html.escape(_safe_href(cell["href"]), quote=True)
+        return f"<a href='{href}'>{to_html(cell['text'])}</a>"
+    return to_html("" if cell is None else str(cell))
+
+
 def render_table(
     columns: Sequence[Column],
     rows: Sequence[Sequence[Any]],
@@ -88,7 +121,8 @@ def render_table(
     ``extra`` holds the query keys that are not table keys; every link and the form keep them.
 
     Raises:
-        ValueError: A row does not have one cell per column.
+        ValueError: A row does not have one cell per column, or a link cell is malformed or
+            its href is not a same-origin absolute path (see ``_safe_href``).
 
     """
     keep = extra or {}
@@ -124,7 +158,7 @@ def render_table(
         if len(row) != len(columns):
             msg = f"a row has {len(row)} cells for {len(columns)} columns"
             raise ValueError(msg)
-        cells = "".join(f"<td>{to_html('' if cell is None else str(cell))}</td>" for cell in row)
+        cells = "".join(f"<td>{_cell_html(cell, to_html)}</td>" for cell in row)
         body.append(f"<tr>{cells}</tr>")
     nav = [f"<p>Page {query.page} of {pages}, {total} rows. "]
     if query.page > 1:

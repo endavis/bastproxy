@@ -134,3 +134,63 @@ def test_upsert_exit_keep_details(store: MapStore) -> None:
     assert store.upsert_exit(Exit("1", "s", "4", 2, {"k": 1}), keep_details=True) == Exit(
         "1", "s", "4", 2, {"k": 1}
     )
+
+
+# ---- web page queries (#766) ----
+
+
+def _fill(store: MapStore) -> None:
+    store.add_area("a", "Alpha", [], {})
+    store.add_area("empty", "Empty", [], {})
+    for uid, name, area in [("1", "Main Hall", "a"), ("2", "Cellar", "a"), ("3", "Hall 100%", "b")]:
+        store.upsert_room({"uid": uid, "name": name, "area": area})
+    store.upsert_exit(Exit("1", "n", "2"))
+    store.upsert_exit(Exit("1", "e", "-1"))
+    store.upsert_exit(Exit("1", "w", "-1"))
+
+
+def test_area_counts(store: MapStore) -> None:
+    _fill(store)
+    store.upsert_room({"uid": "4", "name": "Lost", "area": ""})
+    assert store.area_counts() == [
+        {"uid": "a", "name": "Alpha", "rooms": 2, "unexplored": 1},
+        {"uid": "b", "name": "", "rooms": 1, "unexplored": 0},
+        {"uid": "empty", "name": "Empty", "rooms": 0, "unexplored": 0},
+    ]
+
+
+def test_get_rooms_over_the_chunk_size(store: MapStore) -> None:
+    for number in range(1200):
+        store.upsert_room({"uid": str(number), "name": f"r{number}"})
+    found = store.get_rooms([str(n) for n in range(1200)] + ["missing"])
+    assert len(found) == 1200
+    assert found["1199"]["name"] == "r1199"
+    assert store.get_rooms([]) == {}
+
+
+def test_search_rooms_name_sort_and_paging(store: MapStore) -> None:
+    _fill(store)
+    rooms, total = store.search_rooms("hall")
+    assert (total, [r["uid"] for r in rooms]) == (2, ["1", "3"])
+    rooms, total = store.search_rooms("", sort="name", descending=True, limit=2, offset=1)
+    assert (total, [r["uid"] for r in rooms]) == (3, ["3", "2"])
+    rooms, _ = store.search_rooms("", filters={"area": "a", "bogus": "x", "name": ""})
+    assert [r["uid"] for r in rooms] == ["1", "2"]
+    assert store.search_rooms("", sort="not a column; DROP TABLE rooms")[1] == 3
+
+
+def test_search_rooms_like_wildcards_are_literal(store: MapStore) -> None:
+    _fill(store)
+    store.upsert_room({"uid": "5", "name": "a_b\\c"})
+    assert [r["uid"] for r in store.search_rooms("100%")[0]] == ["3"]
+    assert store.search_rooms("%")[1] == 1
+    assert [r["uid"] for r in store.search_rooms("_b\\")[0]] == ["5"]
+    assert store.search_rooms("Hall_")[1] == 0
+
+
+def test_search_rooms_injection_like_text_matches_nothing(store: MapStore) -> None:
+    _fill(store)
+    for text in ["' OR 1=1 --", "x'; DROP TABLE rooms; --"]:
+        assert store.search_rooms(text) == ([], 0)
+        assert store.search_rooms("", filters={"name": text}) == ([], 0)
+    assert store.search_rooms("")[1] == 3
