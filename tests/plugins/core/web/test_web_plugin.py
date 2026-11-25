@@ -9,7 +9,7 @@ from typing import Any
 import pytest
 
 from bastproxy.plugins.core.web.libs._server import WebServer
-from bastproxy.plugins.core.web.libs._store import PageStore
+from bastproxy.plugins.core.web.libs._store import LoginTokens, PageStore, RouteTable, SessionStore
 from bastproxy.plugins.core.web.plugin._web import WebPlugin
 
 from .conftest import MakeCert, get_request, http_get, needs_openssl, to_html
@@ -20,6 +20,8 @@ HELPERS = (
     "_base_url",
     "_restart",
     "_schedule_restart",
+    "_build_app",
+    "_secure_cookie",
 )
 
 
@@ -44,6 +46,14 @@ class _Api:
                 return to_html(args[0])
             if name == "plugins.core.colors:colorcode.escape":
                 return str(args[0]).replace("@", "@@")
+            if name == "plugins.core.events:event.current.record.get":
+                return {"plugin_id": stub.unloaded}
+            if name == "libs.api:caller.owner.get":
+                return stub.caller
+            if name == "libs.plugins.loader:plugin.id.is.valid":
+                return str(args[0]).startswith("plugins.")
+            if name == "plugins.core.commands:command.format":
+                return f"#bp.{args[0].replace('plugins.', '')}.{args[1]}"
             if name == "libs.asynch:task.add":
                 return asyncio.get_running_loop().create_task(args[0])
             return None
@@ -64,10 +74,16 @@ class _Stub:
             "certfile": "",
             "keyfile": "",
             "publicurl": "",
+            "sessionhours": 12,
         }
+        self.caller = "plugins.test.caller"
+        self.unloaded = ""
         self.added: dict[str, Any] = {}
         self.calls: list[tuple[str, tuple[Any, ...], dict[str, Any]]] = []
         self.pages = PageStore()
+        self.routes = RouteTable()
+        self.logins = LoginTokens()
+        self.sessions = SessionStore()
         self.server = WebServer()
         self.cert: Any = None
         self._generation = 0
@@ -107,6 +123,7 @@ def test_settings_and_defaults(stub: Any) -> None:
         "certfile": "",
         "keyfile": "",
         "publicurl": "",
+        "sessionhours": 12,
     }
 
 

@@ -13,7 +13,7 @@ tags:
 
 The `plugins.core.web` plugin runs a GET-only HTTP server and stores pages for other plugins. Users read how to turn it on, its settings and its security model in [Web Server](../web-server.md); the design is in [ADR-0022](../decisions/0022-the-web-plugin-serves-token-links-and-session-gated-plugin-routes-over-a-get-only-standard-library-server.md).
 
-Issue #424 lands in three pull requests. This page covers what the first one adds, `web.page.add`. Plugin routes (`web.route.add`), the login session and table pages come in the later ones and will be added here.
+Issue #424 lands in three pull requests. This page covers the first two: one-off pages (`web.page.add`) and plugin routes behind a login session (`web.route.add`). Table pages come in the last one and will be added here.
 
 ## Publishing a page
 
@@ -41,8 +41,72 @@ return CommandResult(True, [f"Record detail: {url}"])
 
 The page is rendered once, when it is added. The text goes through `plugins.core.colors:colorcode.to.html`, which HTML-escapes the visible text, turns colour codes into `span` elements with inline colours and drops raw terminal escape sequences (see [colour system](colors_system.md)). The page therefore holds MUD text safely, and has no script. The response carries a strict Content-Security-Policy; see [Security model](../web-server.md#security-model-for-page-links).
 
+## Serving a route
+
+A one-off page is a link. A route is a page that a plugin serves for as long as it is loaded, at a fixed path under the plugin's own prefix. A browser needs a session to open it (see [Web Server](../web-server.md#sessions-and-login)).
+
+```python
+def _area_page(self, request) -> dict:
+    area = request.query.get("area", "")
+    return {"kind": "html", "title": f"Area {area}", "lines": self.area_lines(area)}
+
+self.api("plugins.core.web:web.route.add")(self.plugin_id, "area", self._area_page, "Area map")
+```
+
+`web.route.add(owner, subpath, handler, title) -> str | None`
+
+| Argument | Meaning |
+| :--- | :--- |
+| `owner` | Your plugin id. It must be the plugin that makes the call. |
+| `subpath` | Lower case letters, digits, `_` and `-`, in segments separated by `/` (`^[a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9_-]*)*$`), or `""` for the prefix itself. |
+| `handler` | A function or coroutine function that takes a `Request` and returns a dict. |
+| `title` | The text shown in the index at `/`. It is escaped. |
+
+- **URL derivation.** `plugins.` is dropped from the owner id and the dots become slashes. `plugins.aardwolf.mapper` with subpath `area` is served at `/aardwolf/mapper/area`; with `""` it is `/aardwolf/mapper`. A plugin cannot pick a path outside its own prefix. A prefix that starts with `p`, `login` or `static` is reserved and refused, and so is a path that another plugin already serves.
+- **Refusals.** The call logs an error and returns `None` when `owner` is not the calling plugin (`libs.api:caller.owner.get`), is not a valid plugin id, or the route table refuses the subpath or prefix. On success it returns the path.
+- **Removal.** `web.route.remove(owner) -> int` removes a plugin's routes and returns how many. The web plugin also removes them when the plugin unloads (`ev_plugin_unloaded`), so a plugin only calls it to take routes down while it stays loaded. A reload of the web plugin itself keeps the routes, the sessions and the login tokens.
+- **Methods.** GET only. A handler never sees a POST: it gets 405. A change of data would need CSRF protection, which is a later design.
+- **No import of the web plugin.** Plugins call the API; the handler returns a plain dict.
+
+### The request
+
+The handler receives a frozen dataclass, `Request`, which it only reads.
+
+| Field | Meaning |
+| :--- | :--- |
+| `method` | Always `"GET"`. |
+| `path` | The decoded url path. |
+| `query` | The first value of each query key, as `dict[str, str]`. |
+| `cookies` | The cookies, as `dict[str, str]`. |
+| `subpath` | The `subpath` the route was registered with. |
+
+A query value is untrusted text. A page that reads a database runs fixed, parameterised queries and binds the values; it never builds SQL from the request.
+
+### The response kinds
+
+The handler returns a dict with a `kind`:
+
+| Kind | Keys | Served as |
+| :--- | :--- | :--- |
+| `html` | `title`, `lines` (a list of strings or one string) | `text/html`. The web plugin escapes the title, and escapes and colour-converts the lines through `colorcode.to.html`, as for a one-off page. |
+| `svg` | `svg` (a string holding the document) | `image/svg+xml`. |
+| `json` | `data` | `application/json`, from `json.dumps(data, default=str)`. |
+
+Anything else, or a dict with a missing key, returns 500 and is logged.
+
+- **SVG escaping.** The web plugin serves the SVG string as it is. A handler that puts MUD text, a room name for example, into an SVG must escape it with `html.escape(text, quote=True)` first, or the text can inject markup.
+- **Errors and time.** A handler runs under a 30 second timeout (`HANDLER_TIMEOUT`). A timeout returns 504. An exception returns 500 and is logged with its traceback; the response carries no detail.
+- **Slow work.** A synchronous handler runs on the event loop, so it must be quick and it cannot be timed out. Slow work, such as drawing a large map or a big query, belongs in an async handler that takes a snapshot of the data on the loop and runs the work with `await asyncio.to_thread(fn, snapshot)`. Do not call an API from the thread: the API is not thread-safe. The colour conversion of an `html` result happens on the loop, after the handler returns.
+
+```python
+async def _map_page(self, request) -> dict:
+    rooms = list(self.rooms.values())  # a snapshot, taken on the loop
+    svg = await asyncio.to_thread(draw_svg, rooms)
+    return {"kind": "svg", "svg": svg}
+```
+
 ## Lifecycle
 
 - The web plugin starts its listener in a queued task (`libs.asynch:task.add`), so connections do not inherit the context of the command or event that started it.
 - When the plugin unloads, it closes the listener and aborts the open connections before the base unload hook raises `ev_plugin_unloaded`.
-- When the web plugin is reloaded, the stored pages carry over (`attributes_to_save_on_reload`), so links keep working.
+- When the web plugin is reloaded, the stored pages, routes, sessions and login tokens carry over (`attributes_to_save_on_reload`), so links and sessions keep working. The classes of these stores live in a module with `CANRELOAD = False`, so their identity survives the reload.

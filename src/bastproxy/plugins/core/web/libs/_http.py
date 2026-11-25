@@ -55,6 +55,7 @@ class Request:
     path: str
     query: dict[str, str] = field(default_factory=dict)
     cookies: dict[str, str] = field(default_factory=dict)
+    subpath: str = ""
 
 
 @dataclass
@@ -165,4 +166,12 @@ def message_response(
     body += f"<body><h1>{status} {phrase}</h1><p>{html.escape(text)}</p></body></html>"
     response = text_response(status, body)
     response.headers.extend(extra or [])
+    return response
+
+
+def redirect(location: str, headers: list[tuple[str, str]] | None = None) -> Response:
+    """A 303 response to a location, with extra headers such as Set-Cookie."""
+    response = Response(HTTPStatus.SEE_OTHER, "text/html; charset=utf-8", b"")
+    response.headers.append(("Location", location))
+    response.headers.extend(headers or [])
     return response
