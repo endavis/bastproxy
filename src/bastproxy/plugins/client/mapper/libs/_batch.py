@@ -33,6 +33,7 @@ class BatchResult:
     rooms: int = 0
     new_rooms: int = 0
     exits: int = 0
+    new_exits: int = 0
     notes: int = 0
     skipped: int = 0
     room_flags: dict[str, list[str]] = field(default_factory=dict)
@@ -45,6 +46,7 @@ class BatchResult:
             "rooms": self.rooms,
             "new_rooms": self.new_rooms,
             "exits": self.exits,
+            "new_exits": self.new_exits,
             "notes": self.notes,
             "skipped": self.skipped,
         }

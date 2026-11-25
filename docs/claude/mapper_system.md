@@ -87,6 +87,7 @@ Walks (`walk.start`, `walk.restart` and reroutes) and the commands `find`, `goto
 - **`overwrite=True`.** Behaves like the per-item apis: rooms and areas are replaced, an explicit exit takes the new cost and requirement (as `exit.add`), an exit embedded in a room keeps its stored cost and requirement and only updates its `touid` (as `room.add`), and an unexplored touid never replaces a known one.
 - **`overwrite=False`.** Fills gaps only: a stored area is kept, a stored room keeps every field and gains only the flags it lacks, a stored exit keeps its cost and only fills an unexplored touid or a missing requirement, and a note is set only where there is none or it is empty.
 - **Events.** No `room_changed` or `room_mismatch` is raised, so a batch does no change detection; use `room.add` for that. One `map_changed` with the counts is raised when a row changed.
+- **Counts.** `areas`, `rooms`, `new_rooms`, `exits`, `new_exits`, `notes` and `skipped`. `exits` counts every exit written and `new_exits` those whose `(fromuid, dir)` was not stored before the batch, so `exits - new_exits` is the number of stored exits changed. A key repeated within a batch counts once.
 - **Graph.** Updated after the commit from the merged values, so a view from `freeze()` taken before the batch never changes.
 
 ## APIs
@@ -116,7 +117,7 @@ All are `plugins.client.mapper:<name>`. Names follow [ADR-0004](../decisions/000
 | `ev_plugins.client.mapper_room_arrived` | `uid`, `previous` |
 | `ev_plugins.client.mapper_room_changed` | `uid`, `new` |
 | `ev_plugins.client.mapper_room_mismatch` | `uid`, `differences` |
-| `ev_plugins.client.mapper_map_changed` | `areas`, `rooms`, `new_rooms`, `exits`, `notes`, `skipped` |
+| `ev_plugins.client.mapper_map_changed` | `areas`, `rooms`, `new_rooms`, `exits`, `new_exits`, `notes`, `skipped` |
 | `ev_plugins.client.mapper_walk_started` | `target`, `steps` |
 | `ev_plugins.client.mapper_walk_step` | `index`, `step`, `commands` |
 | `ev_plugins.client.mapper_walk_done` | `target` |

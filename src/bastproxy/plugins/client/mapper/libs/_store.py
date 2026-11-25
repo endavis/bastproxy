@@ -367,6 +367,7 @@ class MapStore:
                 self.db, "SELECT * FROM exits WHERE fromuid IN ({marks})", from_uids
             ):
                 current_exits[(row["fromuid"], row["dir"])] = _row_to_exit(row)
+            stored_exit_keys = set(current_exits)
             for given, is_embedded in zip(parsed, embedded, strict=True):
                 if given is None:
                     continue
@@ -436,6 +437,7 @@ class MapStore:
         result.rooms = len(written_rooms)
         result.new_rooms = len(new_rooms)
         result.exits = len(written_exits)
+        result.new_exits = len(written_exits.keys() - stored_exit_keys)
         result.notes = len(note_rows)
         result.room_flags = {uid: r["flags"] for uid, r in written_rooms.items()}
         result.written_exits = list(written_exits.values())
