@@ -32,8 +32,9 @@ class StandIns:
 
 @pytest.fixture
 def split_regex(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Give the API the command split regex the proxy plugin sets at startup."""
+    """Give the API the command split regex and separator the proxy plugin sets at startup."""
     monkeypatch.setattr(API, "command_split_regex", SPLIT_REGEX)
+    monkeypatch.setattr(API, "command_separator", "|")
 
 
 @pytest.fixture
