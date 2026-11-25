@@ -44,7 +44,9 @@ The requirement callback runs at most once per distinct requirement in one searc
 
 ## Pathfinding
 
-`path.get(start, target, max_depth=None)` runs Dijkstra over the in-memory graph.
+`path.get(start, target, max_depth=None, portals=True, recalls=True)` runs Dijkstra over the in-memory graph.
+
+- `portals=False` never uses the exits from `*`, and `recalls=False` never uses the exits from `**`. These are the same exits the `noportal` and `norecall` room flags block. A room's own custom exit, such as `enter portal`, is not a portal.
 
 - The cost of a path is the sum of the exit costs. Ties go to the path with fewer steps.
 - Exits from anywhere (`*` and `**`) count as exits of every room, so a portal costs what its exit costs. A room with the flag `noportal` blocks `*` and a room with `norecall` blocks `**`. A start uid that is not in the graph still gets these exits.
@@ -56,16 +58,17 @@ The requirement callback runs at most once per distinct requirement in one searc
 
 A walk has four states: `idle`, `searching`, `walking` and `stopped`.
 
-- `walk.start(target)` starts a path search from the current room and returns True once it has started, with the walk `searching`. When the search finishes it raises `walk_started` and sends only the first step. A target with no path arrives later as `walk_failed`, reason `no path`. It returns False, raising `walk_failed` with reason `current room unknown`, when the current room is not known.
+- `walk.start(target, portals=True, recalls=True)` starts a path search from the current room and returns True once it has started, with the walk `searching`. When the search finishes it raises `walk_started` and sends only the first step. A target with no path arrives later as `walk_failed`, reason `no path`. It returns False, raising `walk_failed` with reason `current room unknown`, when the current room is not known.
 - Arrivals while `searching` are ignored. If the character moved when the search ends, the walk stops with `walk_failed`, reason `moved during search`; a search that raised stops it with reason `search failed`. `walk.clear` during a search stops it and the late result is dropped.
 - Each `room.current.set` is given to the walk. The arrival of the step's target sends the next step (`walk_step`), or finishes the walk (`walk_done`). An arrival at the room the step left from, for example after `look`, is ignored.
 - An arrival anywhere else re-paths from there and continues when the `reroute` setting is on, up to 3 times. Otherwise the walk stops with `walk_failed`, reason `unexpected room`.
 - `walk.clear` stops the walk and keeps its target. `walk.restart` searches a path from the current room to that target and returns like `walk.start`. A MUD disconnect stops an active walk.
+- The walk keeps `portals` and `recalls` for its reroutes and `walk.restart`. `walkto` and `next` start walks with both off unless `-p` is given.
 - A walk only starts from `walk.start` or a command. Arrivals while `idle` or `stopped` send nothing.
 
 ## Threading
 
-Walks (`walk.start`, `walk.restart` and reroutes) and the commands `find`, `goto`, `where`, `walkto` and `resume` run the pathfinder in a worker thread, so a long search does not stall the event loop. The search does not run in parallel with the loop, as Python runs one thread at a time; it frees the loop, which keeps running between the switches. A command answers at once with a line like "finding a path to X" and reports its result in a later line to the client.
+Walks (`walk.start`, `walk.restart` and reroutes) and the commands `find`, `goto`, `where`, `speedwalk`, `walkto`, `next` and `resume` run the pathfinder in a worker thread, so a long search does not stall the event loop. The search does not run in parallel with the loop, as Python runs one thread at a time; it frees the loop, which keeps running between the switches. A command answers at once with a line like "finding a path to X" and reports its result in a later line to the client.
 
 - **Copy-on-write views.** A search reads a frozen view of the graph. Taking the view shares the graph's outer dicts, and the first write after it copies them, so writes on the loop never change what a worker reads and no lock is needed. Per-room exit dicts are replaced on a write, never mutated.
 - **Requirement callbacks stay on the loop.** Before the search the plugin asks the callback about every distinct requirement in the map and gives the worker a lookup, so adapters keep the API and the log. A requirement missing from the answers blocks its exit.
@@ -131,9 +134,9 @@ All are `plugins.client.mapper:<name>`. Names follow [ADR-0004](../decisions/000
 | `room.note.set(uid, text)`, `room.note.get(uid)`, `room.note.remove(uid)` | bool, str or None, bool |
 | `map.batch.add(areas=None, rooms=None, exits=None, notes=None, overwrite=True)` | the counts dict, or None when over `BATCH_LIMIT` |
 | `exit.add(fromuid, dir, touid="-1", cost=1, requirement=None)`, `exit.remove(fromuid, dir)`, `exit.list(fromuid)` | bool, bool, list of dicts |
-| `path.get(start, target, max_depth=None)` | `{"start", "target", "cost", "steps": [{"fromuid", "touid", "dir", "cost", "requirement"}]}` or None |
+| `path.get(start, target, max_depth=None, portals=True, recalls=True)` | `{"start", "target", "cost", "steps": [{"fromuid", "touid", "dir", "cost", "requirement"}]}` or None |
 | `requirement.register`, `requirement.unregister`, `movement.register`, `movement.unregister` | None |
-| `walk.start(target)`, `walk.restart()`, `walk.clear(reason="stopped")` | bool |
+| `walk.start(target, portals=True, recalls=True)`, `walk.restart()`, `walk.clear(reason="stopped")` | bool |
 | `walk.get()` | `{state, target, steps, index, reroutes}`, state being `idle`, `searching`, `walking` or `stopped` |
 
 ## Events
@@ -156,7 +159,8 @@ All are `plugins.client.mapper:<name>`. Names follow [ADR-0004](../decisions/000
 | `maxdepth` | 300 | the most steps a path may have |
 | `shownotes` | True | show a room's note when entering it |
 | `reroute` | True | find a new path when a walk ends up elsewhere |
+| `find_limit` | 50 | the most rooms `find` lists, 0 for no limit |
 
 ## Commands
 
-`#bp.client.mapper.find`, `goto`, `walkto`, `resume`, `stop`, `where`, `showroom`, `purge`, `note`, `accept` and `ignoreexits`. See [Mapper](../client/mapper.md).
+`#bp.client.mapper.find`, `goto`, `walkto`, `next`, `resume`, `stop`, `where`, `speedwalk`, `showroom`, `purge`, `note`, `accept` and `ignoreexits`. See [Mapper](../client/mapper.md).

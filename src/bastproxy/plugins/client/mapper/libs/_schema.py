@@ -35,6 +35,20 @@ PLAIN_DIRECTIONS = frozenset(
     | {"northeast", "northwest", "southeast", "southwest"}
 )
 
+# the short form of each plain direction, used to print a speedwalk
+SHORT_DIRECTIONS: dict[str, str] = {
+    "north": "n",
+    "south": "s",
+    "east": "e",
+    "west": "w",
+    "up": "u",
+    "down": "d",
+    "northeast": "ne",
+    "northwest": "nw",
+    "southeast": "se",
+    "southwest": "sw",
+}
+
 AREAS_SQL = """CREATE TABLE areas(
         uid TEXT NOT NULL PRIMARY KEY,
         name TEXT default '',

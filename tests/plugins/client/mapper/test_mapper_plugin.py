@@ -194,6 +194,32 @@ def test_walk_never_starts_on_its_own(test_map: Harness) -> None:
     assert not [n for n in test_map.names() if n.startswith("walk")]
 
 
+def test_path_get_portals_and_recalls(test_map: Harness) -> None:
+    """path.get can leave out the exits from ``*`` and ``**`` (#798)."""
+    p = test_map.plugin
+    assert p._api_path_get("A", "F", portals=False) is None
+    default = p._api_path_get("A", "F")
+    assert default is not None
+    assert [s["dir"] for s in default["steps"]] == ["portal f"]
+    assert p._api_path_get("E", "A", recalls=False) is None
+    assert p._api_path_get("E", "A", portals=False) is not None
+
+
+def test_walk_start_without_portals_or_recalls(test_map: Harness) -> None:
+    """walk.start with the options off fails where only a portal or recall leads (#798)."""
+    p = test_map.plugin
+    p._api_room_current_set("A")
+    assert p._api_walk_start("F", portals=False) is True
+    assert test_map.event("walk_failed")["reason"] == "no path"
+    assert test_map.mud == []
+    p._api_room_current_set("E")
+    assert p._api_walk_start("A", recalls=False) is True
+    assert test_map.event("walk_failed")["reason"] == "no path"
+    assert test_map.mud == []
+    assert p._api_walk_start("A") is True
+    assert test_map.mud == ["recall"]
+
+
 def test_walk_start_failures(test_map: Harness) -> None:
     """No current room or no path returns False and raises walk_failed."""
     p = test_map.plugin
@@ -379,9 +405,37 @@ def test_after_load_creates_database(tmp_path: Path) -> None:
     p._phook_initialize()
     assert created == [((OWNER, DB_NAME, TABLES), {"version": DB_VERSION})]
     assert len(TABLES) == 5
-    assert len(added) == len(EVENTS) + 3
-    assert {"maxdepth", "shownotes", "reroute"} <= set(added)
+    assert len(added) == len(EVENTS) + 4
+    assert {"maxdepth", "shownotes", "reroute", "find_limit"} <= set(added)
     assert p.store.db is db
+
+
+def test_find_limit_setting_is_added() -> None:
+    """after_load adds find_limit, default 50, 0 allowed, negatives and bools refused (#800)."""
+    p: Any = object.__new__(MapperPlugin)
+    p.plugin_id = OWNER
+    db = MagicMock()
+    db.select.return_value = []
+    kwargs: dict[str, dict[str, Any]] = {}
+    defaults: dict[str, Any] = {}
+
+    def add_setting(_pid: str, name: str, default: Any, *_a: Any, **k: Any) -> None:
+        kwargs[name] = k
+        defaults[name] = default
+
+    p.api = FakeApi(
+        {
+            "plugins.core.sqldb:database.add": lambda *a, **k: db,
+            "plugins.core.events:event.add": lambda *a, **k: None,
+            "plugins.core.settings:setting.add": add_setting,
+        }
+    )
+    p._phook_initialize()
+    assert defaults["find_limit"] == 50
+    validator = kwargs["find_limit"]["validator"]
+    assert validator(0) == ""
+    assert validator(-1) != ""
+    assert validator(True) != ""
 
 
 def test_loading_sends_nothing(test_map: Harness) -> None:

@@ -20,7 +20,9 @@ from ._schema import (
     ANYWHERE_UID,
     NOPORTAL_FLAG,
     NORECALL_FLAG,
+    PLAIN_DIRECTIONS,
     RECALL_UID,
+    SHORT_DIRECTIONS,
     UNKNOWN_UID,
 )
 
@@ -156,6 +158,8 @@ def find_path(
     *,
     max_depth: int,
     allowed: Callable[[Exit], bool],
+    portals: bool = True,
+    recalls: bool = True,
 ) -> PathResult | None:
     """Find the cheapest path from ``start`` to ``target``.
 
@@ -165,6 +169,8 @@ def find_path(
     Exits to an unexplored room and exits ``allowed`` rejects are never used.
     A ``noportal`` room cannot take the ``*`` exits and a ``norecall`` room cannot
     take the ``**`` exits; the start does not have to be a known room.
+    With ``portals`` false the exits from ``*`` are never used, and with ``recalls``
+    false the exits from ``**`` are never used.
     """
     if start == target:
         return PathResult(0, [])
@@ -193,10 +199,10 @@ def find_path(
         # The exits from anywhere lead to the same rooms from every room, and rooms
         # come off the heap cheapest first, so only the first room that may use them
         # can improve a cost. Relax them once per search, not once per room.
-        if not portals_done and NOPORTAL_FLAG not in flags:
+        if portals and not portals_done and NOPORTAL_FLAG not in flags:
             portals_done = True
             candidates += graph.exits_from(ANYWHERE_UID)
-        if not recall_done and NORECALL_FLAG not in flags:
+        if recalls and not recall_done and NORECALL_FLAG not in flags:
             recall_done = True
             candidates += graph.exits_from(RECALL_UID)
         for exit_ in candidates:
@@ -208,3 +214,45 @@ def find_path(
                 came[exit_.touid] = (uid, exit_)
                 heapq.heappush(heap, (new_cost, steps + 1, next(counter), exit_.touid))
     return None
+
+
+def speedwalk(steps: Iterable[Exit] | list[str], separator: str) -> str:
+    """Compress a path into a speedwalk string such as ``3n2e``.
+
+    ``steps`` are exits or direction strings. Consecutive plain directions become runs
+    of a count and a short direction (a single step stays bare) written together. A
+    custom exit is its own segment. Segments are joined with ``separator``, so the line
+    can be typed back as separate commands. An empty path gives ``""``.
+    """
+    segments: list[str] = []
+    plain = ""
+    run_dir = ""
+    run_count = 0
+
+    def end_run() -> None:
+        nonlocal plain, run_dir, run_count
+        if run_count:
+            plain += f"{run_count}{run_dir}" if run_count > 1 else run_dir
+        run_dir = ""
+        run_count = 0
+
+    def end_plain() -> None:
+        nonlocal plain
+        end_run()
+        if plain:
+            segments.append(plain)
+        plain = ""
+
+    for step in steps:
+        direction = step if isinstance(step, str) else step.dir
+        if direction in PLAIN_DIRECTIONS:
+            short = SHORT_DIRECTIONS.get(direction, direction)
+            if short != run_dir:
+                end_run()
+                run_dir = short
+            run_count += 1
+        else:
+            end_plain()
+            segments.append(direction)
+    end_plain()
+    return separator.join(segments)
