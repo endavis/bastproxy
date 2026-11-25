@@ -500,4 +500,4 @@ The audit of the record system lists the measurements and the new defects: [Reco
 
 1. Load `plugins.debug.records` and follow a record's tree and updates (see [Inspecting records](#inspecting-records))
 2. Log with `get_logger(name).debug(...)` or `log_to([...], ...)` from `bastproxy.libs.logger`; see [Logging System](logging_system.md)
-3. The `data.mud` and `data.client.<uuid>` loggers record raw I/O to the network data log, which persists across restarts. Records do not: they stay in memory only, by design (#82)
+3. The `data.mud` and `data.client.<uuid>` loggers record raw I/O to the network data log. It is on by default (`networkdata_log` setting of `plugins.core.log`), survives restarts for `archive_retention_days` (default 30, 0 keeps everything) and is not written when the setting is off; see [Logging System](logging_system.md#network-data-log). Records do not: they stay in memory only, by design (#82)
