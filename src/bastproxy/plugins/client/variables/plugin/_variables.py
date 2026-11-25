@@ -137,6 +137,7 @@ class VariablesPlugin(BasePlugin):
         """
         return expand_references(text, self.variables)
 
+    @AddCommand(literal_args=True)
     @AddParser(description="add a variable or change its value")
     @AddArgument(
         "-o", "--overwrite", help="replace the variable when the name exists", action="store_true"
@@ -161,6 +162,7 @@ class VariablesPlugin(BasePlugin):
             ],
         )
 
+    @AddCommand(literal_args=True)
     @AddParser(description="remove a variable")
     @AddArgument("name", help="the variable name")
     def _command_remove(self) -> CommandResult:
@@ -171,7 +173,7 @@ class VariablesPlugin(BasePlugin):
             return CommandResult(True, [f"variable {name} removed"])
         return CommandResult(False, [f"variable {name} does not exist"])
 
-    @AddCommand(default=True)
+    @AddCommand(default=True, literal_args=True)
     @AddParser(description="list variables")
     @AddArgument(
         "match",
@@ -203,4 +205,19 @@ class VariablesPlugin(BasePlugin):
         expanded = expand_references(line.line, self.variables)
         if expanded != line.line:
             line.line = expanded
+            event_record.addupdate(UpdateFlag.MODIFY, "variables expanded", savedata=False)
+
+    @RegisterToEvent(event_name="ev_plugins.core.commands_args_modify")
+    def _eventcb_expand_command_args(self) -> None:
+        """Expand variable references in a #bp command's argument string (#776).
+
+        The commands plugin raises this event only for commands that do not declare
+        literal_args, and the line in the history stays as typed.
+        """
+        if not (event_record := self.api("plugins.core.events:event.current.record.get")()):
+            return
+        args = event_record["args"]
+        expanded = expand_references(args, self.variables)
+        if expanded != args:
+            event_record["args"] = expanded
             event_record.addupdate(UpdateFlag.MODIFY, "variables expanded", savedata=False)

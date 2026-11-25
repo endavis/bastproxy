@@ -599,6 +599,7 @@ class ActionsPlugin(BasePlugin):
             else:
                 self.api("plugins.core.commands:command.line.run")(part, show_in_history=False)
 
+    @AddCommand(literal_args=True)
     @AddParser(description="add an action or change it")
     @AddArgument("-g", "--group", help="the group of the action", default="")
     @AddArgument("-d", "--disabled", help="add the action disabled", action="store_true")
@@ -659,6 +660,7 @@ class ActionsPlugin(BasePlugin):
             ],
         )
 
+    @AddCommand(literal_args=True)
     @AddParser(description="remove an action")
     @AddArgument("name", help="the action name or id")
     def _command_remove(self) -> CommandResult:
@@ -669,7 +671,7 @@ class ActionsPlugin(BasePlugin):
             return CommandResult(True, [f"action {name} removed"])
         return CommandResult(False, [f"action {args['name']} does not exist"])
 
-    @AddCommand(default=True)
+    @AddCommand(default=True, literal_args=True)
     @AddParser(description="list actions")
     @AddArgument(
         "match",
@@ -722,6 +724,7 @@ class ActionsPlugin(BasePlugin):
             return (True, [f"action {resolved} {word}"])
         return (False, [f"action {name} does not exist"])
 
+    @AddCommand(literal_args=True)
     @AddParser(description="enable an action or a group of actions")
     @AddArgument("name", help="the action name or id", default="", nargs="?")
     @AddArgument("-g", "--group", help="enable this group instead", default="")
@@ -730,6 +733,7 @@ class ActionsPlugin(BasePlugin):
         success, lines = self._set_enabled(True)
         return CommandResult(success, lines)
 
+    @AddCommand(literal_args=True)
     @AddParser(description="disable an action or a group of actions")
     @AddArgument("name", help="the action name or id", default="", nargs="?")
     @AddArgument("-g", "--group", help="disable this group instead", default="")
@@ -738,6 +742,7 @@ class ActionsPlugin(BasePlugin):
         success, lines = self._set_enabled(False)
         return CommandResult(success, lines)
 
+    @AddCommand(literal_args=True)
     @AddParser(description="toggle an action or a group of actions")
     @AddArgument("name", help="the action name or id", default="", nargs="?")
     @AddArgument("-g", "--group", help="toggle this group instead", default="")
@@ -757,6 +762,7 @@ class ActionsPlugin(BasePlugin):
         success, lines = self._set_enabled(enabled)
         return CommandResult(success, lines)
 
+    @AddCommand(literal_args=True)
     @AddParser(description="show an action")
     @AddArgument("name", help="the action name or id")
     def _command_show(self) -> CommandResult:

@@ -74,6 +74,7 @@ class CommandClass:
         show_in_history: bool = True,
         shelp: str = "",
         default: bool = False,
+        literal_args: bool = False,
     ) -> None:
         self.name = name
         self.function = function
@@ -85,6 +86,8 @@ class CommandClass:
         self.preamble = preamble
         self.show_in_history = show_in_history
         self.default = default  # run on a bare #bp.<plugin> (#778)
+        # keep the argument string as typed: no args-modify event (#776)
+        self.literal_args = literal_args
         self.full_cmd = self.api("plugins.core.commands:command.format")(self.plugin_id, name)
         self.short_help = shelp
         self.count = 0  # lifetime count, carried over when the plugin reloads
