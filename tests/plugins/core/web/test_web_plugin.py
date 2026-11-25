@@ -189,7 +189,7 @@ async def test_setup_b_loopback_plain_http_with_an_https_publicurl(stub: Any) ->
     assert url.startswith("https://x.ts.net/p/")
     status, _, _ = await http_get(stub.port, get_request("/p/" + url.rsplit("/", 1)[1]))
     assert status == 200
-    assert "https://x.ts.net/" in status_text(stub)
+    assert f"{'Public url':<14}: https://x.ts.net/" in status_text(stub).splitlines()
 
 
 async def test_ipv6_loopback_link_is_bracketed(stub: Any) -> None:
