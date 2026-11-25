@@ -11,9 +11,11 @@ import re
 import secrets
 import time
 from collections import OrderedDict
-from collections.abc import Callable
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
+
+from ._table import Column, make_columns
 
 # keep module identity across a reload of the plugin (the store is carried over)
 CANRELOAD = False
@@ -149,6 +151,7 @@ class Route:
     subpath: str
     handler: Callable[..., Any]
     title: str
+    columns: tuple[Column, ...] | None = None
 
 
 class RouteTable:
@@ -162,12 +165,19 @@ class RouteTable:
         """The url prefix of a plugin id: ``plugins.aardwolf.mapper`` gives ``aardwolf/mapper``."""
         return owner.removeprefix("plugins.").replace(".", "/")
 
-    def add(self, owner: str, subpath: str, handler: Callable[..., Any], title: str) -> str:
+    def add(
+        self,
+        owner: str,
+        subpath: str,
+        handler: Callable[..., Any],
+        title: str,
+        columns: Sequence[Mapping[str, Any]] | None = None,
+    ) -> str:
         """Add a route and return its path.
 
         Raises:
-            ValueError: The subpath is invalid, the first segment is reserved, or another
-                owner already serves the path.
+            ValueError: The subpath is invalid, the first segment is reserved, another
+                owner already serves the path, or the columns are invalid.
 
         """
         if subpath and not SUBPATH_RE.fullmatch(subpath):
@@ -177,12 +187,13 @@ class RouteTable:
         if not prefix or prefix.split("/", 1)[0] in RESERVED_SEGMENTS:
             msg = f"the prefix {prefix!r} starts with a reserved segment"
             raise ValueError(msg)
+        declared = make_columns(columns) if columns is not None else None
         path = f"/{prefix}/{subpath}" if subpath else f"/{prefix}"
         existing = self._routes.get(path)
         if existing is not None and existing.owner != owner:
             msg = f"{path} is already served by {existing.owner}"
             raise ValueError(msg)
-        self._routes[path] = Route(owner, path, subpath, handler, title)
+        self._routes[path] = Route(owner, path, subpath, handler, title, declared)
         return path
 
     def remove(self, owner: str) -> int:

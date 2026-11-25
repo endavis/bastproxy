@@ -51,7 +51,7 @@ async def test_expired_token_is_404(running: Running) -> None:
     assert (await running.get(f"/p/{token}"))[0] == 404
 
 
-@pytest.mark.parametrize("path", ["/p/", "/static/table.js", "/login/x", "/a/b"])
+@pytest.mark.parametrize("path", ["/p/", "/login/x", "/a/b"])
 async def test_everything_else_is_404(running: Running, path: str) -> None:
     status, _, _ = await running.get(path)
     assert status == 404
