@@ -135,13 +135,24 @@ versions, raw `pytest` instead of `doit`, and mutable action tags this project's
 | Job | What it runs |
 | :--- | :--- |
 | `setup` | Builds the test matrix from `.github/python-versions.json` |
-| `test` | `pytest`, called directly, on each OS and Python version in the matrix. It does not measure coverage. On Windows it then also runs `doit format_check`, `doit security` and `doit cleanup`, on Git's default line-ending settings (see [Windows doit tasks](#windows-doit-tasks)). |
-| `coverage` | `pytest --cov` on the newest Python on `ubuntu-latest`, in parallel with `test`, plus the opt-in Codecov upload (the only job holding `id-token: write`). It logs which coverage core ran (`COVERAGE_DEBUG=core`). Skipped on `full_matrix` runs, which test only the middle versions. |
+| `test` | `pytest`, called directly, on each OS and Python version in the matrix. It does not measure coverage. It prints the duration of each test over 0.05s (`--durations-min=0.05`), writes a JUnit report and uploads it as the `junit-test-<os>-<python>` artifact (see [Run diagnostics](#run-diagnostics)). On Windows it then also runs `doit format_check`, `doit security` and `doit cleanup`, on Git's default line-ending settings (see [Windows doit tasks](#windows-doit-tasks)). |
+| `coverage` | `pytest --cov` on the newest Python on `ubuntu-latest`, in parallel with `test`, plus the opt-in Codecov upload (the only job holding `id-token: write`). It logs which coverage core ran (`COVERAGE_DEBUG=core`) and prints the duration of each test over 0.05s (`--durations-min=0.05`), and uploads its JUnit report as the `junit-coverage` artifact. Skipped on `full_matrix` runs, which test only the middle versions. |
 | `lint` | `doit env_check`, `doit format_check`, `doit lint`, `doit type_check`, `doit deadcode`, `doit security`, `doit spell_check`, `doit audit` and `doit wheel_check`, on `ubuntu-latest`. Each runs even when one before it failed, so CI reports every failing check at once. A failure in any of them fails CI. |
 | `docs` | `doit docs_build`, described below |
 | `ci-complete` | Fails if any other job (`test`, `coverage`, `lint`, `docs`) failed; a skipped job passes. It gives the run one result to require ([ADR-9013](../decisions/9013-python-version-support-policy.md)). |
 
 `tests/test_ci_jobs_doc.py` checks this table against `ci.yml`: the same jobs, and the same `doit` tasks in each.
+
+#### Run diagnostics
+
+Each job sets `timeout-minutes` (5 for `setup` and `ci-complete`, 10 for `lint` and `docs`, 20 for `test` and `coverage`), at least 8 times the slowest normal run, so a hung job fails in minutes instead of the 6-hour default (#1329).
+
+- `test` and `coverage` pass `--junitxml=tmp/junit.xml`. `tools/junit_summary.py` writes the failed tests and the 10 slowest to the run's step summary, and the report is uploaded as an artifact kept 14 days, even when the job fails. In `test` both steps run before the Windows doit steps, because `doit cleanup` empties `tmp/`.
+- Each job that installs dependencies logs `uv cache hit: true|false|unknown` after `setup-uv`, so a slow install can be told from a cold cache.
+
+`doit ci_timings --run=<id> [--compare=<id>] [--tests]` turns a run's jobs and these JUnit artifacts into step and test duration tables, and the `ci-triage` skill uses it to triage a failure or a slowdown.
+
+`tests/test_ci_workflow.py` (`TestRunDiagnostics`) guards these steps.
 
 #### Windows doit tasks
 

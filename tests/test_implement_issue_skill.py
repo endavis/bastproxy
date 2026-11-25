@@ -250,3 +250,11 @@ def test_implement_planner_also_runs_the_plan_review_brief() -> None:
     text = IMPLEMENT_PLANNER.read_text(encoding="utf-8")
     assert "Plan-review brief" in text
     assert _frontmatter(text)["model"] == "opus"
+
+
+def test_step_7_points_at_the_branch_update_procedure() -> None:
+    step7 = _section(_skill_text(), "### Step 7:", "### Step 8:")
+    assert "../implement-issues/SKILL.md" in step7
+    assert "--force-with-lease origin <branch>" in step7
+    assert "origin/main" in step7
+    assert "git merge origin/main" not in _skill_text()

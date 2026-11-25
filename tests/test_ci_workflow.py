@@ -465,6 +465,17 @@ class TestCoverageJob:
         assert show["if"] == "always()"
         assert "Using core=" in show["run"]
 
+    def test_both_pytest_steps_print_durations(self) -> None:
+        jobs = self._jobs()
+        coverage_name = "Run tests with coverage"
+        steps = [
+            next(s for s in jobs["test"]["steps"] if s.get("name") == "Run tests"),
+            next(s for s in jobs["coverage"]["steps"] if s.get("name") == coverage_name),
+        ]
+        for step in steps:
+            assert "--durations=0" in step["run"], step["name"]
+            assert "--durations-min=0.05" in step["run"], step["name"]
+
     def test_coverage_job_skipped_on_full_matrix(self) -> None:
         assert "inputs.full_matrix" in self._jobs()["coverage"]["if"]
 
@@ -474,3 +485,72 @@ class TestCoverageJob:
         script = job["steps"][0]["run"]
         assert 'coverage_result="${{ needs.coverage.result }}"' in script
         assert '"$coverage_result" != "skipped"' in script
+
+
+class TestRunDiagnostics:
+    """Timeouts, JUnit artifacts, a run summary and cache logging (#1329)."""
+
+    @staticmethod
+    def _jobs() -> dict[str, Any]:
+        jobs: dict[str, Any] = _load_workflow()["jobs"]
+        return jobs
+
+    @staticmethod
+    def _index(steps: list[dict[str, Any]], needle: str) -> int:
+        return next(
+            i
+            for i, s in enumerate(steps)
+            if needle in s.get("run", "") or needle in s.get("uses", "")
+        )
+
+    def test_every_job_has_a_timeout(self) -> None:
+        for name, job in self._jobs().items():
+            assert 1 <= job["timeout-minutes"] <= 60, name
+
+    def test_junit_path_matches_across_steps(self) -> None:
+        for name in ("test", "coverage"):
+            steps = self._jobs()[name]["steps"]
+            pytest_step = steps[self._index(steps, "uv run pytest")]
+            summary = steps[self._index(steps, "junit_summary.py")]
+            upload = steps[self._index(steps, "upload-artifact")]
+            assert "--junitxml=tmp/junit.xml" in pytest_step["run"], name
+            assert "tmp/junit.xml" in summary["run"], name
+            assert upload["with"]["path"] == "tmp/junit.xml", name
+
+    def test_upload_runs_after_failure_and_expires(self) -> None:
+        for name in ("test", "coverage"):
+            steps = self._jobs()[name]["steps"]
+            upload = steps[self._index(steps, "upload-artifact")]
+            assert upload["if"] == "always()", name
+            assert "retention-days" in upload["with"], name
+            assert upload["with"]["if-no-files-found"] == "warn", name
+
+    def test_artifact_names_are_unique(self) -> None:
+        names = []
+        for name in ("test", "coverage"):
+            steps = self._jobs()[name]["steps"]
+            names.append(steps[self._index(steps, "upload-artifact")]["with"]["name"])
+        assert len(set(names)) == len(names)
+        assert "matrix.os" in names[0]
+        assert "matrix.python-version" in names[0]
+
+    def test_summary_and_upload_precede_windows_doit_steps(self) -> None:
+        steps = _test_job_steps()
+        summary = self._index(steps, "junit_summary.py")
+        upload = self._index(steps, "upload-artifact")
+        for step in _windows_task_steps(steps):
+            at = steps.index(step)
+            assert summary < at, step["name"]
+            assert upload < at, step["name"]
+
+    def test_every_setup_uv_step_logs_its_cache_result(self) -> None:
+        for name, job in self._jobs().items():
+            steps = job["steps"]
+            for i, step in enumerate(steps):
+                if "setup-uv" not in step.get("uses", ""):
+                    continue
+                assert step["id"] == "setup-uv", name
+                log = steps[i + 1]
+                assert "steps.setup-uv.outputs.cache-hit" in log["env"]["CACHE_HIT"], name
+                assert "uv cache hit:" in log["run"], name
+                assert "uv run" not in log["run"], name

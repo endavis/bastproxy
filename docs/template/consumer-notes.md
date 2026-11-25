@@ -247,6 +247,14 @@ Release PRs on `release/v*` branches are now exempt from Validate Issue Link, an
 `doit release --issue=N` links a release issue. See
 [Downstream opt-ins](../development/release-and-automation.md#downstream-opt-ins-static-version-and-hand-written-changelog).
 
+### Reset the placeholder `CHANGELOG.md` before your first `doit release`
+
+Template sync does not touch `CHANGELOG.md`. Projects made from an older template carry its
+placeholder: `0.1.0` bullets, a `## [0.1.0] - YYYY-MM-DD` section and `username/package_name` link
+references. With `update_changelog_on_bump = true`, `cz changelog --incremental` keeps all of it, so
+it lands in your first generated release (issue #1313). Reset `CHANGELOG.md` to its header followed
+by an empty `## [Unreleased]` heading before that release.
+
 ### Conventional-commit enforcement is live
 
 It was configured but dormant while `commit-msg` was never installed. Commit messages that
@@ -264,7 +272,8 @@ stop. See [AI Command Blocking](../development/ai/command-blocking.md#heredocs).
 
 A commit message passed by heredoc is scanned as command arguments, so a message that merely *names*
 a blocked pattern is refused. Write it to `tmp/agents/<agent-type>/` and pass `git commit -F <file>`;
-the block now says so rather than giving a generic reason. See
+the block now says so rather than giving a generic reason. The same hint now covers any data
+heredoc whose body alone trips a block. See
 [Passing the Message](../../.github/CONTRIBUTING.md#commit-guidelines).
 
 ### PRs get no benchmark regression comment

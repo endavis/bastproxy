@@ -17,6 +17,7 @@ from __future__ import annotations
 import io
 import os
 import re
+import shutil
 import subprocess
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -476,12 +477,21 @@ def _git(cwd: Path, *args: str) -> str:
     return result.stdout.strip()
 
 
-@pytest.fixture
-def main_checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """A real repository to run from, ignoring what this one does for the tests below."""
-    repo = tmp_path / "repo"
+_TEMPLATE_BRANCHES = ("feat/1-add-export", "feat/1-x", "feat/2-other")
+
+
+@pytest.fixture(scope="session")
+def git_template(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Build the test repository once per session; each test copies it.
+
+    ``main`` holds one ``init`` commit. The branches in ``_TEMPLATE_BRANCHES`` sit one
+    commit ahead of it, that commit adding ``export.py``, so ``_add_worktree`` needs no
+    commit of its own. Copying the files costs far less than the git processes a fresh
+    ``git init``, ``add`` and ``commit`` spawn, a gap that is widest on Windows.
+    """
+    repo = tmp_path_factory.mktemp("git_template") / "repo"
     repo.mkdir()
-    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "init", "-q", "-b", "main", "--template=")
     (repo / ".gitignore").write_text(
         ".venv/\n__pycache__/\n.envrc.local\n/mutants/\n/worktrees/\ntmp/*\n!tmp/.gitkeep\n",
         encoding="utf-8",
@@ -490,17 +500,36 @@ def main_checkout(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     (repo / "tmp" / ".gitkeep").touch()
     _git(repo, "add", ".gitignore", "tmp/.gitkeep")
     _git(repo, "commit", "-q", "-m", "init")
+    first, *others = _TEMPLATE_BRANCHES
+    _git(repo, "checkout", "-q", "-b", first)
+    (repo / "export.py").write_text("x = 1\n", encoding="utf-8")
+    _git(repo, "add", "export.py")
+    _git(repo, "commit", "-q", "-m", "feat: add export")
+    for branch in others:
+        _git(repo, "branch", branch)
+    _git(repo, "checkout", "-q", "main")
+    return repo
+
+
+@pytest.fixture
+def main_checkout(git_template: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """A real repository to run from, ignoring what this one does for the tests below."""
+    repo = tmp_path / "repo"
+    shutil.copytree(git_template, repo, symlinks=True)
     monkeypatch.chdir(repo)
     return repo
 
 
 def _add_worktree(repo: Path, branch: str, path: Path | None = None) -> tuple[Path, str]:
-    """Create *branch* in a worktree with one commit; return its path and that commit."""
+    """Check out *branch* in a worktree; return its path and its commit.
+
+    The branch comes from ``git_template`` and holds one commit that adds ``export.py``.
+    """
+    assert branch in _TEMPLATE_BRANCHES, (
+        f"{branch!r} is not a git_template branch: {_TEMPLATE_BRANCHES}"
+    )
     path = path or repo / "worktrees" / branch
-    _git(repo, "worktree", "add", "-q", "-b", branch, str(path))
-    (path / "export.py").write_text("x = 1\n", encoding="utf-8")
-    _git(path, "add", "export.py")
-    _git(path, "commit", "-q", "-m", "feat: add export")
+    _git(repo, "worktree", "add", "-q", str(path), branch)
     return path, _git(path, "rev-parse", "HEAD")
 
 

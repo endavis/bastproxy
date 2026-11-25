@@ -189,6 +189,12 @@ push, skip `doit pr` and Step 7 and report the pushed branch.
 3. **At most 3 rounds.** After the third round, stop regardless of outcome and report every job
    still failing, each with a short excerpt from its log.
 
+When a failing job's fix is already on `main`, or the branch is behind `origin/main` and needs it,
+update the branch with items 1-4 of [`implement-issues` Step
+4](../implement-issues/SKILL.md#step-4-open-prs-one-at-a-time): fetch, rebase on `origin/main`, then
+`git push --force-with-lease origin <branch>`. Run each step as `cd "$WORKTREE" && ...` or `git -C
+"$WORKTREE" ...`. Rebase, never merge `main` into the branch. The update counts as one of the 3 rounds.
+
 `require-label` is expected to stay red — it is the human merge gate, not something this skill fixes.
 
 ### Step 8: Stop and report

@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from test_merge_pr_skill import NUMBER_WORDS
+
 from tools.doit.skills import SHARED_SKILLS
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -112,7 +114,7 @@ def test_host_support_names_every_host() -> None:
 def test_docs_register_the_skill() -> None:
     slash = (AI_DOCS / "slash-commands.md").read_text(encoding="utf-8")
     assert "### implement issues A, B" in slash
-    assert "Twenty workflow skills" in slash
+    assert f"{NUMBER_WORDS[len(SHARED_SKILLS)]} workflow skills" in slash
     assert "implement issues" in (AI_DOCS / "first-5-minutes.md").read_text(encoding="utf-8")
     delegation = (AI_DOCS / "cross-agent-delegation.md").read_text(encoding="utf-8")
     assert "## Parallel issues (`implement-issues`)" in delegation

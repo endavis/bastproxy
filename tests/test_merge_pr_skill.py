@@ -18,7 +18,7 @@ SKILL = REPO_ROOT / ".agents" / "skills" / "merge-pr" / "SKILL.md"
 SLASH_COMMANDS = REPO_ROOT / "docs" / "development" / "ai" / "slash-commands.md"
 AGENTS_MD = REPO_ROOT / "AGENTS.md"
 
-NUMBER_WORDS = {17: "Seventeen", 18: "Eighteen", 19: "Nineteen", 20: "Twenty"}
+NUMBER_WORDS = {17: "Seventeen", 18: "Eighteen", 19: "Nineteen", 20: "Twenty", 21: "Twenty-one"}
 
 
 def _text() -> str:

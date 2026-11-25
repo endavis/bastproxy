@@ -1554,12 +1554,20 @@ def _without_heredoc_bodies(command: str) -> str:
 # (#759). The scanner is not taught to recognise prose -- that would mean
 # skipping bodies for an allowlist of receivers, where a mistake is a bypass
 # (ADR-9019, rule 3). The message is passed by file instead, and this turns the
-# block into the redirect that says so.
+# block into the redirect that says so. Any data heredoc whose body alone trips
+# a block gets the general hint (#1319).
 _COMMIT_HEREDOC_REDIRECT = (
     "A commit message passed by heredoc is scanned as command arguments, so a "
     "message naming a blocked pattern is refused. Write the message to "
     "tmp/agents/<agent-type>/ and pass it with `git commit -F <file>` "
     "(.github/CONTRIBUTING.md, Commit Guidelines)."
+)
+
+_HEREDOC_BODY_HINT = (
+    "A heredoc body is scanned as command arguments, so text naming a blocked "
+    "pattern is refused even as data. Write the text to a file under "
+    "tmp/agents/<agent-type>/ with the agent's file-edit tool and pass it by path "
+    "(AGENTS.md, Temporary Files)."
 )
 
 
@@ -1583,14 +1591,16 @@ def _is_commit_message_heredoc(command: str) -> bool:
 
 
 def redirect_reason(command: str, reason: str) -> str:
-    """Replace *reason* with an actionable one where the repo has a better path.
+    """Append a file-based hint to *reason* when a data heredoc body caused the block.
 
     Block-and-redirect (`docs/development/ai/enforcement-principles.md`): a block
-    that does not say what to do instead costs a turn and teaches nothing.
+    that does not say what to do instead costs a turn and teaches nothing. The
+    matched reason is kept so the agent still sees which pattern fired.
     """
-    if reason and _is_commit_message_heredoc(command):
-        return _COMMIT_HEREDOC_REDIRECT
-    return reason
+    if not reason or not _heredoc_body_caused_block(command):
+        return reason
+    hint = _COMMIT_HEREDOC_REDIRECT if _is_commit_message_heredoc(command) else _HEREDOC_BODY_HINT
+    return f"{reason.rstrip('.')}. {hint}"
 
 
 # Command names the rules key on. A path-qualified spelling (``/usr/bin/git``,
@@ -4159,6 +4169,28 @@ def check_command(command: str, _depth: int = 0, _expanded: bool = False) -> tup
                 return True, reason
 
     return False, ""
+
+
+def _heredoc_body_caused_block(command: str) -> bool:
+    """Whether a data heredoc body, and nothing else, made *command* blocked.
+
+    Detection only: it runs after :func:`check_command` has decided, and
+    changes what the block says, never what is blocked (ADR-9019, rules 1 and
+    3). True only when the command without its heredoc bodies is allowed, no
+    body a shell executes is dangerous (``bash <<EOF`` keeps its plain reason,
+    #762), and no command substitution in a body is dangerous.
+    """
+    if check_command(_without_heredoc_bodies(command))[0]:
+        return False
+    if any(check_command(p, 1)[0] for p in _heredoc_payloads(command)):
+        return False
+    try:
+        substitutions = _all_substitution_payloads(command)
+    except RecursionError:
+        return False
+    if substitutions is None:
+        return False
+    return not any(check_command(p, 1, _expanded=True)[0] for p in substitutions)
 
 
 # Key ``_parse_input`` stores a bare patch-string payload under. Prefixed so it

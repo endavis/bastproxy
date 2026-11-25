@@ -116,7 +116,35 @@ TEMPLATE_OWNED_TEST_FILES: list[str] = [
     # Reads the template's own [tool.mypy] table and type-checks the shipped
     # tooling under variants of it; shed with the template config (#1305).
     "tests/template/test_mypy_config_variants.py",
+    # Asserts the template-shipped CHANGELOG.md is placeholder-free; a project
+    # legitimately fills its own changelog (#1313).
+    "tests/template/test_changelog_placeholder.py",
+    # Targets reset_changelog, called only by the shed wizards (#1315).
+    "tests/template/test_changelog_reset.py",
 ]
+
+
+CHANGELOG_RESET_CONTENT = """# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+"""
+
+
+def reset_changelog(root: Path) -> None:
+    """Write *root*/CHANGELOG.md as the header plus an empty ``## [Unreleased]``.
+
+    A spawned project starts its own release history. Release sections copied
+    from the template would survive ``cz changelog --incremental`` into the
+    project's first generated release (#1315). ``configure.py`` and
+    ``setup_repo.py`` both call this so the two paths cannot disagree. A missing
+    CHANGELOG.md is created: the project wants one.
+    """
+    (root / "CHANGELOG.md").write_text(CHANGELOG_RESET_CONTENT, encoding="utf-8")
 
 
 def remove_template_owned_tests(root: Path) -> list[Path]:

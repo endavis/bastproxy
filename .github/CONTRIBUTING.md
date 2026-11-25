@@ -199,6 +199,7 @@ from bastproxy import module
 - Maintain or improve test coverage (target: ≥80%)
 - Use descriptive test names: `test_function_does_something_when_condition`
 - Use fixtures for common setup
+- Load a module under test once per test module, not once per test: re-executing a module per test is several times slower under coverage on Python 3.14. See `tests/hook_loader.py` for the load-once-and-reset pattern
 - Test edge cases and error conditions
 
 ### Running Tests
