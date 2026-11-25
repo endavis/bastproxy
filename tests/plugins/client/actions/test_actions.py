@@ -594,11 +594,7 @@ def test_expand_matches_prefix_in_any_case() -> None:
     assert _expand("%1", ("#BP.x",)) is None
 
 
-def _expand_args(command: str, groups: tuple[str, ...], expands: bool, calls: list[str]) -> Any:
-    def expands_args(text: str) -> bool:
-        calls.append(text)
-        return expands
-
+def _expand_escaped(command: str, groups: tuple[str, ...], escape: bool = True) -> Any:
     return expand_command(
         command,
         groups,
@@ -607,78 +603,65 @@ def _expand_args(command: str, groups: tuple[str, ...], expands: bool, calls: li
         split_regex=SPLIT,
         separator="|",
         prefix="#bp",
-        expands_args=expands_args,
+        escape_command_references=escape,
     )
 
 
-def test_matched_reference_in_command_part_is_escaped_when_target_expands() -> None:
-    """#816: a non-literal target gets %{x} from matched text as %%{x}."""
-    out = _expand_args("#bp.test.go %1", ("%{x}",), True, [])
-    assert out == ["#bp.test.go '%%{x}'"]
+@pytest.mark.parametrize(
+    "command",
+    [
+        "#bp.client.loop.run 2 %1",  # literal_args, but re-sends its arguments (#816)
+        "#bp.client.variables.add n %1",  # literal definition, expands the stored text later
+        "#bp.client.aliases.add n %1",
+        "#bp.test.go %1",
+    ],
+)
+def test_matched_reference_in_any_command_part_is_escaped(command: str) -> None:
+    """#816: matched %{x} never becomes a reference, whatever command the part runs."""
+    out = _expand_escaped(command, ("%{x}",))
+    assert out == [command.replace("%1", "'%%{x}'")]
 
 
-def test_matched_reference_in_command_part_kept_for_literal_target() -> None:
-    """#816: a literal target gets the matched text unchanged."""
-    out = _expand_args("#bp.test.go %1", ("%{x}",), False, [])
-    assert out == ["#bp.test.go '%{x}'"]
+def test_literal_definition_stores_escaped_text() -> None:
+    """#816: a definition stores %%{x}, which expands later to the literal %{x}."""
+    from bastproxy.plugins.client.variables.plugin._variables import expand_references
+
+    out = _expand_escaped("#bp.client.variables.add n %1", ("%{x}",))
+    assert out == ["#bp.client.variables.add n '%%{x}'"]
+    assert expand_references("'%%{x}'", {"x": "SECRET"}) == "'%{x}'"
 
 
 def test_own_reference_in_command_part_is_not_escaped() -> None:
     """#816: a %{dest} written in the action's command stays a reference."""
-    out = _expand_args("#bp.test.go %{dest} %1", ("%{x}",), True, [])
+    out = _expand_escaped("#bp.test.go %{dest} %1", ("%{x}",))
     assert out == ["#bp.test.go %{dest} '%%{x}'"]
 
 
-def test_expands_args_not_called_without_matched_text() -> None:
-    """#816: no matched text means the callback is not asked."""
-    calls: list[str] = []
-    assert _expand_args("#bp.test.go %{dest}", (), True, calls) == ["#bp.test.go %{dest}"]
-    assert _expand_args("#bp.test.go %1", ("",), True, calls) == ["#bp.test.go ''"]
-    assert calls == []
+def test_command_part_not_escaped_without_variables_plugin() -> None:
+    """#816: with no variables plugin nothing would undo the escape, so none is done."""
+    assert _expand_escaped("#bp.test.go %1", ("%{x}",), escape=False) == ["#bp.test.go '%{x}'"]
+
+
+def test_no_escape_without_matched_text() -> None:
+    """#816: a part with no matched text is left as written."""
+    assert _expand_escaped("#bp.test.go %{dest}", ()) == ["#bp.test.go %{dest}"]
+    assert _expand_escaped("#bp.test.go %1", ("",)) == ["#bp.test.go ''"]
 
 
 def test_option_like_refusal_wins_over_escaping() -> None:
     """#816: an option-like value still refuses the firing."""
-    assert _expand_args("#bp.test.go %1", ("-d %{x}",), True, []) is None
-
-
-def test_escaped_command_text_round_trips_through_expand_references() -> None:
-    """#816: the variables plugin turns the escaped text back into the matched text."""
-    from bastproxy.plugins.client.variables.plugin._variables import expand_references
-
-    out = _expand_args("#bp.test.go %1", ("%{x}",), True, [])
-    assert out is not None
-    assert expand_references(out[0], {"x": "SECRET"}) == "#bp.test.go '%{x}'"
-
-
-def test_expands_command_args(tmp_path: Path) -> None:
-    """#816: only a command known not to be literal, with variables loaded, expands args."""
-    p = _plugin(tmp_path)
-    p.api.table["plugins.core.commands:command.literal.args.get"] = lambda text: {
-        "#bp.a": False,
-        "#bp.b": True,
-    }.get(text)
-    assert p._expands_command_args("#bp.a x") is False
-    p.api.table["libs.api:api.exists"] = lambda location: True
-    p.api.table["plugins.core.commands:command.literal.args.get"] = lambda text: {
-        "#bp.a x": False,
-        "#bp.b x": True,
-    }.get(text)
-    assert p._expands_command_args("#bp.a x") is True
-    assert p._expands_command_args("#bp.b x") is False
-    assert p._expands_command_args("#bp.c x") is False
+    assert _expand_escaped("#bp.test.go %1", ("-d %{x}",)) is None
 
 
 @pytest.mark.parametrize(
-    ("literal", "expected"), [(False, "#bp.t.go '%%{x}'"), (True, "#bp.t.go '%{x}'")]
+    ("loaded", "expected"), [(True, "#bp.t.go '%%{x}'"), (False, "#bp.t.go '%{x}'")]
 )
-def test_trigger_matched_escapes_for_non_literal_target(
-    tmp_path: Path, literal: bool, expected: str
+def test_trigger_matched_escapes_when_variables_loaded(
+    tmp_path: Path, loaded: bool, expected: str
 ) -> None:
-    """#816: end to end, matched %{x} reaches a non-literal command escaped."""
+    """#816: end to end, matched %{x} is escaped only when the variables plugin is loaded."""
     p = _plugin(tmp_path)
-    p.api.table["libs.api:api.exists"] = lambda location: True
-    p.api.table["plugins.core.commands:command.literal.args.get"] = lambda text: literal
+    p.api.table["libs.api:api.exists"] = lambda location: loaded
     p._api_action_add("a", r"^(.*)$", "#bp.t.go %1")
     with patch.object(actions_module, "log_to"):
         _fire(p, "a", ("%{x}",), {}, "%{x}")

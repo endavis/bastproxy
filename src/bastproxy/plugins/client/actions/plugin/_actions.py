@@ -87,7 +87,7 @@ def expand_command(
     prefix: str,
     is_alias: Callable[[str], bool] | None = None,
     alias_resends: Callable[[str], bool] | None = None,
-    expands_args: Callable[[str], bool] | None = None,
+    escape_command_references: bool = False,
     colorline: str = "",
 ) -> list[str] | None:
     """Split a stored command into parts and substitute the matched text in each.
@@ -111,8 +111,8 @@ def expand_command(
       command would read as an option.
 
     In a proxy command part holding matched text, ``%{`` from the match is escaped
-    to ``%%{`` when ``expands_args`` says the command expands variable references
-    in its arguments, so the command gets the text as matched.
+    to ``%%{`` when ``escape_command_references`` is set, so matched text never
+    becomes a variable reference, even in a command that re-sends its arguments.
     """
     parts = regex.split(split_regex, command) if split_regex else [command]
     result: list[str] = []
@@ -149,7 +149,7 @@ def expand_command(
             if option_like:
                 return None
             command_text = "".join(text for text, _ in segments)
-            if expands_args is not None and has_match_text and expands_args(command_text):
+            if escape_command_references and has_match_text:
                 command_text = _escape_references(segments)
             result.append(command_text)
             continue
@@ -548,15 +548,6 @@ class ActionsPlugin(BasePlugin):
             return False
         return bool(self.api(location)(text))
 
-    def _expands_command_args(self, text: str) -> bool:
-        """Check if text is a command whose arguments get variable references expanded.
-
-        False without the variables plugin, since nothing would undo the escape.
-        """
-        if not self.api("libs.api:api.exists")("plugins.client.variables:variable.get"):
-            return False
-        return self.api("plugins.core.commands:command.literal.args.get")(text) is False
-
     def _trigger_matched(self) -> None:
         """Run the command of the action whose trigger fired."""
         record = self.api("plugins.core.events:event.current.record.get")()
@@ -585,7 +576,9 @@ class ActionsPlugin(BasePlugin):
                 prefix=self.api("plugins.core.commands:command.prefix.get")(),
                 is_alias=self._is_alias,
                 alias_resends=self._alias_resends,
-                expands_args=self._expands_command_args,
+                escape_command_references=bool(
+                    self.api("libs.api:api.exists")("plugins.client.variables:variable.get")
+                ),
                 colorline=colorline,
             )
             if parts is None:
