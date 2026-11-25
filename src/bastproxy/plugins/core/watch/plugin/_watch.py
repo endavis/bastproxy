@@ -13,12 +13,18 @@ from typing import Any
 
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.logger import echo_off_placeholder, get_logger, log_to
+from bastproxy.libs.records import UpdateFlag
 
 # 3rd Party
 # Project
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
+
+# runs after the commands plugin's callback (50), so a rewrite is not parsed as a
+# proxy command, and before aliases (55) and variables (60), so a rewritten line
+# is still expanded
+WATCH_PRIORITY = 52
 
 
 @dataclass(slots=True)
@@ -124,6 +130,12 @@ class WatchPlugin(BasePlugin):
         @Ykeyword args@w arguments:
           stored unchanged in the watch's `extra` dict.
 
+        The regex is matched against the typed line with surrounding whitespace
+        stripped. A callback registered to the watch's event receives the args
+        `matched`, `cmdname`, `data` (the stripped text) and `line`, the
+        `NetworkDataLine` being sent: set `line.line` to rewrite it, or
+        `line.send = False` to stop it.
+
         Adding an existing name replaces that watch. This function returns True
         when the watch was added or replaced. It returns False, changing nothing,
         when no owner can be found, the regex does not compile, or the regex
@@ -193,6 +205,10 @@ class WatchPlugin(BasePlugin):
                 "matched": "The matched arguments from the regex",
                 "cmdname": "The command name that was matched",
                 "data": "The data that was matched",
+                "line": (
+                    "The NetworkDataLine being sent; set .line to rewrite it "
+                    "or .send = False to stop it"
+                ),
             },
         )
         return True
@@ -256,27 +272,42 @@ class WatchPlugin(BasePlugin):
             if item.owner == plugin:
                 self.api(f"{self.plugin_id}:watch.remove")(name)
 
-    @RegisterToEvent(event_name="ev_to_mud_data_modify")
+    @RegisterToEvent(event_name="ev_to_mud_data_modify", priority=WATCH_PRIORITY)
     def _eventcb_check_command(self) -> None:
-        """Check input from the client and see if we are watching for it."""
+        """Check input from the client and see if we are watching for it.
+
+        The line is matched stripped, as the old proxy did. A callback gets the
+        line as ``args["line"]``: setting ``.line`` rewrites it and ``.send = False``
+        stops it.
+        """
         if not (event_record := self.api("plugins.core.events:event.current.record.get")()):
             return
         line = event_record["line"]
         if not line.is_io:
             return
-        client_data = line.line
-        for watch_name, item in self.watch_data.items():
+        client_data = line.line.strip()
+        for watch_name, item in list(self.watch_data.items()):
             if match_data := item.compiled.match(client_data):
                 item.hits += 1
                 match_args = {
                     "matched": match_data.groupdict(),
                     "cmdname": f"cmd_{watch_name}",
+                    "data": client_data,
+                    "line": line,
                 }
-                match_args["data"] = client_data
                 get_logger(self.plugin_id).debug(
                     "_eventcb_check_command: watch %s matched %s, raising %s",
                     watch_name,
                     echo_off_placeholder(client_data) if line.mask_log else client_data,
                     match_args["cmdname"],
                 )
+                before = (line.line, line.send)
                 self.api("plugins.core.events:event.raise")(item.event_name, event_args=match_args)
+                if line.line != before[0]:
+                    event_record.addupdate(
+                        UpdateFlag.MODIFY, f"watch {watch_name} rewrote the line", savedata=False
+                    )
+                if line.send != before[1]:
+                    event_record.addupdate(
+                        UpdateFlag.MODIFY, f"watch {watch_name} stopped the line", savedata=False
+                    )

@@ -294,6 +294,10 @@ API calls made through `self.api(...)`.
                 "matched": "The matched arguments from the regex",
                 "cmdname": "The command name that was matched",
                 "data": "The data that was matched",
+                "line": (
+                    "The NetworkDataLine being sent; set .line to rewrite it "
+                    "or .send = False to stop it"
+                ),
             },
         )
 ```
@@ -353,6 +357,25 @@ exception in a callback is logged and the remaining callbacks still run. See
 
 The full list is in [common event names](claude/event_system.md#common-event-names).
 
+### Watching client input
+
+`"plugins.core.watch:watch.add"` registers a regex that is matched against each line the client
+types, and raises an event of its own when it matches. Register a callback to that event with
+`RegisterToEvent`.
+
+- The regex is matched with `re.match` against the typed line with its leading and trailing
+  whitespace stripped, so `^superhero loud$` matches `  superhero loud `. The line that reaches the
+  MUD is not changed by matching.
+- The callback gets `event_record["matched"]` (the regex's named groups), `cmdname`, `data` (the
+  stripped text) and `line`, the `NetworkDataLine` being sent.
+- To rewrite the line, set `args["line"].line = "new text"`. To stop it from being sent, set
+  `args["line"].send = False`. Both changes are recorded on the line with the callback as actor.
+- Every matching watch fires, each against the original stripped text. A later callback sees an
+  earlier one's rewrite in `args["line"].line`, and the last writer wins.
+- Watch runs at priority 52 on `ev_to_mud_data_modify`: after the commands plugin (50), so a
+  rewrite into `#bp...` is not run as a proxy command, and before aliases (55) and variables (60),
+  so a rewritten line is still alias- and `%{name}`-expanded. A stopped line is skipped by both.
+
 ## Commands
 
 A command is a `_command_*` method that returns a `CommandResult`. The decorators come from
@@ -397,7 +420,8 @@ plugin (`src/bastproxy/plugins/core/commands/plugin/_commands.py`):
   left-stripped, starts with the `cmdprefix` setting, `run_internal_command_from_event` runs the
   command, sets `line.send = False` so the line does not reach the MUD, and sends the output with
   `SendDataDirectlyToClient(..., clients=...)` to the client that typed it. Any other line passes
-  through to the MUD. `plugins.client.aliases` then rewrites or re-sends an alias line at priority 55, and
+  through to the MUD. `plugins.core.watch` runs at priority 52 and may rewrite or stop the line
+  (see [Watching client input](#watching-client-input)); `plugins.client.aliases` then rewrites or re-sends an alias line at priority 55, and
   `plugins.client.variables` expands `%{name}` references in the remaining lines at priority 60,
   after command handling; see [Aliases](client/aliases.md) and [Variables](client/variables.md).
   `plugins.client.actions` runs a command from a trigger's match through
