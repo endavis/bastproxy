@@ -35,7 +35,7 @@ Input is split on the command separator before expansion, so a `|` inside a valu
 
 | Command | Does |
 |---------|------|
-| `#bp.client.variables.add <name> <value...>` | Add a variable, or change the value of one that exists. The value is the rest of the line. The command is not named `set` because every plugin already has a `set` command for its own settings. |
+| `#bp.client.variables.add [-o] <name> <value...>` | Add a variable. An existing name is refused unless `-o` (`--overwrite`) is given, so changing a value needs `-o`. The value is the rest of the line. The command is not named `set` because every plugin already has a `set` command for its own settings. |
 | `#bp.client.variables.remove <name>` | Remove a variable. |
 | `#bp.client.variables.list [match]` | List variables, optionally only names containing `match`. |
 

@@ -21,6 +21,8 @@ Issue #708 asks for user aliases. Actions (#709) and loop (#711) need the same a
 ## Decision
 
 - The plugin `plugins.client.aliases` matches the first word of a client line (left-stripped, exact, case-sensitive) on `ev_to_mud_data_modify` at priority 55.
+- A first word of the form `name.tail` that matches no alias also matches when `name` is an enabled alias whose expansion starts with the command prefix: each `.` is tried, longest prefix first, and at least one character must follow the dot. The tail, dot included, is attached to the first word of the expansion before arguments are substituted, so `map` = `#bp.client.mapper` turns `map.find orc` into `#bp.client.mapper.find orc`. A tail with `%` does not match. The result starts with the command prefix, so it is re-sent.
+- Lines that start with the command prefix are not expanded and names cannot start with it (#777): the prefix match already shortens proxy commands, and expanding `#bp` lines would mean running before the commands plugin, so the history would no longer hold the typed line.
 - An expansion with no separator and not starting with the command prefix rewrites the line in place. An alias at the start of the result is resolved in the same callback.
 - An expansion that contains the command separator or starts with the command prefix is re-sent: the typed line gets `send = False` and the expansion goes through `plugins.core.commands:command.line.run(text, show_in_history=False)`. The separator split, `#bp` commands and alias matching then apply to each part, and variables expands the new lines at 60. The history keeps the typed line only.
 - The `add` command stores a doubled separator (`||`) as a single one, because a typed line is split on a single separator before the command runs. The `alias.add` API stores the expansion as passed.
@@ -36,6 +38,8 @@ Priority 55 keeps ADR-0016's contract as written: the history holds the typed li
 ## Related Issues
 
 - Issue #708: add user aliases
+- Issue #773: match an alias as a prefix of a dotted first word
+- Issue #777: aliases and lines that start with the command prefix
 - Issue #711: add a loop command (reads %1 as its counter)
 - Issue #592: user variables, aliases, actions and loop
 

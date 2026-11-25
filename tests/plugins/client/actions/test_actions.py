@@ -42,6 +42,7 @@ def _plugin(tmp_path: Path, args: dict[str, Any] | None = None) -> Any:
     plugin.plugin_id = PID
     plugin.actions = PersistentDict("x", tmp_path / "actions.txt", "c")
     plugin.groups = PersistentDict("x", tmp_path / "groups.txt", "c")
+    plugin.state = PersistentDict("x", tmp_path / "state.txt", "c")
     plugin.session_hits = {}
     plugin.mocks = {
         key: MagicMock()
@@ -143,6 +144,9 @@ def test_add_get_exists_list_remove(tmp_path: Path) -> None:
         "group": "",
         "enabled": True,
         "matchcolor": True,
+        "send": "execute",
+        "id": 1,
+        "hits": 0,
     }
     assert p._api_action_get("zz") is None
     assert p._api_action_exists("k") is True
@@ -342,6 +346,9 @@ def test_command_add(tmp_path: Path) -> None:
         "group": "g",
         "enabled": False,
         "matchcolor": True,
+        "send": "execute",
+        "id": 1,
+        "hits": 0,
     }
 
 
@@ -379,9 +386,12 @@ def test_command_list(tmp_path: Path) -> None:
     p._api_action_add("red", "x", "@r", "g")
     p._api_action_add("blue", "y", "b")
     p._api_action_enabled_set("blue", False)
-    assert p._command_list().message == ["blue : y -> b (disabled)", "red : x -> @@r (group g)"]
+    assert p._command_list().message == [
+        "[2] blue : y -> b (disabled)",
+        "[1] red : x -> @@r (group g)",
+    ]
     p.api.table["plugins.core.commands:command.current.args.get"] = lambda: {"match": "re"}
-    assert p._command_list().message == ["red : x -> @@r (group g)"]
+    assert p._command_list().message == ["[1] red : x -> @@r (group g)"]
 
 
 def test_command_enable_disable(tmp_path: Path) -> None:
@@ -449,7 +459,7 @@ def test_command_names_do_not_shadow_base_plugin_commands() -> None:
         base_names |= _command_names(dict(vars(klass)))
     own_names = _command_names(dict(vars(ActionsPlugin)))
     assert {"set", "reset", "save", "help"} <= base_names
-    assert own_names == {"add", "remove", "list", "enable", "disable", "show"}
+    assert own_names == {"add", "remove", "list", "enable", "disable", "show", "toggle"}
     assert not own_names & base_names
 
 

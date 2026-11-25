@@ -103,6 +103,7 @@ def _wire(stand_ins: StandIns, tmp_path: Path) -> Wired:
     actions.plugin_id = "plugins.client.actions"
     actions.actions = PersistentDict("a", tmp_path / "actions.txt", "c")
     actions.groups = PersistentDict("a", tmp_path / "groups.txt", "c")
+    actions.state = PersistentDict("a", tmp_path / "state.txt", "c")
     actions.session_hits = {}
     actions.api = _Api(
         {

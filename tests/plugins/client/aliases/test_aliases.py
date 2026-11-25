@@ -47,6 +47,7 @@ def _plugin(tmp_path: Path, args: dict[str, Any] | None = None) -> Any:
     plugin.plugin_id = "plugins.client.aliases"
     plugin.aliases = PersistentDict("x", tmp_path / "aliases.txt", "c")
     plugin.groups = PersistentDict("x", tmp_path / "groups.txt", "c")
+    plugin.state = PersistentDict("x", tmp_path / "state.txt", "c")
     plugin.session_hits = {}
     plugin._resend_depth = 0
     plugin.escape = MagicMock(side_effect=lambda s: s.replace("@", "@@"))
@@ -91,7 +92,13 @@ def test_add_get_exists_list_remove(tmp_path: Path) -> None:
     """The API stores, reads and removes aliases; get and list return copies."""
     p = _plugin(tmp_path)
     assert p._api_alias_add("k", "kill %1") is True
-    assert p._api_alias_get("k") == {"expansion": "kill %1", "group": "", "enabled": True}
+    assert p._api_alias_get("k") == {
+        "expansion": "kill %1",
+        "group": "",
+        "enabled": True,
+        "id": 1,
+        "hits": 0,
+    }
     assert p._api_alias_get("zz") is None
     assert p._api_alias_exists("k") is True
     got = p._api_alias_get("k")
@@ -161,7 +168,7 @@ def test_persistence(tmp_path: Path) -> None:
     p._api_alias_add("a", "x", "g")
     p._api_alias_group_enabled_set("g", False)
     assert dict(PersistentDict("x", tmp_path / "aliases.txt", "c")) == {
-        "a": {"expansion": "x", "group": "g", "enabled": True}
+        "a": {"expansion": "x", "group": "g", "enabled": True, "id": 1, "hits": 0}
     }
     assert dict(PersistentDict("x", tmp_path / "groups.txt", "c")) == {"g": False}
     p._api_alias_remove("a")
@@ -173,7 +180,13 @@ def test_command_add(tmp_path: Path) -> None:
     args = {"name": "k", "expansion": ["kill", "%1"], "group": "g", "disabled": True}
     p = _plugin(tmp_path, args)
     assert p._command_add().success is True
-    assert p.aliases["k"] == {"expansion": "kill %1", "group": "g", "enabled": False}
+    assert p.aliases["k"] == {
+        "expansion": "kill %1",
+        "group": "g",
+        "enabled": False,
+        "id": 1,
+        "hits": 0,
+    }
 
 
 def test_command_add_stores_doubled_separator_single(tmp_path: Path) -> None:
@@ -184,9 +197,17 @@ def test_command_add_stores_doubled_separator_single(tmp_path: Path) -> None:
     assert p.aliases["p"]["expansion"] == "stand|look|say %*"
 
 
-def _add_messages(tmp_path: Path, expansion: list[str], separator: str = "|") -> list[str]:
+def _add_messages(
+    tmp_path: Path, expansion: list[str], separator: str = "|", overwrite: bool = False
+) -> list[str]:
     """Run the add command with the given separator and return its messages."""
-    args = {"name": "oa", "expansion": expansion, "group": "", "disabled": False}
+    args = {
+        "name": "oa",
+        "expansion": expansion,
+        "group": "",
+        "disabled": False,
+        "overwrite": overwrite,
+    }
     p = _plugin(tmp_path, args)
     p.api.command_separator = separator
     result = p._command_add()
@@ -211,7 +232,7 @@ def test_command_add_warns_on_pipe_with_semicolon_separator(tmp_path: Path) -> N
     warned = _add_messages(tmp_path, ["od|oe"], ";")
     assert len(warned) == 2
     assert '"od;;oe"' in warned[1]
-    assert _add_messages(tmp_path, ["od;;oe"], ";") == ["alias oa set"]
+    assert _add_messages(tmp_path, ["od;;oe"], ";", overwrite=True) == ["alias oa set"]
 
 
 @pytest.mark.parametrize("expansion", [["od||oe"], ["kill", "%1"], ["say", "hi;", "there||x"]])
@@ -253,9 +274,9 @@ def test_command_list(tmp_path: Path) -> None:
     p._api_alias_add("red", "@r", "g")
     p._api_alias_add("blue", "b")
     p._api_alias_enabled_set("blue", False)
-    assert p._command_list().message == ["blue : b (disabled)", "red : @@r (group g)"]
+    assert p._command_list().message == ["[2] blue : b (disabled)", "[1] red : @@r (group g)"]
     p.api.table["plugins.core.commands:command.current.args.get"] = lambda: {"match": "re"}
-    assert p._command_list().message == ["red : @@r (group g)"]
+    assert p._command_list().message == ["[1] red : @@r (group g)"]
 
 
 def test_command_enable_disable(tmp_path: Path) -> None:
@@ -490,7 +511,7 @@ def test_command_names_do_not_shadow_base_plugin_commands() -> None:
     own_names = _command_names(dict(vars(AliasesPlugin)))
 
     assert {"set", "reset", "save", "help"} <= base_names
-    assert own_names == {"add", "remove", "list", "enable", "disable", "show"}
+    assert own_names == {"add", "remove", "list", "enable", "disable", "show", "toggle"}
     assert not own_names & base_names
 
 

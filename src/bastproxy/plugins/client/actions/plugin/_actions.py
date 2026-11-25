@@ -18,14 +18,16 @@ import regex
 
 # Project
 from bastproxy.libs.api import AddAPI
-from bastproxy.libs.logger import log_to
+from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.persistentdict import PersistentDict
+from bastproxy.libs.records import NetworkData, SendDataDirectlyToClient, SendDataDirectlyToMud
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 
 NAME_RE = re.compile(r"[A-Za-z0-9_]+")
 GROUP_RE = re.compile(r"[A-Za-z0-9_]*")
-ACTION_REF_RE = re.compile(r"%(%?)([1-9*]|<[A-Za-z_][A-Za-z0-9_]*>)")
+ACTION_REF_RE = re.compile(r"%(%?)([1-9*c]|<[A-Za-z_][A-Za-z0-9_]*>)")
+SEND_TARGETS = ("execute", "client", "mud")
 
 
 def _clean(value: str, separator: str) -> str:
@@ -84,11 +86,13 @@ def expand_command(
     prefix: str,
     is_alias: Callable[[str], bool] | None = None,
     alias_resends: Callable[[str], bool] | None = None,
+    colorline: str = "",
 ) -> list[str] | None:
     """Split a stored command into parts and substitute the matched text in each.
 
-    ``%1`` to ``%9`` are the numbered groups, ``%*`` is the whole line and
-    ``%<name>`` a named group. ``%%`` before a reference makes it literal. A group
+    ``%1`` to ``%9`` are the numbered groups, ``%*`` is the whole line, ``%c`` the
+    line with its colours as colour codes (``colorline``) and ``%<name>`` a named group.
+    ``%%`` before a reference makes it literal. A group
     that did not take part is empty. Substitution is one pass. Matched text is
     escaped for the kind of part it lands in.
 
@@ -121,6 +125,8 @@ def expand_command(
             ref = match.group(2)
             if ref == "*":
                 value: Any = line
+            elif ref == "c":
+                value = colorline
             elif ref.startswith("<"):
                 value = named.get(ref[1:-1])
             else:
@@ -155,6 +161,42 @@ def expand_command(
     return result
 
 
+def expand_text(
+    command: str,
+    groups: Sequence[str | None],
+    named: Mapping[str, Any],
+    line: str,
+    colorline: str,
+    *,
+    escape_at: bool,
+) -> str:
+    """Substitute the matched text into a command in one pass, for the client or the MUD.
+
+    Nothing is split or parsed: no separator, no ``%{}`` variable and no command
+    prefix check. Values lose CR and LF. With ``escape_at`` a value has ``@`` doubled
+    so it shows as typed after colour conversion; ``%c`` is never doubled, so its
+    colour codes stay colours. ``%%`` before a reference makes it literal.
+    """
+
+    def _replace(match: re.Match[str]) -> str:
+        if match.group(1):
+            return "%" + match.group(2)
+        ref = match.group(2)
+        if ref == "c":
+            return colorline.replace("\r", "").replace("\n", "")
+        if ref == "*":
+            value: Any = line
+        elif ref.startswith("<"):
+            value = named.get(ref[1:-1])
+        else:
+            index = int(ref) - 1
+            value = groups[index] if index < len(groups) else None
+        text = "" if value is None else str(value).replace("\r", "").replace("\n", "")
+        return text.replace("@", "@@") if escape_at else text
+
+    return ACTION_REF_RE.sub(_replace, command)
+
+
 def _first_word_from_match(segments: list[tuple[str, bool]]) -> bool:
     """Check if any character of the first word of the joined segments came from matched text."""
     started = False
@@ -182,13 +224,72 @@ class ActionsPlugin(BasePlugin):
         self.groups = PersistentDict(
             self.plugin_id, self.plugin_info.data_directory / "groups.txt", "c"
         )
+        self.state = PersistentDict(
+            self.plugin_id, self.plugin_info.data_directory / "state.txt", "c"
+        )
         self.session_hits: dict[str, int] = {}
+        self._upgrade()
 
     @RegisterPluginHook("save")
     def _phook_actions_save(self) -> None:
-        """Save the actions and the group state."""
+        """Save the actions (with their hit counts), the group state and the id counter."""
         self.actions.sync()
         self.groups.sync()
+        self.state.sync()
+
+    def _upgrade(self) -> None:
+        """Bring actions loaded from an older file up to date.
+
+        Every action gets ``hits``, ``send`` (``execute``) and, when it lacks one, an
+        ``id`` in sorted name order, and the id counter moves past every id in use.
+        Nothing is written unless something changed. A digit-only name from an older
+        file stays an integer key, because PersistentDict turns every digit-only key
+        into one; it never matched a trigger name and is reachable by its id.
+        """
+        changed = False
+        highest = 0
+        for item in self.actions.values():
+            for key, default in (("hits", 0), ("send", "execute")):
+                if key not in item:
+                    item[key] = default
+                    changed = True
+            if isinstance(item.get("id"), int):
+                highest = max(highest, item["id"])
+        next_id = max(int(self.state.get("next_id", 1)), highest + 1)
+        for name in sorted(self.actions, key=str):
+            item = self.actions[name]
+            if not isinstance(item.get("id"), int):
+                item["id"] = next_id
+                next_id += 1
+                changed = True
+        if self.state.get("next_id") != next_id:
+            self.state["next_id"] = next_id
+            changed = True
+        if changed:
+            self.actions.sync()
+            self.state.sync()
+
+    def _next_id(self) -> int:
+        """Return the next free action id and advance the counter, which is never lowered."""
+        value = int(self.state.get("next_id", 1))
+        self.state["next_id"] = value + 1
+        self.state.sync()
+        return value
+
+    def _resolve(self, key: Any) -> Any:
+        """Return the stored key of the action for a typed name or id, or None.
+
+        A name wins; otherwise a digit string is looked up as an id. The stored key
+        is a string, except for a digit-only name from an older file.
+        """
+        key = str(key)
+        if key in self.actions:
+            return key
+        if key.isdigit():
+            for name, item in self.actions.items():
+                if item.get("id") == int(key):
+                    return name
+        return None
 
     @RegisterPluginHook("after_load")
     def _phook_actions_after_load(self) -> None:
@@ -237,7 +338,7 @@ class ActionsPlugin(BasePlugin):
             if ref.startswith("<"):
                 if ref[1:-1] not in compiled.groupindex:
                     return False
-            elif ref != "*" and int(ref) > compiled.groups:
+            elif ref not in ("*", "c") and int(ref) > compiled.groups:
                 return False
         return True
 
@@ -250,6 +351,7 @@ class ActionsPlugin(BasePlugin):
         group: str = "",
         enabled: bool = True,
         matchcolor: bool = False,
+        send: str = "execute",
     ) -> bool:
         """Add an action or replace an existing one.
 
@@ -259,11 +361,13 @@ class ActionsPlugin(BasePlugin):
         @Ygroup@w         = the group, letters, digits and underscores, optional
         @Yenabled@w       = whether the action is enabled
         @Ymatchcolor@w    = match against the line with colour codes
+        @Ysend@w          = where the text goes: execute (run as commands), client or mud
 
-        This function returns True when the action was stored. It returns False,
-        changing nothing, for a bad name, regex, command or group.
+        An existing action is replaced and keeps its id and hit count. This function
+        returns True when the action was stored. It returns False, changing nothing,
+        for a bad name (digits only is refused), regex, command, group or send.
         """
-        if not isinstance(name, str) or not NAME_RE.fullmatch(name):
+        if not isinstance(name, str) or not NAME_RE.fullmatch(name) or name.isdigit():
             log_to([self.plugin_id], logging.WARNING, "_api_action_add: bad action name")
             return False
         if (
@@ -298,12 +402,19 @@ class ActionsPlugin(BasePlugin):
         if not isinstance(group, str) or not GROUP_RE.fullmatch(group):
             log_to([self.plugin_id], logging.WARNING, "_api_action_add: bad group for %s", name)
             return False
+        if send not in SEND_TARGETS:
+            log_to([self.plugin_id], logging.WARNING, "_api_action_add: bad send for %s", name)
+            return False
+        old = self.actions.get(name)
         self.actions[name] = {
             "regex": regex_text,
             "command": command,
             "group": group,
             "enabled": bool(enabled),
             "matchcolor": bool(matchcolor),
+            "send": send,
+            "id": old["id"] if old is not None else self._next_id(),
+            "hits": old.get("hits", 0) if old is not None else 0,
         }
         self.actions.sync()
         return self._register(name)
@@ -330,8 +441,8 @@ class ActionsPlugin(BasePlugin):
 
         @Yname@w   = the action name
 
-        This function returns a dict with regex, command, group, enabled and
-        matchcolor, or None.
+        This function returns a dict with regex, command, group, enabled, matchcolor,
+        send, id and hits, or None.
         """
         item = self.actions.get(name)
         return dict(item) if item is not None else None
@@ -429,33 +540,73 @@ class ActionsPlugin(BasePlugin):
         name = record["trigger_name"]
         if name not in self.actions or not self._api_action_is_enabled(name):
             return
-        parts = expand_command(
-            self.actions[name]["command"],
-            record.get("groups") or (),
-            record["matches"],
-            str(record["line"].noansi),
-            split_regex=self.api.command_split_regex,
-            separator=self.api.command_separator,
-            prefix=self.api("plugins.core.commands:command.prefix.get")(),
-            is_alias=self._is_alias,
-            alias_resends=self._alias_resends,
-        )
-        if parts is None:
-            log_to(
-                [self.plugin_id],
-                logging.WARNING,
-                "action %s: matched text would decide the command to run, nothing was run",
-                name,
+        item = self.actions[name]
+        command = item["command"]
+        send = item.get("send", "execute")
+        line = record["line"]
+        colorline = str(line.colorcoded) if "%c" in command else ""
+        groups = record.get("groups") or ()
+        logger = get_logger(self.plugin_id)
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("action %s matched: %r", name, str(line.noansi))
+        if send == "execute":
+            parts = expand_command(
+                command,
+                groups,
+                record["matches"],
+                str(line.noansi),
+                split_regex=self.api.command_split_regex,
+                separator=self.api.command_separator,
+                prefix=self.api("plugins.core.commands:command.prefix.get")(),
+                is_alias=self._is_alias,
+                alias_resends=self._alias_resends,
+                colorline=colorline,
             )
-            return
+            if parts is None:
+                log_to(
+                    [self.plugin_id],
+                    logging.WARNING,
+                    "action %s: matched text would decide the command to run, nothing was run",
+                    name,
+                )
+                return
+        else:
+            parts = [
+                expand_text(
+                    command,
+                    groups,
+                    record["matches"],
+                    str(line.noansi),
+                    colorline,
+                    escape_at=send == "client",
+                )
+            ]
         self.session_hits[name] = self.session_hits.get(name, 0) + 1
+        item["hits"] = item.get("hits", 0) + 1
         for part in parts:
-            self.api("plugins.core.commands:command.line.run")(part, show_in_history=False)
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug("action %s sends to %s: %r", name, send, part)
+            if send == "client":
+                SendDataDirectlyToClient(NetworkData([part], owner_id=self.plugin_id))()
+            elif send == "mud":
+                SendDataDirectlyToMud(NetworkData([part], owner_id=self.plugin_id))()
+            else:
+                self.api("plugins.core.commands:command.line.run")(part, show_in_history=False)
 
     @AddParser(description="add an action or change it")
     @AddArgument("-g", "--group", help="the group of the action", default="")
     @AddArgument("-d", "--disabled", help="add the action disabled", action="store_true")
     @AddArgument("-c", "--color", help="match the line with colour codes", action="store_true")
+    @AddArgument(
+        "-s",
+        "--send",
+        help="where the text goes: execute it as commands, or send it to the client or the MUD",
+        choices=list(SEND_TARGETS),
+        default="execute",
+    )
+    @AddArgument(
+        "-o", "--overwrite", help="replace the action when the name exists", action="store_true"
+    )
     @AddArgument("name", help="the action name")
     @AddArgument("regex", help="the regex a MUD line must match, quote it")
     @AddArgument("command", help="the command to run", nargs="*")
@@ -467,6 +618,8 @@ class ActionsPlugin(BasePlugin):
                 False, ["Please provide a command, use remove to delete an action"]
             )
         name = args["name"]
+        if name in self.actions and not args.get("overwrite", False):
+            return CommandResult(False, [f"action {name} exists, use -o to replace it"])
         regex_text = args["regex"]
         command = " ".join(args["command"])
         # a typed line is split on the command separator before this command runs,
@@ -476,27 +629,34 @@ class ActionsPlugin(BasePlugin):
             regex_text = regex_text.replace(separator * 2, separator)
             command = command.replace(separator * 2, separator)
         if self.api(f"{self.plugin_id}:action.add")(
-            name, regex_text, command, args["group"], not args["disabled"], args["color"]
+            name,
+            regex_text,
+            command,
+            args["group"],
+            not args["disabled"],
+            args["color"],
+            args.get("send", "execute"),
         ):
             return CommandResult(True, [f"action {name} set"])
         return CommandResult(
             False,
             [
-                f"could not set {name}: the name needs letters, digits and underscores, the "
+                f"could not set {name}: the name needs letters, digits and underscores, not only "
+                "digits, the "
                 "regex must compile, the group letters, digits and underscores, the command "
                 "can only reference groups the regex has, and neither can contain a line break"
             ],
         )
 
     @AddParser(description="remove an action")
-    @AddArgument("name", help="the action name")
+    @AddArgument("name", help="the action name or id")
     def _command_remove(self) -> CommandResult:
         """Remove an action."""
         args = self.api("plugins.core.commands:command.current.args.get")()
-        name = args["name"]
-        if self.api(f"{self.plugin_id}:action.remove")(name):
+        name = self._resolve(args["name"])
+        if name is not None and self.api(f"{self.plugin_id}:action.remove")(name):
             return CommandResult(True, [f"action {name} removed"])
-        return CommandResult(False, [f"action {name} does not exist"])
+        return CommandResult(False, [f"action {args['name']} does not exist"])
 
     @AddParser(description="list actions")
     @AddArgument(
@@ -509,7 +669,7 @@ class ActionsPlugin(BasePlugin):
         """List actions."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         match = args["match"]
-        names = sorted(name for name in self.actions if not match or match in name)
+        names = sorted((name for name in self.actions if not match or match in str(name)), key=str)
         if not names:
             return CommandResult(True, ["No actions defined"])
         escape = self.api("plugins.core.colors:colorcode.escape")
@@ -521,9 +681,12 @@ class ActionsPlugin(BasePlugin):
                 tags.append(f"group {item['group']}")
             if not self._api_action_is_enabled(name):
                 tags.append("disabled")
+            if item.get("send", "execute") != "execute":
+                tags.append(f"send {item['send']}")
             suffix = f" ({', '.join(tags)})" if tags else ""
             lines.append(
-                f"{escape(name)} : {escape(item['regex'])} -> {escape(item['command'])}{suffix}"
+                f"[{item['id']}] {escape(str(name))} : {escape(item['regex'])} -> "
+                f"{escape(item['command'])}{suffix}"
             )
         return CommandResult(True, lines)
 
@@ -540,12 +703,15 @@ class ActionsPlugin(BasePlugin):
         if group:
             count = self.api(f"{self.plugin_id}:action.group.enabled.set")(group, enabled)
             return (True, [f"group {group} {word}, {count} actions in it"])
-        if self.api(f"{self.plugin_id}:action.enabled.set")(name, enabled):
-            return (True, [f"action {name} {word}"])
+        resolved = self._resolve(name)
+        if resolved is not None and self.api(f"{self.plugin_id}:action.enabled.set")(
+            resolved, enabled
+        ):
+            return (True, [f"action {resolved} {word}"])
         return (False, [f"action {name} does not exist"])
 
     @AddParser(description="enable an action or a group of actions")
-    @AddArgument("name", help="the action name", default="", nargs="?")
+    @AddArgument("name", help="the action name or id", default="", nargs="?")
     @AddArgument("-g", "--group", help="enable this group instead", default="")
     def _command_enable(self) -> CommandResult:
         """Enable an action or a group."""
@@ -553,35 +719,57 @@ class ActionsPlugin(BasePlugin):
         return CommandResult(success, lines)
 
     @AddParser(description="disable an action or a group of actions")
-    @AddArgument("name", help="the action name", default="", nargs="?")
+    @AddArgument("name", help="the action name or id", default="", nargs="?")
     @AddArgument("-g", "--group", help="disable this group instead", default="")
     def _command_disable(self) -> CommandResult:
         """Disable an action or a group."""
         success, lines = self._set_enabled(False)
         return CommandResult(success, lines)
 
+    @AddParser(description="toggle an action or a group of actions")
+    @AddArgument("name", help="the action name or id", default="", nargs="?")
+    @AddArgument("-g", "--group", help="toggle this group instead", default="")
+    def _command_toggle(self) -> CommandResult:
+        """Flip an action or a group between enabled and disabled."""
+        args = self.api("plugins.core.commands:command.current.args.get")()
+        name, group = args["name"], args["group"]
+        if bool(name) == bool(group):
+            return CommandResult(False, ["Please give exactly one of an action name or -g GROUP"])
+        if group:
+            enabled = not self._api_action_group_is_enabled(group)
+        else:
+            resolved = self._resolve(name)
+            if resolved is None:
+                return CommandResult(False, [f"action {name} does not exist"])
+            enabled = not self.actions[resolved]["enabled"]
+        success, lines = self._set_enabled(enabled)
+        return CommandResult(success, lines)
+
     @AddParser(description="show an action")
-    @AddArgument("name", help="the action name")
+    @AddArgument("name", help="the action name or id")
     def _command_show(self) -> CommandResult:
         """Show an action."""
         args = self.api("plugins.core.commands:command.current.args.get")()
-        name = args["name"]
-        item = self.actions.get(name)
-        if item is None:
-            return CommandResult(False, [f"action {name} does not exist"])
+        name = self._resolve(args["name"])
+        item = self.actions.get(name) if name is not None else None
+        if name is None or item is None:
+            return CommandResult(False, [f"action {args['name']} does not exist"])
         escape = self.api("plugins.core.colors:colorcode.escape")
         group = item["group"]
-        trigger = self.api("plugins.core.triggers:trigger.get")(name)
+        trigger = self.api("plugins.core.triggers:trigger.get")(str(name))
         return CommandResult(
             True,
             [
-                f"action        : {escape(name)}",
+                f"action        : {escape(str(name))}",
+                f"id            : {item['id']}",
                 f"regex         : {escape(item['regex'])}",
                 f"command       : {escape(item['command'])}",
                 f"group         : {group or '(none)'}",
                 f"enabled       : {item['enabled']}",
                 f"group enabled : {self._api_action_group_is_enabled(group) if group else True}",
                 f"match color   : {item.get('matchcolor', False)}",
+                f"send          : {item.get('send', 'execute')}",
+                f"total hits    : {item.get('hits', 0)}",
                 f"session hits  : {self.session_hits.get(name, 0)}",
                 f"trigger hits  : {trigger.hits if trigger else 0}",
             ],
