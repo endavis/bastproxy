@@ -211,7 +211,9 @@ class PersistentDict(dict):
         The write is also skipped, with no file I/O, when the dictionary is not
         marked dirty, the file exists and the serialized dictionary equals the text
         last written or loaded. Values mutated in place are detected by that
-        comparison.
+        comparison. A skipped write still re-applies the file mode when it differs
+        (one ``stat``, no write), so a file whose permissions were loosened outside
+        the program is restored to 0600.
 
         Returns:
             None
@@ -231,6 +233,7 @@ class PersistentDict(dict):
             and text == self._last_saved
             and self.file_name.exists()
         ):
+            self._reapply_mode()
             return
         temp_name = self.file_name.with_suffix(".tmp")
 
@@ -249,6 +252,19 @@ class PersistentDict(dict):
         Path(self.file_name).chmod(self.mode)
         self._last_saved = text
         self._dirty = False
+
+    def _reapply_mode(self) -> None:
+        """Set the file's permission bits to ``self.mode`` when they differ.
+
+        Does nothing for a read-only dictionary or a missing file. An ``OSError``
+        (for example a file owned by someone else) is suppressed.
+
+        """
+        if self.flag == "r":
+            return
+        with contextlib.suppress(OSError):
+            if stat.S_IMODE(self.file_name.stat().st_mode) != self.mode:
+                self.file_name.chmod(self.mode)
 
     def _serialize(self) -> str:
         """Serialize the dictionary as the JSON text written to disk.
@@ -352,6 +368,9 @@ class PersistentDict(dict):
         added if that name exists), and the dictionary stays empty, so the next
         sync writes a fresh file and the bad one is kept for inspection.
 
+        After a successful load the file's permission bits are set to 0600 when
+        they differ, unless the flag is ``"r"``, which never changes the file.
+
         Returns:
             None
 
@@ -374,6 +393,7 @@ class PersistentDict(dict):
             # what was loaded is what is on disk, so nothing needs writing
             self._dirty = False
             self._last_saved = self._serialize()
+            self._reapply_mode()
             return None
 
         except Exception:  # pylint: disable=broad-except
