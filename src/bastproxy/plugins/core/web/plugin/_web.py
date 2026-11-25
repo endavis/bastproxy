@@ -252,7 +252,12 @@ class WebPlugin(BasePlugin):
 
     @AddAPI("web.route.add", description="serve a page under the plugin's own path")
     def _api_web_route_add(
-        self, owner: str, subpath: str, handler: Callable[..., Any], title: str
+        self,
+        owner: str,
+        subpath: str,
+        handler: Callable[..., Any],
+        title: str,
+        columns: list[dict[str, str]] | None = None,
     ) -> str | None:
         """Serve a page at ``/<plugin path>/<subpath>`` for a logged in browser.
 
@@ -260,6 +265,9 @@ class WebPlugin(BasePlugin):
         @Ysubpath@w   = lower case letters, digits, _ and -, separated by /; "" for the prefix
         @Yhandler@w   = a sync or async function taking a Request, returning a dict
         @Ytitle@w     = the title shown in the index
+        @Ycolumns@w   = for a table route, a list of dicts with name, label and type
+                        (text, int or float); the handler then gets ``request.table`` and
+                        returns a ``table`` dict
 
         The path comes from the plugin id: plugins.aardwolf.mapper is served at
         /aardwolf/mapper/<subpath>. Returns the path, or None (and logs an error) when the
@@ -273,7 +281,7 @@ class WebPlugin(BasePlugin):
             error = f"{owner} is not a plugin id"
         else:
             try:
-                return self.routes.add(owner, subpath, handler, title)
+                return self.routes.add(owner, subpath, handler, title, columns)
             except ValueError as exc:
                 error = str(exc)
         log_to(

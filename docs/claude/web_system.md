@@ -53,7 +53,7 @@ def _area_page(self, request) -> dict:
 self.api("plugins.core.web:web.route.add")(self.plugin_id, "area", self._area_page, "Area map")
 ```
 
-`web.route.add(owner, subpath, handler, title) -> str | None`
+`web.route.add(owner, subpath, handler, title, columns=None) -> str | None`
 
 | Argument | Meaning |
 | :--- | :--- |
@@ -61,6 +61,7 @@ self.api("plugins.core.web:web.route.add")(self.plugin_id, "area", self._area_pa
 | `subpath` | Lower case letters, digits, `_` and `-`, in segments separated by `/` (`^[a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9_-]*)*$`), or `""` for the prefix itself. |
 | `handler` | A function or coroutine function that takes a `Request` and returns a dict. |
 | `title` | The text shown in the index at `/`. It is escaped. |
+| `columns` | Optional. A list of dicts with `name`, `label` and `type` that makes this a table route (see [Tables](#tables)). |
 
 - **URL derivation.** `plugins.` is dropped from the owner id and the dots become slashes. `plugins.aardwolf.mapper` with subpath `area` is served at `/aardwolf/mapper/area`; with `""` it is `/aardwolf/mapper`. A plugin cannot pick a path outside its own prefix. A prefix that starts with `p`, `login` or `static` is reserved and refused, and so is a path that another plugin already serves.
 - **Refusals.** The call logs an error and returns `None` when `owner` is not the calling plugin (`libs.api:caller.owner.get`), is not a valid plugin id, or the route table refuses the subpath or prefix. On success it returns the path.
@@ -79,6 +80,7 @@ The handler receives a frozen dataclass, `Request`, which it only reads.
 | `query` | The first value of each query key, as `dict[str, str]`. |
 | `cookies` | The cookies, as `dict[str, str]`. |
 | `subpath` | The `subpath` the route was registered with. |
+| `table` | A validated `TableQuery` on a route registered with `columns`, otherwise `None`. |
 
 A query value is untrusted text. A page that reads a database runs fixed, parameterised queries and binds the values; it never builds SQL from the request.
 
@@ -89,6 +91,7 @@ The handler returns a dict with a `kind`:
 | Kind | Keys | Served as |
 | :--- | :--- | :--- |
 | `html` | `title`, `lines` (a list of strings or one string) | `text/html`. The web plugin escapes the title, and escapes and colour-converts the lines through `colorcode.to.html`, as for a one-off page. |
+| `table` | `title`, `rows` (a list of lists or tuples, one cell per column), `total` (the row count before paging), optional `lines` | `text/html`: the title, the lines, a filter form, the table and paging links. Cells go through `colorcode.to.html`. Only valid on a route with `columns`, else 500. |
 | `svg` | `svg` (a string holding the document) | `image/svg+xml`. |
 | `json` | `data` | `application/json`, from `json.dumps(data, default=str)`. |
 
@@ -104,6 +107,47 @@ async def _map_page(self, request) -> dict:
     svg = await asyncio.to_thread(draw_svg, rooms)
     return {"kind": "svg", "svg": svg}
 ```
+
+### Tables
+
+A route registered with `columns` serves a table that the browser can sort, filter and page through GET parameters. It works without any script, at any size.
+
+```python
+COLUMNS = [
+    {"name": "name", "label": "Name", "type": "text"},
+    {"name": "level", "label": "Level", "type": "int"},
+]
+self.api("plugins.core.web:web.route.add")(self.plugin_id, "mobs", self._mobs, "Mobs", COLUMNS)
+```
+
+- **Columns.** `name` matches `[a-z0-9_]+` and is unique in the table, `label` is the header text and `type` is `text`, `int` or `float`. They are checked when the route is added; an invalid declaration is refused like a bad subpath (error logged, `None` returned).
+- **The query.** Before the handler runs, the web plugin parses the query into `request.table`, a frozen `TableQuery`: `sort` (a column name or `None`), `descending`, `filters` (column name to a `str`, `int` or `float` according to the column type), `page` (1 or more), `count` (rows per page) and `offset` (`(page - 1) * count`). The parameters are `sort`, `dir` (`asc` or `desc`), `f_<column>`, `page` and `count`; an empty value counts as not given, because a GET form sends every box. Other keys stay in `request.query`.
+- **400.** An unknown `sort` or `f_` column, a `dir` other than `asc` or `desc`, a `page` that is not an integer from 1 to 10,000,000, a `count` outside 1 to 500 (default 50), an `int` or `float` filter that does not parse (a float must be finite, an int must fit in 64 bits) or a text filter over 200 characters returns 400, and the handler is not called.
+- **The handler** returns `{"kind": "table", "title", "rows", "total"}` for the one page described by `request.table`, with `total` the count of all rows that match the filters. Each row has one cell per column; a row of another width returns 500.
+- **SQL.** Filter values are untrusted. Bind them as parameters, and let a column name only choose a fixed fragment; never put request text in the SQL string.
+
+```python
+ORDER = {"name": "name", "level": "level"}  # column name -> fixed SQL
+WHERE = {"name": "name LIKE ?", "level": "level = ?"}
+
+def _mobs(self, request) -> dict:
+    query = request.table
+    where, args = [], []
+    for name, value in query.filters.items():
+        where.append(WHERE[name])
+        args.append(f"%{value}%" if name == "name" else value)
+    clause = (" WHERE " + " AND ".join(where)) if where else ""
+    order = f" ORDER BY {ORDER[query.sort]} {'DESC' if query.descending else 'ASC'}" if query.sort else ""
+    total = db.execute("SELECT COUNT(*) FROM mobs" + clause, args).fetchone()[0]
+    rows = db.execute(
+        "SELECT name, level FROM mobs" + clause + order + " LIMIT ? OFFSET ?",
+        [*args, query.count, query.offset],
+    ).fetchall()
+    return {"kind": "table", "title": "Mobs", "rows": rows, "total": total}
+```
+
+- **The page.** Header cells are sort links that keep the filters and toggle `dir`; a GET form has one `f_<column>` box per column plus hidden `sort`, `dir` and `count`; previous and next links keep the state. `data-pages` is on the `<table>` and `data-type` on each `<th>`.
+- **The script.** A table page loads `/static/table.js`, which the core web plugin serves; plugins cannot ship scripts. When `data-pages` is 1 the script sorts the rows in the browser and adds a filter row; with more pages it does nothing and the links and form do the work. No other page loads it.
 
 ## Lifecycle
 

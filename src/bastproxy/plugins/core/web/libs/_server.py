@@ -10,7 +10,9 @@
 import asyncio
 import contextlib
 import dataclasses
+import functools
 import html
+import importlib.resources
 import inspect
 import json
 from collections.abc import Callable
@@ -30,8 +32,9 @@ from ._http import (
     serialize,
     text_response,
 )
-from ._render import render_index, render_page
+from ._render import render_index, render_page, render_table, render_table_page
 from ._store import LoginTokens, PageStore, Route, RouteTable, SessionStore
+from ._table import FILTER_PREFIX, TABLE_KEYS, parse_table_query
 from ._tls import LOGGER_NAME, CertManager
 
 CANRELOAD = False
@@ -41,6 +44,14 @@ CLOSE_TIMEOUT = 5
 PAGE_PREFIX = "/p/"
 LOGIN_PREFIX = "/login/"
 SESSION_COOKIE = "bpsession"
+TABLE_SCRIPT_PATH = "/static/table.js"
+
+
+@functools.cache
+def _table_script() -> bytes:
+    """The one static script, read once from the package."""
+    resource = importlib.resources.files("bastproxy.plugins.core.web") / "static" / "table.js"
+    return resource.read_bytes()
 
 
 class WebApp:
@@ -82,6 +93,8 @@ class WebApp:
                 return Response(HTTPStatus.OK, "text/html; charset=utf-8", page.body)
         elif path.startswith(LOGIN_PREFIX):
             return self._login(path[len(LOGIN_PREFIX) :])
+        elif path == TABLE_SCRIPT_PATH:
+            return Response(HTTPStatus.OK, "text/javascript; charset=utf-8", _table_script())
         elif path == "/":
             if not self._has_session(request):
                 return self._unauthorized()
@@ -112,7 +125,13 @@ class WebApp:
 
     async def _call_handler(self, route: Route, request: Request) -> Response:
         """Run a plugin handler (sync or async) under the timeout and build the response."""
-        routed = dataclasses.replace(request, subpath=route.subpath)
+        table = None
+        if route.columns is not None:
+            try:
+                table = parse_table_query(request.query, route.columns)
+            except HttpError as exc:
+                return message_response(exc.status)
+        routed = dataclasses.replace(request, subpath=route.subpath, table=table)
         try:
             async with asyncio.timeout(_http.HANDLER_TIMEOUT):
                 result = route.handler(routed)
@@ -125,19 +144,37 @@ class WebApp:
             get_logger(LOGGER_NAME).error("handler of %s failed", route.path, exc_info=True)
             return message_response(HTTPStatus.INTERNAL_SERVER_ERROR)
         try:
-            return self._convert(result)
+            return self._convert(result, route, routed)
         except Exception:
             get_logger(LOGGER_NAME).error(
                 "handler of %s returned an unusable response", route.path, exc_info=True
             )
             return message_response(HTTPStatus.INTERNAL_SERVER_ERROR)
 
-    def _convert(self, result: Any) -> Response:
+    def _convert(self, result: Any, route: Route, request: Request) -> Response:
         """Turn a handler's dict into a response; anything else is a 500."""
         if isinstance(result, dict):
             kind = result.get("kind")
             if kind == "html":
                 document = render_page(str(result["title"]), result["lines"], self._to_html)
+                return text_response(HTTPStatus.OK, document)
+            if kind == "table" and route.columns is not None and request.table is not None:
+                table = render_table(
+                    route.columns,
+                    result["rows"],
+                    query=request.table,
+                    total=int(result["total"]),
+                    base_path=route.path,
+                    to_html=self._to_html,
+                    extra={
+                        key: value
+                        for key, value in request.query.items()
+                        if key not in TABLE_KEYS and not key.startswith(FILTER_PREFIX)
+                    },
+                )
+                document = render_table_page(
+                    str(result["title"]), result.get("lines", ""), table, self._to_html
+                )
                 return text_response(HTTPStatus.OK, document)
             if kind == "svg" and isinstance(result.get("svg"), str):
                 return Response(

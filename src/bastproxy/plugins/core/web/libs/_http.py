@@ -14,6 +14,10 @@ import urllib.parse
 from dataclasses import dataclass, field
 from http import HTTPStatus
 from http.cookies import CookieError, SimpleCookie
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ._table import TableQuery
 
 # keep module identity across a reload of the plugin (other objects hold these classes)
 CANRELOAD = False
@@ -56,6 +60,7 @@ class Request:
     query: dict[str, str] = field(default_factory=dict)
     cookies: dict[str, str] = field(default_factory=dict)
     subpath: str = ""
+    table: "TableQuery | None" = None
 
 
 @dataclass
