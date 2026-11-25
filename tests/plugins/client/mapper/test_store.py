@@ -194,3 +194,65 @@ def test_search_rooms_injection_like_text_matches_nothing(store: MapStore) -> No
         assert store.search_rooms(text) == ([], 0)
         assert store.search_rooms("", filters={"name": text}) == ([], 0)
     assert store.search_rooms("")[1] == 3
+
+
+# ---- mismatch handling (#795, #796, #797) ----
+
+
+def test_room_differences_custom_exit_is_not_removed() -> None:
+    """A stored custom exit the update lacks is not reported; a plain one is (#795)."""
+    stored = {"uid": "1", "area": "a"}
+    exits = [
+        Exit("1", "n", "101"),
+        Exit("1", "open door;wait(2);north", "105"),
+        Exit("1", "north", "106"),
+        Exit("1", "enter portal", "107"),
+    ]
+    assert room_differences(stored, exits[:2], {"uid": "1", "exits": {"n": "101"}}) == {}
+    found = room_differences(stored, exits, {"uid": "1", "exits": {"n": "101"}})
+    assert found == {"exits": {"north": ("106", None)}}
+
+
+def test_room_differences_fields() -> None:
+    """name, terrain and coordinates are reported; missing or None values are not."""
+    stored = {"uid": "1", "name": "Hall", "terrain": "city", "x": 1, "y": 2, "z": 3}
+    update = {"uid": "1", "name": "Big Hall", "terrain": None, "x": 1, "y": 5}
+    assert room_differences(stored, [], update) == {
+        "name": ("Hall", "Big Hall"),
+        "y": (2, 5),
+    }
+
+
+def test_room_differences_details_common_keys_only() -> None:
+    """details compares the keys both sides have."""
+    stored = {"uid": "1", "details": {"details": "x", "old": 1}}
+    update = {"uid": "1", "details": {"details": "y", "coord_id": 4, "old": 1}}
+    assert room_differences(stored, [], update) == {"details": {"details": ("x", "y")}}
+    assert room_differences(stored, [], {"uid": "1", "details": {"new": 1}}) == {}
+
+
+def test_room_differences_area_needs_both_sides() -> None:
+    """An empty stored area or a missing, None or empty update area is no difference."""
+    assert room_differences({"uid": "1", "area": ""}, [], {"uid": "1", "area": "a"}) == {}
+    stored = {"uid": "1", "area": "a"}
+    for update in ({"uid": "1"}, {"uid": "1", "area": None}, {"uid": "1", "area": ""}):
+        assert room_differences(stored, [], update) == {}
+
+
+def test_room_differences_ignoreexits_flag() -> None:
+    """A flagged room skips the exits but still reports the area (#797)."""
+    stored = {"uid": "1", "area": "a", "flags": ["ignoreexits"]}
+    update = {"uid": "1", "area": "b", "exits": {"n": "9"}}
+    assert room_differences(stored, [Exit("1", "n", "2")], update) == {"area": ("a", "b")}
+
+
+def test_set_room_flags(store: MapStore) -> None:
+    """set_room_flags writes only the flags, and load_graph sees them."""
+    store.upsert_room({"uid": "1", "name": "Hall", "area": "a", "x": 4, "flags": ["shop"]})
+    assert store.set_room_flags("1", ["shop", "ignoreexits"]) is True
+    assert store.set_room_flags("zz", ["x"]) is False
+    room = store.get_room("1")
+    assert room is not None
+    assert (room["name"], room["area"], room["x"]) == ("Hall", "a", 4)
+    assert room["flags"] == ["shop", "ignoreexits"]
+    assert store.load_graph().room_flags("1") == frozenset({"shop", "ignoreexits"})

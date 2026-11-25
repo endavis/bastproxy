@@ -93,7 +93,14 @@ Walks (`walk.start`, `walk.restart` and reroutes) and the commands `find`, `goto
 
 ## Change detection
 
-`room.add` on a stored room compares the update with what is stored. It raises `room_mismatch` when the area differs, when a stored exit has a different known `touid`, or when a direction exists on only one side. The room row is then replaced and the given exits are stored. An exit that already exists keeps its stored `cost` and `requirement` and only its `touid` is updated, so recapturing a room never drops a lock; only `exit.add` changes them. Stored exits are never deleted and a `-1` never overwrites a known `touid`. What to purge is left to the adapter or the user.
+`room.add` on a stored room compares the update with what is stored and raises `room_mismatch` with the `differences`:
+
+- `name`, `terrain`, `x`, `y`, `z` as `(old, new)` and `details` as `{key: (old, new)}` (keys both sides have). These are updated and reported. A missing or `None` update value is not compared.
+- `area` as `(old, new)` when both are non-empty. The stored area is kept until `accept`. An empty stored area is filled without a report.
+- `exits` as `{dir: (old, new)}`. An existing exit whose known `touid` differs is reported and keeps its stored `touid` until `accept`. A new direction is added and reported as `(None, touid)`. A stored plain direction (`PLAIN_DIRECTIONS`: `n s e w u d ne nw se sw` and the long forms) the update lacks is reported as `(touid, None)` and kept. A custom exit is never reported as removed; one whose command is literally a plain direction is treated as plain. A `-1` on either side is never a difference.
+- A room with the `ignoreexits` flag skips the exit comparison and its exits are written as given. `room.add` keeps this flag when the update's flags leave it out; a call without `flags` keeps the stored flags.
+
+An exit that already exists keeps its stored `cost` and `requirement`, only `exit.add` changes them. `room.add` never deletes an exit. The held update is kept per room in memory (lost on reload) until a matching `room.add`, `room.remove` or `area.remove`. `accept [uid]` runs `room.add(update, accept=True)`, which writes the area and `touid`s as given and raises no `room_mismatch`, then removes the stale plain exits. `purge -a` stays for a replaced area.
 
 ## Batch writes
 
@@ -102,7 +109,7 @@ Walks (`walk.start`, `walk.restart` and reroutes) and the commands `find`, `goto
 - **Input.** `areas` is a list of `area.add` dicts, `rooms` a list of `room.add` dicts (embedded `exits` included), `exits` a list of dicts with the keys of `exit.list`, and `notes` a dict `{uid: text}`. Rows are written in that order, a room before its embedded exits.
 - **Limit.** A call takes at most `BATCH_LIMIT` (1000) rows, embedded exits counted. A bigger batch is refused with a warning, returns None and writes nothing. The caller sends slices and yields (`await asyncio.sleep(0)`) between calls.
 - **Bad items.** An item that `room.add`, `exit.add` or `area.add` would refuse, or a note for a room that is neither stored nor in the batch, is skipped and counted in `skipped`, with one warning per batch. A `sqlite3.Error` propagates with nothing written and the graph untouched.
-- **`overwrite=True`.** Behaves like the per-item apis: rooms and areas are replaced, an explicit exit takes the new cost and requirement (as `exit.add`), an exit embedded in a room keeps its stored cost and requirement and only updates its `touid` (as `room.add`), and an unexplored touid never replaces a known one.
+- **`overwrite=True`.** Behaves like `room.add(..., accept=True)` and the per-item exit apis: rooms and areas are replaced, an explicit exit takes the new cost and requirement (as `exit.add`), an exit embedded in a room keeps its stored cost and requirement and only updates its `touid` (as `room.add`), flags are written as given, and an unexplored touid never replaces a known one.
 - **`overwrite=False`.** Fills gaps only: a stored area is kept, a stored room keeps every field and gains only the flags it lacks, a stored exit keeps its cost and only fills an unexplored touid or a missing requirement, and a note is set only where there is none or it is empty.
 - **Events.** No `room_changed` or `room_mismatch` is raised, so a batch does no change detection; use `room.add` for that. One `map_changed` with the counts is raised when a row changed.
 - **Counts.** `areas`, `rooms`, `new_rooms`, `exits`, `new_exits`, `notes` and `skipped`. `exits` counts every exit written and `new_exits` those whose `(fromuid, dir)` was not stored before the batch, so `exits - new_exits` is the number of stored exits changed. A key repeated within a batch counts once.
@@ -116,7 +123,8 @@ All are `plugins.client.mapper:<name>`. Names follow [ADR-0004](../decisions/000
 | :--- | :--- |
 | `area.add(uid, name="", flags=(), details=None)`, `area.get(uid)`, `area.list()` | bool, dict or None, list |
 | `area.remove(uid)` | the number of rooms removed, with their exits and notes |
-| `room.add(room)`, `room.get(uid)`, `room.remove(uid)` | bool, the room with `exits` and `note`, bool |
+| `room.add(room, accept=False)`, `room.get(uid)`, `room.remove(uid)` | bool, the room with `exits` and `note`, bool |
+| `room.flag.add(uid, flag)`, `room.flag.remove(uid, flag)` | bool (False for an unknown room, or a flag not set) |
 | `room.list(name=None, area=None, flag=None, limit=None)` | rooms; `name` is a case-insensitive substring |
 | `room.list.unexplored(area=None)` | rooms with an exit whose `touid` is `-1` |
 | `room.current.set(uid)`, `room.current.get()` | None, the uid or None |
@@ -151,4 +159,4 @@ All are `plugins.client.mapper:<name>`. Names follow [ADR-0004](../decisions/000
 
 ## Commands
 
-`#bp.client.mapper.find`, `goto`, `walkto`, `resume`, `stop`, `where`, `showroom`, `purge` and `note`. See [Mapper](../client/mapper.md).
+`#bp.client.mapper.find`, `goto`, `walkto`, `resume`, `stop`, `where`, `showroom`, `purge`, `note`, `accept` and `ignoreexits`. See [Mapper](../client/mapper.md).

@@ -144,7 +144,7 @@ def test_change_detection(test_map: Harness) -> None:
     test_map.events.clear()
     p._api_room_add({"uid": "A", "area": "other", "exits": {"n": "C", "x": "D", "s": "E"}})
     diffs = test_map.event("room_mismatch")["differences"]["exits"]
-    assert diffs == {"n": ("B", "C"), "x": (None, "D"), "enter portal": ("C", None)}
+    assert diffs == {"n": ("B", "C"), "x": (None, "D")}
 
 
 def test_unexplored_update_is_not_a_mismatch(test_map: Harness) -> None:
@@ -642,3 +642,136 @@ def test_exit_add_still_overwrites_lock(test_map: Harness) -> None:
     p._api_exit_add("A", "n", "B", 2, None)
     assert p.store.get_exit("A", "n") == Exit("A", "n", "B", 2, None)
     assert {e.dir: e for e in p.graph.exits_from("A")}["n"].cost == 2
+
+
+# ---- mismatch handling (#795, #796, #797) ----
+
+
+def _mismatch_on_a(h: Harness) -> None:
+    """Lock A n -> B, then send an update that contradicts area and exits."""
+    p = h.plugin
+    p._api_exit_add("A", "n", "B", 3, {"level": 100})
+    h.events.clear()
+    p._api_room_add({"uid": "A", "name": "New A", "area": "other", "exits": {"n": "C", "w": "Z"}})
+
+
+def test_hybrid_policy_holds_area_and_exits(test_map: Harness) -> None:
+    """Name updates, the area and the touid of an existing exit are held (#796)."""
+    p = test_map.plugin
+    _mismatch_on_a(test_map)
+    diffs = test_map.event("room_mismatch")["differences"]
+    assert diffs["area"] == ("test", "other")
+    assert diffs["name"] == ("Room A", "New A")
+    assert diffs["exits"] == {"n": ("B", "C"), "w": (None, "Z"), "s": ("E", None)}
+    room = p.store.get_room("A")
+    assert room is not None
+    assert (room["area"], room["name"]) == ("test", "New A")
+    kept = p.store.get_exit("A", "n")
+    assert kept is not None
+    assert (kept.touid, kept.cost, kept.requirement) == ("B", 3, {"level": 100})
+    assert p.graph.snapshot() == p.store.load_graph().snapshot()
+    assert p.store.get_exit("A", "w") is not None
+    assert p.store.get_exit("A", "s") is not None
+    assert "A" in p.mismatches
+
+
+def test_partial_update_keeps_area(test_map: Harness) -> None:
+    """An update without an area keeps the stored one and raises no mismatch."""
+    p = test_map.plugin
+    p._api_room_add({"uid": "A", "name": "Room A"})
+    room = p.store.get_room("A")
+    assert room is not None
+    assert room["area"] == "test"
+    assert "room_mismatch" not in test_map.names()
+
+
+def test_empty_stored_area_is_filled(harness: Harness) -> None:
+    """A room stored without an area gets one from a later update."""
+    p = harness.plugin
+    p._api_room_add({"uid": "1", "name": "x"})
+    harness.events.clear()
+    p._api_room_add({"uid": "1", "name": "x", "area": "a"})
+    room = p.store.get_room("1")
+    assert room is not None
+    assert room["area"] == "a"
+    assert "room_mismatch" not in harness.names()
+
+
+def test_room_add_accept(test_map: Harness) -> None:
+    """accept=True replaces the area and touids, keeps the lock, raises no mismatch."""
+    p = test_map.plugin
+    _mismatch_on_a(test_map)
+    test_map.events.clear()
+    p._api_room_add({"uid": "A", "area": "other", "exits": {"n": "C", "w": "Z"}}, accept=True)
+    room = p.store.get_room("A")
+    assert room is not None
+    assert room["area"] == "other"
+    moved = p.store.get_exit("A", "n")
+    assert moved is not None
+    assert (moved.touid, moved.cost, moved.requirement) == ("C", 3, {"level": 100})
+    assert "room_mismatch" not in test_map.names()
+    assert "A" not in p.mismatches
+
+
+def test_pending_cleanup(test_map: Harness) -> None:
+    """A matching update, room.remove and area.remove drop the held update."""
+    p = test_map.plugin
+    _mismatch_on_a(test_map)
+    p._api_room_add({"uid": "A", "area": "test"})
+    assert "A" not in p.mismatches
+    _mismatch_on_a(test_map)
+    p._api_room_remove("A")
+    assert "A" not in p.mismatches
+    p._api_room_add({"uid": "B", "area": "other"})
+    assert "B" in p.mismatches
+    p._api_area_remove("test")
+    assert p.mismatches == {}
+
+
+def test_ignoreexits_room(test_map: Harness) -> None:
+    """A flagged room writes contradicting touids, but still holds an area change."""
+    p = test_map.plugin
+    assert p._api_room_flag_add("A", "ignoreexits") is True
+    p._api_room_add({"uid": "A", "area": "other", "exits": {"n": "C"}})
+    diffs = test_map.event("room_mismatch")["differences"]
+    assert diffs == {"area": ("test", "other")}
+    exit_n = p.store.get_exit("A", "n")
+    assert exit_n is not None
+    assert exit_n.touid == "C"
+    room = p.store.get_room("A")
+    assert room is not None
+    assert room["area"] == "test"
+
+
+def test_room_add_keeps_ignoreexits_flag(test_map: Harness) -> None:
+    """An update whose flags leave ignoreexits out keeps it; no flags key keeps all."""
+    p = test_map.plugin
+    p._api_room_flag_add("A", "ignoreexits")
+    p._api_room_add({"uid": "A", "area": "test", "flags": ["shop"]})
+    room = p.store.get_room("A")
+    assert room is not None
+    assert room["flags"] == ["shop", "ignoreexits"]
+    p._api_room_add({"uid": "A", "area": "test"})
+    room = p.store.get_room("A")
+    assert room is not None
+    assert room["flags"] == ["shop", "ignoreexits"]
+    assert p.graph.room_flags("A") == frozenset({"shop", "ignoreexits"})
+
+
+def test_room_flag_api(test_map: Harness) -> None:
+    """room.flag.add and room.flag.remove return, store and update the graph."""
+    p = test_map.plugin
+    assert p._api_room_flag_add("zz", "x") is False
+    assert p._api_room_flag_add("A", "x") is True
+    assert p._api_room_flag_add("A", "x") is True
+    room = p.store.get_room("A")
+    assert room is not None
+    assert room["flags"] == ["x"]
+    assert p.graph.room_flags("A") == frozenset({"x"})
+    assert p._api_room_flag_remove("A", "y") is False
+    assert p._api_room_flag_remove("zz", "x") is False
+    assert p._api_room_flag_remove("A", "x") is True
+    room = p.store.get_room("A")
+    assert room is not None
+    assert room["flags"] == []
+    assert p.graph.room_flags("A") == frozenset()

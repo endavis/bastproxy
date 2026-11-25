@@ -15,6 +15,8 @@ def _run(h: Harness, name: str, **args: Any) -> CommandResult:
         "purge": {"room": None, "area": None},
         "note": {"words": [], "delete": False},
         "showroom": {"uid": None},
+        "accept": {"uid": None},
+        "ignoreexits": {"uid": None, "clear": False},
     }
     h.args = {**defaults.get(name, {}), **args}
     result = getattr(h.plugin, f"_command_{name}")()
@@ -168,5 +170,72 @@ def test_command_names_do_not_shadow_base_plugin_commands() -> None:
     for klass in BasePlugin.__mro__:
         base_names |= _command_names(dict(vars(klass)))
     own = _command_names(dict(vars(MapperPlugin)))
-    assert own == {"find", "goto", "walkto", "resume", "stop", "where", "showroom", "purge", "note"}
+    assert own == {
+        "find",
+        "goto",
+        "walkto",
+        "resume",
+        "stop",
+        "where",
+        "showroom",
+        "purge",
+        "note",
+        "accept",
+        "ignoreexits",
+    }
     assert not own & base_names
+
+
+# ---- accept and ignoreexits (#796, #797) ----
+
+
+def test_accept(test_map: Harness) -> None:
+    """accept applies the held area and exits and removes stale plain exits."""
+    p = test_map.plugin
+    assert _run(test_map, "accept").success is False  # no current room
+    p.current_room = "A"
+    assert _run(test_map, "accept").success is False  # nothing held
+    p._api_exit_add("A", "n", "B", 3, {"level": 100})
+    p._api_room_add({"uid": "A", "area": "other", "exits": {"n": "C", "enter portal": "C"}})
+    test_map.events.clear()
+    assert _run(test_map, "accept").success is True
+    room = p.store.get_room("A")
+    assert room is not None
+    assert room["area"] == "other"
+    moved = p.store.get_exit("A", "n")
+    assert moved is not None
+    assert (moved.touid, moved.cost, moved.requirement) == ("C", 3, {"level": 100})
+    assert p.store.get_exit("A", "s") is None
+    assert all(e.dir != "s" for e in p.graph.exits_from("A"))
+    assert p.store.get_exit("A", "enter portal") is not None
+    assert "room_mismatch" not in test_map.names()
+    assert _run(test_map, "accept").success is False
+
+
+def test_accept_keeps_custom_exit(test_map: Harness) -> None:
+    """A custom exit missing from the update survives accept."""
+    p = test_map.plugin
+    p._api_room_add({"uid": "A", "area": "other", "exits": {"n": "B", "s": "E"}})
+    assert _run(test_map, "accept", uid="A").success is True
+    assert p.store.get_exit("A", "enter portal") is not None
+
+
+def test_ignoreexits_command(test_map: Harness) -> None:
+    """ignoreexits sets and clears the flag, and a flagged room is not compared."""
+    p = test_map.plugin
+    assert _run(test_map, "ignoreexits").success is False  # no current room
+    assert _run(test_map, "ignoreexits", uid="zz").success is False
+    p.current_room = "A"
+    assert _run(test_map, "ignoreexits").success is True
+    room = p.store.get_room("A")
+    assert room is not None
+    assert "ignoreexits" in room["flags"]
+    test_map.events.clear()
+    p._api_room_add({"uid": "A", "area": "test", "exits": {"n": "C"}})
+    assert "room_mismatch" not in test_map.names()
+    assert _run(test_map, "ignoreexits", uid="B").success is True
+    assert "ignoreexits" in p.graph.room_flags("B")
+    assert _run(test_map, "ignoreexits", clear=True).success is True
+    room = p.store.get_room("A")
+    assert room is not None
+    assert "ignoreexits" not in room["flags"]

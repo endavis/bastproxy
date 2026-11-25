@@ -23,6 +23,18 @@ UNKNOWN_UID = "-1"
 NOPORTAL_FLAG = "noportal"
 NORECALL_FLAG = "norecall"
 
+# a room flag set by the user: the exits of the room are known to vary, so a room update
+# is not compared on its exits (#797)
+IGNORE_EXITS_FLAG = "ignoreexits"
+
+# the directions a game reports for plain exits; any other exit name is a custom exit
+# (a command that moves the character), which a room update never reports as removed
+PLAIN_DIRECTIONS = frozenset(
+    {"n", "s", "e", "w", "u", "d", "ne", "nw", "se", "sw"}
+    | {"north", "south", "east", "west", "up", "down"}
+    | {"northeast", "northwest", "southeast", "southwest"}
+)
+
 AREAS_SQL = """CREATE TABLE areas(
         uid TEXT NOT NULL PRIMARY KEY,
         name TEXT default '',

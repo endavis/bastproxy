@@ -36,7 +36,13 @@ from bastproxy.plugins.client.mapper.libs._pages import (
     link_cell,
     page_rows,
 )
-from bastproxy.plugins.client.mapper.libs._schema import DB_NAME, DB_VERSION, TABLES, UNKNOWN_UID
+from bastproxy.plugins.client.mapper.libs._schema import (
+    DB_NAME,
+    DB_VERSION,
+    IGNORE_EXITS_FLAG,
+    TABLES,
+    UNKNOWN_UID,
+)
 from bastproxy.plugins.client.mapper.libs._store import MapStore, room_differences
 from bastproxy.plugins.client.mapper.libs._walk import MAX_REROUTES, SEARCHING, Walk, WalkUpdate
 from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
@@ -67,7 +73,11 @@ EVENTS: dict[str, tuple[str, dict[str, str]]] = {
         "a room update contradicts the stored room",
         {
             "uid": "the room uid",
-            "differences": "dict with area as (old, new) and exits as {dir: (old, new)}",
+            "differences": (
+                "dict; name, terrain, x, y, z as (old, new), details as {key: (old, new)}, "
+                "area as (old, new) and exits as {dir: (old, new)}. A different area and "
+                "contradicting exits are held until accept"
+            ),
         },
     ),
     "map_changed": (
@@ -114,6 +124,7 @@ class MapperPlugin(BasePlugin):
         self._search_token = 0
         self._unload_token = 0
         self.web_paths: dict[str, str] = {}
+        self.mismatches: dict[str, dict[str, Any]] = {}
 
     @RegisterPluginHook("uninitialize")
     def _phook_mapper_uninitialize(self) -> None:
@@ -399,21 +410,29 @@ class MapperPlugin(BasePlugin):
         rooms = self.store.remove_area(uid)
         for room_uid in rooms:
             self.graph.remove_room(room_uid)
+            self.mismatches.pop(room_uid, None)
         return len(rooms)
 
     # rooms
     @AddAPI("room.add", description="add a room or update it, with change detection")
-    def _api_room_add(self, room: dict[str, Any]) -> bool:
+    def _api_room_add(self, room: dict[str, Any], accept: bool = False) -> bool:
         """Add a room or update it.
 
         @Yroom@w   = a dict with uid (required), name, area, terrain, x, y, z, flags (list),
                      details (dict) and optionally exits ({direction: touid})
+        @Yaccept@w = True to take the update as it is: the area and the exit touids
+                     replace the stored ones, the flags are written as given (none
+                     given means none, except ignoreexits, which is kept) and no
+                     room_mismatch is raised
 
-        An update that contradicts the stored room raises the room_mismatch event.
-        Exits missing from the update are kept, and an unexplored touid never
-        overwrites a known one. An exit that already exists keeps its stored cost and
-        requirement, only exit.add changes them. This function returns True when the
-        room was stored.
+        Name, terrain, coordinates and details are updated and reported when they
+        differ. A stored area and the touid of an existing exit are kept when the update
+        contradicts them, and reported in room_mismatch until the change is accepted. A
+        new direction is added and reported. Exits missing from the update are kept, and
+        an unexplored touid never overwrites a known one. An exit that already exists
+        keeps its stored cost and requirement, only exit.add changes them. A room with
+        the ignoreexits flag is not compared on its exits, and keeps the flag when the
+        update's flags leave it out. This function returns True when the room was stored.
         """
         uid = room.get("uid") if isinstance(room, dict) else None
         if uid is None or str(uid) == "":
@@ -423,13 +442,57 @@ class MapperPlugin(BasePlugin):
         uid = room["uid"]
         stored = self.store.get_room(uid)
         differences = room_differences(stored, self.store.exits_from(uid), room)
-        self.store.upsert_room(room)
-        self.graph.set_room(uid, room.get("flags", []))
+        written = dict(room)
+        if stored is not None:
+            if "flags" not in room and not accept:
+                written["flags"] = list(stored["flags"])
+            elif IGNORE_EXITS_FLAG in stored["flags"] and IGNORE_EXITS_FLAG not in room.get(
+                "flags", []
+            ):
+                written["flags"] = [*room.get("flags", []), IGNORE_EXITS_FLAG]
+            if not accept and stored.get("area"):
+                written["area"] = stored["area"]
+        held = (
+            set()
+            if accept
+            else {d for d, (old, _new) in differences.get("exits", {}).items() if old is not None}
+        )
+        self.store.upsert_room(written)
+        self.graph.set_room(uid, written.get("flags", []))
         for direction, touid in (room.get("exits") or {}).items():
-            self._add_exit(uid, str(direction), str(touid), 1, None, keep_details=True)
+            if str(direction) not in held:
+                self._add_exit(uid, str(direction), str(touid), 1, None, keep_details=True)
         self._raise("room_changed", uid=uid, new=stored is None)
-        if differences:
-            self._raise("room_mismatch", uid=uid, differences=differences)
+        if accept or not differences:
+            self.mismatches.pop(uid, None)
+            return True
+        if "area" in differences or "exits" in differences:
+            self.mismatches[uid] = room
+        else:
+            self.mismatches.pop(uid, None)
+        self._raise("room_mismatch", uid=uid, differences=differences)
+        return True
+
+    @AddAPI("room.flag.add", description="add a flag to a room")
+    def _api_room_flag_add(self, uid: str, flag: str) -> bool:
+        """Add a flag to a room. This function returns False when the room is not stored."""
+        room = self.store.get_room(uid)
+        if room is None:
+            return False
+        flags = room["flags"] if flag in room["flags"] else [*room["flags"], flag]
+        self.store.set_room_flags(uid, flags)
+        self.graph.set_room(uid, flags)
+        return True
+
+    @AddAPI("room.flag.remove", description="remove a flag from a room")
+    def _api_room_flag_remove(self, uid: str, flag: str) -> bool:
+        """Remove a flag from a room. This function returns False when it was not set."""
+        room = self.store.get_room(uid)
+        if room is None or flag not in room["flags"]:
+            return False
+        flags = [f for f in room["flags"] if f != flag]
+        self.store.set_room_flags(uid, flags)
+        self.graph.set_room(uid, flags)
         return True
 
     @AddAPI("room.get", description="get a room with its exits and note")
@@ -447,6 +510,7 @@ class MapperPlugin(BasePlugin):
         """Remove a room, the exits from and to it, and its note."""
         removed = self.store.remove_room(uid)
         self.graph.remove_room(uid)
+        self.mismatches.pop(uid, None)
         return removed
 
     @AddAPI("room.list", description="list rooms by name, area and flag")
@@ -1154,6 +1218,52 @@ class MapperPlugin(BasePlugin):
             for e in room["exits"]
         )
         return CommandResult(True, lines)
+
+    @AddParser(description="accept the held area and exit changes of a room")
+    @AddArgument("uid", help="the room uid, default the current room", nargs="?", default=None)
+    def _command_accept(self) -> CommandResult:
+        """Accept the area and exits a room update contradicted, see ``room.add``."""
+        uid = self._args()["uid"] or self.current_room
+        if uid is None:
+            return CommandResult(False, ["no room given and the current room is not known"])
+        pending = self.mismatches.pop(uid, None)
+        if pending is None:
+            return CommandResult(False, [f"room {uid} has no held changes"])
+        differences = room_differences(
+            self.store.get_room(uid), self.store.exits_from(uid), pending
+        )
+        stored = self.store.get_room(uid)
+        if stored is not None and "flags" not in pending:
+            pending = {**pending, "flags": stored["flags"]}
+        self._api_room_add(pending, accept=True)
+        lines = [f"changes of room {uid} accepted"]
+        if "area" in differences:
+            old, new = differences["area"]
+            lines.append(f"area: {old} -> {new}")
+        for direction, (old, new) in differences.get("exits", {}).items():
+            if new is None:
+                self._api_exit_remove(uid, direction)
+                lines.append(f"exit {direction} -> {old} removed")
+            else:
+                lines.append(f"exit {direction}: {old} -> {new}")
+        return CommandResult(True, lines)
+
+    @AddParser(description="stop comparing the exits of a room with the game, or start again")
+    @AddArgument("uid", help="the room uid, default the current room", nargs="?", default=None)
+    @AddArgument("-c", "--clear", help="clear the flag", action="store_true")
+    def _command_ignoreexits(self) -> CommandResult:
+        """Set or clear the ignoreexits flag of a room."""
+        args = self._args()
+        uid = args["uid"] or self.current_room
+        if uid is None:
+            return CommandResult(False, ["no room given and the current room is not known"])
+        if self.store.get_room(uid) is None:
+            return CommandResult(False, [f"room {uid} is not known"])
+        if args["clear"]:
+            self._api_room_flag_remove(uid, IGNORE_EXITS_FLAG)
+            return CommandResult(True, [f"room {uid} exits are compared again"])
+        self._api_room_flag_add(uid, IGNORE_EXITS_FLAG)
+        return CommandResult(True, [f"room {uid} exits are no longer compared"])
 
     @AddParser(description="remove a room or an area")
     @AddArgument("-r", "--room", help="the room uid to remove", default=None)
