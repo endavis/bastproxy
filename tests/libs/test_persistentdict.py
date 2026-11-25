@@ -13,6 +13,7 @@ including saving, loading, and context manager behavior.
 
 import os
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -494,4 +495,145 @@ class TestLoadExisting:
         filepath.write_text('{"a": 1}', encoding="utf-8")
         pd = PersistentDict("test_owner", filepath, "n")
         assert len(pd) == 0
+        assert filepath.exists()
+
+
+class TestSkipCleanSync:
+    """sync() does no file I/O when nothing changed (#814)."""
+
+    @pytest.fixture
+    def io_calls(self, monkeypatch: pytest.MonkeyPatch) -> list[str]:
+        """Record the moves and fsyncs sync() performs."""
+        calls: list[str] = []
+        real_move = persistentdict.shutil.move
+        real_fsync = os.fsync
+
+        def fake_move(src: Path, dst: Path) -> object:
+            calls.append("move")
+            return real_move(src, dst)
+
+        def fake_fsync(fd: int) -> None:
+            calls.append("fsync")
+            real_fsync(fd)
+
+        monkeypatch.setattr(persistentdict.shutil, "move", fake_move)
+        monkeypatch.setattr(persistentdict.os, "fsync", fake_fsync)
+        return calls
+
+    def test_second_sync_skipped(self, temp_data_dir: Path, io_calls: list[str]) -> None:
+        pd = PersistentDict("test_owner", temp_data_dir / "test.json")
+        pd["a"] = 1
+        pd.sync()
+        assert "move" in io_calls
+        io_calls.clear()
+        pd.sync()
+        assert io_calls == []
+
+    def test_loaded_clean_dict_skipped(self, temp_data_dir: Path, io_calls: list[str]) -> None:
+        filepath = temp_data_dir / "test.json"
+        first = PersistentDict("test_owner", filepath)
+        first["a"] = {"b": [1, 2]}
+        first[7] = "x"
+        first.sync()
+        io_calls.clear()
+        second = PersistentDict("test_owner", filepath)
+        second.sync()
+        assert io_calls == []
+
+    @pytest.mark.parametrize(
+        "mutate",
+        [
+            lambda pd: pd.__setitem__("k", 2),
+            lambda pd: pd.__delitem__("k"),
+            lambda pd: pd.update({"k": 3}),
+            lambda pd: pd.pop("k"),
+            lambda pd: pd.popitem(),
+            lambda pd: pd.clear(),
+            lambda pd: pd.setdefault("new", 1),
+            lambda pd: pd.__ior__({"k": 4}),
+        ],
+        ids=["setitem", "delitem", "update", "pop", "popitem", "clear", "setdefault", "ior"],
+    )
+    def test_mutations_mark_dirty_and_are_written(self, temp_data_dir: Path, mutate: Any) -> None:
+        filepath = temp_data_dir / "test.json"
+        pd = PersistentDict("test_owner", filepath)
+        pd["k"] = 1
+        pd.sync()
+        assert not pd._dirty
+        mutate(pd)
+        assert pd._dirty
+        pd.sync()
+        assert not pd._dirty
+        assert dict(PersistentDict("test_owner", filepath)) == dict(pd)
+
+    def test_noop_pop_and_setdefault_stay_clean(self, temp_data_dir: Path) -> None:
+        pd = PersistentDict("test_owner", temp_data_dir / "test.json")
+        pd["k"] = 1
+        pd.sync()
+        assert pd.pop("missing", None) is None
+        assert pd.setdefault("k", 5) == 1
+        assert not pd._dirty
+
+    def test_clear_empty_stays_clean(self, temp_data_dir: Path) -> None:
+        pd = PersistentDict("test_owner", temp_data_dir / "test.json")
+        pd.sync()
+        pd.clear()
+        assert not pd._dirty
+
+    def test_failed_sync_stays_dirty(
+        self, temp_data_dir: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pd = PersistentDict("test_owner", temp_data_dir / "test.json")
+        pd["a"] = 1
+
+        def boom(*_args: object, **_kwargs: object) -> None:
+            msg = "disk full"
+            raise OSError(msg)
+
+        monkeypatch.setattr(persistentdict.os, "fsync", boom)
+        with pytest.raises(OSError, match="disk full"):
+            pd.sync()
+        assert pd._dirty
+        monkeypatch.undo()
+        pd.sync()
+        assert PersistentDict("test_owner", temp_data_dir / "test.json")["a"] == 1
+
+    def test_in_place_nested_mutation_saved(self, temp_data_dir: Path) -> None:
+        filepath = temp_data_dir / "test.json"
+        pd = PersistentDict("test_owner", filepath)
+        pd["history"] = []
+        pd.sync()
+        pd["history"].append("cmd")
+        assert not pd._dirty
+        pd.sync()
+        assert PersistentDict("test_owner", filepath)["history"] == ["cmd"]
+
+    def test_constructor_kwargs_dirty(self, temp_data_dir: Path) -> None:
+        filepath = temp_data_dir / "test.json"
+        pd = PersistentDict("test_owner", filepath, "c", {"a": 1})
+        assert pd._dirty
+        pd.sync()
+        assert filepath.exists()
+
+    def test_flag_n_writes_first_sync(self, temp_data_dir: Path, io_calls: list[str]) -> None:
+        filepath = temp_data_dir / "test.json"
+        PersistentDict("test_owner", filepath).sync()
+        io_calls.clear()
+        PersistentDict("test_owner", filepath, "n").sync()
+        assert "move" in io_calls
+
+    def test_deleted_file_rewritten(self, temp_data_dir: Path) -> None:
+        filepath = temp_data_dir / "test.json"
+        pd = PersistentDict("test_owner", filepath)
+        pd["a"] = 1
+        pd.sync()
+        filepath.unlink()
+        pd.sync()
+        assert filepath.exists()
+
+    def test_corrupt_file_rewritten(self, temp_data_dir: Path) -> None:
+        filepath = temp_data_dir / "test.json"
+        filepath.write_text("{bad", encoding="utf-8")
+        pd = PersistentDict("test_owner", filepath)
+        pd.sync()
         assert filepath.exists()
