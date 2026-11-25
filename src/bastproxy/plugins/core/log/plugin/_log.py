@@ -7,7 +7,7 @@
 
 # Standard Library
 import logging
-from typing import cast
+from typing import Any, cast
 
 from bastproxy.libs.api import AddAPI
 
@@ -16,11 +16,21 @@ from bastproxy.libs.api import AddAPI
 from bastproxy.libs.logger import LEVELS, get_logger, log_to, set_threshold
 from bastproxy.libs.persistentdict import PersistentDict
 from bastproxy.libs.records import RMANAGER
+from bastproxy.libs.validators import int_range
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 from bastproxy.plugins.core.log import get_toplevel
-from bastproxy.plugins.core.log.libs._custom_logger import setup_loggers, type_counts
+from bastproxy.plugins.core.log.libs._custom_logger import (
+    ARCHIVE_RETENTION_SETTING,
+    DEFAULT_ARCHIVE_RETENTION_DAYS,
+    NETWORKDATA_LOG_SETTING,
+    archive_target,
+    is_valid_type_name,
+    setup_loggers,
+    type_counts,
+    type_file_handler,
+)
 
 
 def _normalize_level(level: object) -> str | None:
@@ -82,6 +92,13 @@ class LogPlugin(BasePlugin):
             self.plugin_info.data_directory / "logtypes_to_file.txt",
             "c",
         )
+        # not a key of self.handlers: those loop over the three level handlers
+        # type -> {"timestamp": bool}
+        self.separate_files = PersistentDict(
+            self.plugin_id,
+            self.plugin_info.data_directory / "logtypes_to_own_file.txt",
+            "c",
+        )
 
     @RegisterPluginHook("__init__", priority=99)
     def _phook_log_post_init_custom_logging(
@@ -127,6 +144,23 @@ class LogPlugin(BasePlugin):
             "@r",
             "color",
             "the color for critical messages",
+        )
+        self.api("plugins.core.settings:setting.add")(
+            self.plugin_id,
+            ARCHIVE_RETENTION_SETTING,
+            DEFAULT_ARCHIVE_RETENTION_DAYS,
+            int,
+            "days to keep archived log files (zips in each archive directory), "
+            "0 keeps them forever",
+            validator=int_range(0, label="retention days"),
+        )
+        self.api("plugins.core.settings:setting.add")(
+            self.plugin_id,
+            NETWORKDATA_LOG_SETTING,
+            True,
+            bool,
+            "write networkdata/networkdata.log, which holds the MUD and client traffic "
+            "(passwords are masked, tells and channels are not)",
         )
 
     @AddAPI("log.level.color.get", description="get the color for a log level")
@@ -364,7 +398,7 @@ class LogPlugin(BasePlugin):
     def _command_console(self) -> CommandResult:
         """Toggle logtypes to the console."""
         args = self.api("plugins.core.commands:command.current.args.get")()
-        tmsg = []
+        tmsg: list[str] = []
         if args["logtype"]:
             level = args.get("level")
             for i in args["logtype"]:
@@ -440,6 +474,51 @@ class LogPlugin(BasePlugin):
         self.handlers["file"].sync()
         return True
 
+    @AddAPI(
+        "logger.file.separate.set",
+        description="send a log type to its own file, or stop doing so",
+    )
+    def _api_logger_file_separate_set(
+        self, logtype: str, flag: bool = True, timestamp: bool = True
+    ) -> bool:
+        """Send a log type to its own file under the log types directory.
+
+        @Ylogtype@w    = the type
+        @Yflag@w       = True to write the file, False to stop
+        @Ytimestamp@w  = write a timestamp on each line
+
+        returns True when applied, False when the name is refused.
+        """
+        logger_name = get_toplevel(logtype)
+        if not is_valid_type_name(logger_name):
+            log_to(
+                [self.plugin_id],
+                logging.ERROR,
+                "_api_logger_file_separate_set: invalid log type name %r",
+                logtype,
+            )
+            return False
+        if flag:
+            self.separate_files[logger_name] = {"timestamp": bool(timestamp)}
+        else:
+            self.separate_files.pop(logger_name, None)
+            handler = type_file_handler()
+            if handler is not None:
+                handler.close_type(logger_name)
+        self.separate_files.sync()
+        return True
+
+    @AddAPI(
+        "logger.file.separate.get",
+        description="get the settings of a log type's own file, or None",
+    )
+    def _api_logger_file_separate_get(self, logtype: str) -> dict[str, bool] | None:
+        """Get {"timestamp": bool} when the type has its own file, else None."""
+        entry = self.separate_files.get(get_toplevel(logtype))
+        if entry is None:
+            return None
+        return {"timestamp": bool(entry.get("timestamp", True))}
+
     @AddParser(
         description="""change the level of logging for a logtype to a file
 
@@ -448,9 +527,25 @@ class LogPlugin(BasePlugin):
           without --level this will toggle the logtype between 'info' and 'debug'
           with --level the logtype is set to that level
 
+          with --separate the logtype is toggled to its own file,
+          <data logs>/types/<logtype>/<logtype>.log, with a timestamp on each line
+          unless --notimestamp is given; --separate with no logtypes lists them
+
           if no arguments, types that are sent to file will be listed"""
     )
     @AddArgument("logtype", help="a list of logtypes to toggle", default=[], nargs="*")
+    @AddArgument(
+        "-s",
+        "--separate",
+        help="toggle the logtypes to their own file instead of changing the level",
+        action="store_true",
+    )
+    @AddArgument(
+        "-n",
+        "--notimestamp",
+        help="with --separate, write the lines without a timestamp",
+        action="store_true",
+    )
     @AddArgument(
         "-l",
         "--level",
@@ -461,7 +556,9 @@ class LogPlugin(BasePlugin):
     def _command_file(self) -> CommandResult:
         """Toggle a logtype to log to a file."""
         args = self.api("plugins.core.commands:command.current.args.get")()
-        tmsg = []
+        tmsg: list[str] = []
+        if args.get("separate"):
+            return CommandResult(True, self._file_separate_messages(args))
         if args["logtype"]:
             level = args.get("level")
             for i in args["logtype"]:
@@ -497,6 +594,79 @@ class LogPlugin(BasePlugin):
             for i in self.handlers["file"]
             if self.handlers["file"][i]
         )
+        return CommandResult(True, tmsg)
+
+    def _file_separate_messages(self, args: dict[str, Any]) -> list[str]:
+        """Toggle the log types to their own file, or list the types that have one."""
+        tmsg: list[str] = []
+        if not args["logtype"]:
+            tmsg.append("Current types with their own file")
+            tmsg.append(f"{'logtype':<{self.logtype_col_length}}timestamp")
+            tmsg.extend(
+                f"{i:<{self.logtype_col_length}}"
+                f"{bool(self.separate_files[i].get('timestamp', True))}"
+                for i in self.separate_files
+            )
+            return tmsg
+
+        stamp = not args.get("notimestamp")
+        handler = type_file_handler()
+        for i in args["logtype"]:
+            logger_name = get_toplevel(i)
+            if logger_name in self.separate_files:
+                ok = self.api(f"{self.plugin_id}:logger.file.separate.set")(logger_name, False)
+                tmsg.append(
+                    f"{logger_name} no longer logs to its own file"
+                    if ok
+                    else f"could not stop {logger_name} logging to its own file"
+                )
+                continue
+            ok = self.api(f"{self.plugin_id}:logger.file.separate.set")(logger_name, True, stamp)
+            level = args.get("level")
+            if ok and level:
+                if self.api(f"{self.plugin_id}:logger.file.level.set")(logger_name, level=level):
+                    tmsg.append(f"setting {logger_name} to log to file at level '{level}'")
+                else:
+                    tmsg.append(f"could not set {logger_name} to log to file at level '{level}'")
+            if ok:
+                path = handler.path_for(logger_name) if handler else logger_name
+                tmsg.append(f"{logger_name} now logs to {path}")
+            else:
+                tmsg.append(f"could not set {logger_name} to log to its own file")
+        return tmsg
+
+    @AddParser(
+        description="""archive a log file now
+
+          rotates the file to a timestamped name and zips it into the archive
+          directory next to it
+
+          targets are main (bastproxy.log), networkdata and the types that have
+          their own file; without a target the valid targets are listed"""
+    )
+    @AddArgument("target", help="the files to archive", default=[], nargs="*")
+    def _command_archive(self) -> CommandResult:
+        """Archive log files at once."""
+        args = self.api("plugins.core.commands:command.current.args.get")()
+        handler = type_file_handler()
+        valid = ["main", "networkdata", *sorted(self.separate_files)]
+        if not args["target"]:
+            return CommandResult(True, ["Valid archive targets", *valid])
+        tmsg: list[str] = []
+        for target in args["target"]:
+            name = get_toplevel(target)
+            if name in ("main", "networkdata"):
+                found = archive_target(name)
+                if found is None:
+                    tmsg.append(f"{name} is not an archive target")
+                    continue
+                rotated = found.archive_now()
+            elif name in self.separate_files and handler is not None:
+                rotated = handler.archive_type(name)
+            else:
+                tmsg.append(f"{target} is not an archive target")
+                continue
+            tmsg.append(f"archived {name}" if rotated else f"{name} is empty")
         return CommandResult(True, tmsg)
 
     @AddParser(description="list all logging types")
@@ -643,3 +813,4 @@ class LogPlugin(BasePlugin):
         self.handlers["client"].sync()
         self.handlers["file"].sync()
         self.handlers["console"].sync()
+        self.separate_files.sync()

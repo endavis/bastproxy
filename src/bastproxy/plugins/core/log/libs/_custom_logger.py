@@ -10,14 +10,20 @@ see info/logging_notes.txt for more information about logging
 """
 
 # Standard Library
+import asyncio
 import copy
 import datetime
 import logging
 import logging.handlers
 import numbers
 import os
+import re
 import sys
+import threading
+import time
 import traceback
+import zipfile
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, TextIO, cast
 
@@ -220,7 +226,317 @@ class PrivateTimedRotatingFileHandler(PrivateFileMixin, logging.handlers.TimedRo
     """A timed rotating file handler whose files are created with mode 0o600."""
 
 
-class CustomRotatingFileHandler(PrivateFileMixin, logging.handlers.TimedRotatingFileHandler):
+# --- archiving of rotated log files (#779) ---
+
+ARCHIVE_DIR = "archive"
+DEFAULT_ARCHIVE_RETENTION_DAYS = 30
+ARCHIVE_RETENTION_SETTING = "archive_retention_days"
+NETWORKDATA_LOG_SETTING = "networkdata_log"
+LOG_PLUGIN_ID = "plugins.core.log"
+TYPE_FILES_DIR = "types"
+_SECONDS_PER_DAY = 86400
+
+# a rotated file is named <base>.YYYY-MM-DD, or with _HH-MM-SS for an archive on demand
+_ROTATED_SUFFIX_RE = re.compile(r"^\d{4}-\d{2}-\d{2}(_\d{2}-\d{2}-\d{2})?$")
+# a type name becomes a directory and file name, so it must not hold a path separator
+_VALID_TYPE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+
+_ARCHIVE_LOCK = threading.Lock()
+_ARCHIVE_TASKS: set["asyncio.Task[None]"] = set()
+
+
+def is_valid_type_name(name: str) -> bool:
+    """Check that a log type can be used as a directory and file name."""
+    return bool(_VALID_TYPE_RE.fullmatch(name)) and ".." not in name
+
+
+def _unique_path(directory: Path, stem: str, suffix: str) -> Path:
+    """Get a path in directory that does not exist, adding -1, -2 to the stem."""
+    candidate = directory / f"{stem}{suffix}"
+    count = 0
+    while candidate.exists():
+        count += 1
+        candidate = directory / f"{stem}-{count}{suffix}"
+    return candidate
+
+
+def archive_file(path: Path, archive_dir: Path) -> Path:
+    """Zip a file into archive_dir as <name>.zip, then remove the file.
+
+    The member name is the file's basename. An existing zip is never replaced.
+    """
+    make_log_dir(archive_dir)
+    target = _unique_path(archive_dir, path.name, ".zip")
+    with (
+        open(target, "xb", opener=_private_opener) as handle,
+        zipfile.ZipFile(handle, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as archive,
+    ):
+        archive.write(path, arcname=path.name)
+    path.unlink()
+    return target
+
+
+def sweep_rotated(log_path: Path, archive_dir: Path) -> list[Path]:
+    """Zip plain rotated files (<base>.YYYY-MM-DD[_HH-MM-SS]) left next to the log."""
+    prefix = log_path.name + "."
+    archived: list[Path] = []
+    if not log_path.parent.is_dir():
+        return archived
+    for candidate in sorted(log_path.parent.iterdir()):
+        if (
+            candidate.is_file()
+            and candidate.name.startswith(prefix)
+            and _ROTATED_SUFFIX_RE.fullmatch(candidate.name[len(prefix) :])
+        ):
+            archived.append(archive_file(candidate, archive_dir))
+    return archived
+
+
+def prune_archives(archive_dir: Path, retention_days: int, now: float) -> list[Path]:
+    """Delete zips older than retention_days, by modification time. 0 keeps everything."""
+    removed: list[Path] = []
+    if retention_days <= 0 or not archive_dir.is_dir():
+        return removed
+    cutoff = now - retention_days * _SECONDS_PER_DAY
+    for candidate in sorted(archive_dir.glob("*.zip")):
+        if candidate.is_file() and candidate.stat().st_mtime < cutoff:
+            candidate.unlink()
+            removed.append(candidate)
+    return removed
+
+
+def run_archive_job(
+    rotated: Path | None,
+    log_path: Path,
+    retention_days: int,
+    now: float | None = None,
+) -> None:
+    """Zip the rotated file, sweep older plain rotated files and prune old zips."""
+    archive_dir = log_path.parent / ARCHIVE_DIR
+    with _ARCHIVE_LOCK:
+        if rotated is not None and rotated.exists():
+            archive_file(rotated, archive_dir)
+        sweep_rotated(log_path, archive_dir)
+        prune_archives(archive_dir, retention_days, time.time() if now is None else now)
+
+
+def _archive_job_done(task: "asyncio.Task[None]") -> None:
+    """Log, on the loop thread, an archive job that failed."""
+    _ARCHIVE_TASKS.discard(task)
+    if task.cancelled():
+        return
+    error = task.exception()
+    if error is not None:
+        logging.getLogger(LOG_PLUGIN_ID).error(
+            "archiving a log file failed: %r", error, exc_info=error
+        )
+
+
+def _schedule_archive(job: Callable[[], None]) -> None:
+    """Run an archive job in a worker thread when a loop is running, else inline.
+
+    Errors are never logged from the worker thread: the client handler would send
+    data to the client from it. The inline path is reached from inside a handler's
+    emit, so an error goes to stderr rather than back into the handlers.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        try:
+            job()
+        except Exception:
+            traceback.print_exc(file=sys.stderr)
+        return
+    task = loop.create_task(asyncio.to_thread(job))
+    _ARCHIVE_TASKS.add(task)
+    task.add_done_callback(_archive_job_done)
+
+
+class ArchivingMixin(logging.handlers.TimedRotatingFileHandler):
+    """A timed rotating handler that zips its rotated files into ``archive/``.
+
+    The rename is done in the handler, which is cheap. The zip, the sweep of older
+    plain rotated files and the pruning run in an archive job.
+    """
+
+    archive: bool = False
+    api: API
+
+    def _retention_days(self) -> int:
+        """Get the retention in days, read at rotation time on the calling thread."""
+        try:
+            if self.api("libs.api:api.exists")("plugins.core.settings:setting.get"):
+                value = self.api("plugins.core.settings:setting.get")(
+                    LOG_PLUGIN_ID, ARCHIVE_RETENTION_SETTING
+                )
+                if isinstance(value, int) and not isinstance(value, bool):
+                    return value
+        except Exception:
+            # a settings failure must not stop a rotation, the default applies;
+            # report it on stderr, logging from here would re-enter the handlers
+            traceback.print_exc(file=sys.stderr)
+        return DEFAULT_ARCHIVE_RETENTION_DAYS
+
+    def _schedule(self, rotated: Path) -> None:
+        log_path = Path(self.baseFilename)
+        retention = self._retention_days()
+        _schedule_archive(lambda: run_archive_job(rotated, log_path, retention))
+
+    def rotate(self, source: str, dest: str) -> None:
+        """Rename the file, then archive it."""
+        if not self.archive:
+            super().rotate(source, dest)
+            return
+        if os.path.exists(source):
+            os.rename(source, dest)
+            self._schedule(Path(dest))
+
+    def archive_now(self, now: datetime.datetime | None = None) -> Path | None:
+        """Rotate the current file at once to a timestamped name and archive it.
+
+        Returns the rotated path, or None when the file is missing or empty.
+        """
+        stamp = (now or datetime.datetime.now()).strftime("%Y-%m-%d_%H-%M-%S")
+        base = Path(self.baseFilename)
+        self.acquire()
+        try:
+            if self.stream:
+                self.stream.flush()
+                self.stream.close()
+                self.stream = None
+            if not base.exists() or base.stat().st_size == 0:
+                if not self.delay:
+                    self.stream = self._open()
+                return None
+            rotated = _unique_path(base.parent, f"{base.name}.{stamp}", "")
+            os.rename(base, rotated)
+            if not self.delay:
+                self.stream = self._open()
+            self._schedule(rotated)
+            return rotated
+        finally:
+            self.release()
+
+
+class ArchivingFileHandler(PrivateFileMixin, ArchivingMixin):
+    """A midnight rotating file handler with mode 0o600 files that archives rotations."""
+
+    def __init__(
+        self,
+        filename: str | os.PathLike[str],
+        when: str = "midnight",
+        delay: bool = False,
+        archive: bool = True,
+    ) -> None:
+        super().__init__(filename, when, delay=delay)
+        self.api = API(owner_id="plugins.core.log:ArchivingFileHandler")
+        self.archive = archive
+
+
+class NetworkDataFileHandler(ArchivingFileHandler):
+    """The network data log. The ``networkdata_log`` setting turns it off."""
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            if self.api("libs.api:api.exists")("plugins.core.settings:setting.get") and not (
+                self.api("plugins.core.settings:setting.get")(
+                    LOG_PLUGIN_ID, NETWORKDATA_LOG_SETTING
+                )
+            ):
+                return
+        except Exception:
+            # a settings failure keeps the log on, which is the default;
+            # report it on stderr, logging from here would re-enter the handlers
+            traceback.print_exc(file=sys.stderr)
+        super().emit(record)
+
+
+_ARCHIVE_TARGETS: dict[str, ArchivingMixin] = {}
+TYPE_FILE_HANDLER: "TypeFileHandler | None" = None
+
+
+def archive_target(name: str) -> ArchivingMixin | None:
+    """Get the main or networkdata file handler by target name."""
+    return _ARCHIVE_TARGETS.get(name)
+
+
+def type_file_handler() -> "TypeFileHandler | None":
+    """Get the handler that writes the per-type files."""
+    return TYPE_FILE_HANDLER
+
+
+class TypeFileHandler(logging.Handler):
+    """Write the types that have their own file to ``<base_dir>/<type>/<type>.log``."""
+
+    FORMAT_TIMESTAMP = "%(asctime)s : %(levelname)-9s - %(message)s"
+    FORMAT_PLAIN = "%(message)s"
+
+    def __init__(self, base_dir: Path) -> None:
+        super().__init__()
+        self.base_dir = base_dir
+        self.api = API(owner_id="plugins.core.log:TypeFileHandler")
+        self.files: dict[str, ArchivingFileHandler] = {}
+        self._with_stamp = logging.Formatter(self.FORMAT_TIMESTAMP)
+        self._plain = logging.Formatter(self.FORMAT_PLAIN)
+        self.setLevel(logging.DEBUG)
+
+    def path_for(self, top: str) -> Path:
+        """Get the path of a type's file."""
+        return self.base_dir / top / f"{top}.log"
+
+    def _handler_for(self, top: str) -> ArchivingFileHandler:
+        handler = self.files.get(top)
+        if handler is None:
+            make_log_dir(self.base_dir / top)
+            handler = ArchivingFileHandler(self.path_for(top), when="midnight", delay=True)
+            handler.api = self.api
+            self.files[top] = handler
+        return handler
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            if not self.api("libs.api:api.exists")("plugins.core.log:logger.file.separate.get"):
+                return
+            get_info = self.api("plugins.core.log:logger.file.separate.get")
+            has_check = self.api("libs.api:api.exists")("plugins.core.log:logger.file.is.enabled")
+            check = self.api("plugins.core.log:logger.file.is.enabled") if has_check else None
+            seen: set[str] = set()
+            for name in _record_names(record):
+                top = get_toplevel(name)
+                if top in seen:
+                    continue
+                seen.add(top)
+                info = get_info(top)
+                if not info or not is_valid_type_name(top):
+                    continue
+                if check is not None and not check(name, record.levelno):
+                    continue
+                handler = self._handler_for(top)
+                stamped = info.get("timestamp", True)
+                handler.setFormatter(self._with_stamp if stamped else self._plain)
+                handler.handle(_emit_as(record, name))
+        except Exception:
+            self.handleError(record)
+
+    def close_type(self, top: str) -> None:
+        """Close the file of a type that no longer has its own file."""
+        handler = self.files.pop(top, None)
+        if handler is not None:
+            handler.close()
+
+    def archive_type(self, top: str) -> Path | None:
+        """Rotate a type's file at once and archive it. None when it has nothing to archive."""
+        if not is_valid_type_name(top):
+            return None
+        return self._handler_for(top).archive_now()
+
+    def close(self) -> None:
+        for top in list(self.files):
+            self.close_type(top)
+        super().close()
+
+
+class CustomRotatingFileHandler(PrivateFileMixin, ArchivingMixin):
     def __init__(
         self,
         filename: str | os.PathLike[str],
@@ -231,9 +547,11 @@ class CustomRotatingFileHandler(PrivateFileMixin, logging.handlers.TimedRotating
         delay: bool = False,
         utc: bool = False,
         atTime: datetime.time | None = None,  # noqa: N803  # mirrors the stdlib TimedRotatingFileHandler signature
+        archive: bool = False,
     ) -> None:
         super().__init__(filename, when, interval, backupCount, encoding, delay, utc, atTime)
         self.api = API(owner_id="plugins.core.log:CustomRotatingFileHandler")
+        self.archive = archive
         self.setLevel(logging.DEBUG)
 
     def emit(self, record: logging.LogRecord) -> None:
@@ -293,6 +611,9 @@ def reset_logging() -> None:
             rootlogger.handlers[0].release()
         rootlogger.removeHandler(rootlogger.handlers[0])
     list(map(rootlogger.removeFilter, rootlogger.filters[:]))
+    global TYPE_FILE_HANDLER
+    TYPE_FILE_HANDLER = None
+    _ARCHIVE_TARGETS.clear()
 
 
 def setup_loggers(log_level: int) -> None:
@@ -306,7 +627,9 @@ def setup_loggers(log_level: int) -> None:
     make_log_dir(API.BASEDATALOGPATH / "networkdata")
     data_logger_log_file_path = API.BASEDATALOGPATH / "networkdata" / data_logger_log_file
 
-    file_handler = CustomRotatingFileHandler(filename=default_log_file_path, when="midnight")
+    file_handler = CustomRotatingFileHandler(
+        filename=default_log_file_path, when="midnight", archive=True
+    )
     file_handler.formatter = RecordIdFormatter(
         "%(asctime)s : %(levelname)-9s - %(name)-22s - %(record_id)s - %(message)s"
     )
@@ -323,12 +646,14 @@ def setup_loggers(log_level: int) -> None:
 
     # the buffer is a module-level instance, so do not stack filters on a second setup
     RECORD_LOG_BUFFER.filters.clear()
-    for handler in (file_handler, console_handler, client_handler, RECORD_LOG_BUFFER):
+    type_handler = TypeFileHandler(API.BASEDATALOGPATH / TYPE_FILES_DIR)
+    for handler in (file_handler, type_handler, console_handler, client_handler, RECORD_LOG_BUFFER):
         handler.addFilter(RenderFilter())
         handler.addFilter(RecordContextFilter())
 
     # add the handler to the root logger
     logging.getLogger().addHandler(file_handler)
+    logging.getLogger().addHandler(type_handler)
     logging.getLogger().addHandler(console_handler)
     logging.getLogger().addHandler(client_handler)
     logging.getLogger().addHandler(RECORD_LOG_BUFFER)
@@ -348,11 +673,16 @@ def setup_loggers(log_level: int) -> None:
     # logging network data to/from the client will use data.<client_uuid>
     data_logger = logging.getLogger("data")
     data_logger.setLevel(logging.INFO)
-    data_logger_file_handler = PrivateTimedRotatingFileHandler(
-        data_logger_log_file_path, when="midnight"
+    data_logger_file_handler = NetworkDataFileHandler(
+        data_logger_log_file_path, when="midnight", archive=True
     )
     data_logger_file_handler.formatter = logging.Formatter(
         "%(asctime)s : %(name)-11s - %(message)s"
     )
     data_logger.addHandler(data_logger_file_handler)
     data_logger.propagate = False
+
+    global TYPE_FILE_HANDLER
+    TYPE_FILE_HANDLER = type_handler
+    _ARCHIVE_TARGETS["main"] = file_handler
+    _ARCHIVE_TARGETS["networkdata"] = data_logger_file_handler

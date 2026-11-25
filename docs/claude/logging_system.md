@@ -113,6 +113,40 @@ Masked: every line sent while the MUD has WILL ECHO in effect. Nothing on the wi
 
 Not masked: telnet commands sent to the MUD; lines read before the MUD negotiates echo, which are logged as typed; and lines after the MUD sends WONT ECHO.
 
+## Log files
+
+The old proxy wrote each log type to its own file and zipped rotated files into an archive. The migration dropped both without recording a decision; #779 restores them and #783 settles the networkdata log.
+
+### Main log
+
+`bastproxy.log` in the data log directory. Every type is written there, filtered by the levels set with `#bp.core.log.file`. It rotates at midnight.
+
+### Per-type files
+
+`#bp.core.log.file <type> -s [-n]` toggles a type to its own file, `<data logs>/types/<type>/<type>.log`, with a timestamp on each line unless `-n` (`--notimestamp`) is given. `file -s` with no types lists the types that have one. Without `-s` the command is unchanged.
+
+- The type's file level (`file <type> -l <level>`) filters its own file as well. Every record still goes to `bastproxy.log`.
+- The files sit under `types/` so a type named `archive` or `networkdata` cannot collide with those directories.
+- A type name must match `^[A-Za-z0-9][A-Za-z0-9._-]*$` and not hold `..`, so a name cannot leave the directory. Other names are refused.
+- A plugin writes to its type's file through `get_logger(type)` once the file is on. The API is `logger.file.separate.set(logtype, flag=True, timestamp=True)` and `logger.file.separate.get(logtype)`.
+
+### Network data log
+
+`networkdata/networkdata.log` holds the `data.mud` lines (`from_mud` and `to_mud`, telnet commands and NAWS) and the `data.client.<uuid>` lines (what each client sends and receives).
+
+- Passwords are masked: auto-login sets `mask_log`, input before login is a placeholder, and input typed while the MUD has echo off is a length placeholder (see [Input the MUD asked not to echo](#input-the-mud-asked-not-to-echo)). Tells, channels and all other MUD text are written as received.
+- It is on by default. Turn it off with `#bp.settings.pset networkdata_log false -p plugins.core.log`.
+- Decision (#783): it stays on by default because it is the record of the session, and the masking keeps passwords out of it. The toggle is for users who do not want tells and channels on disk, and retention bounds its growth. The old proxy only logged the MUD session with `log.file frommud`.
+
+### Archive and retention
+
+At midnight each of `bastproxy.log`, `networkdata/networkdata.log` and the per-type files rotates, and the rotated file is zipped into an `archive/` directory next to the log (`<name>.zip`, one member, mode 0o600) and removed.
+
+- `archive_retention_days` (plugin `plugins.core.log`, default 30, 0 keeps everything) deletes zips in that `archive/` directory older than that many days. The age counts from the time the file was archived (the zip's modification time).
+- Each archive job also zips plain rotated files (`<base>.YYYY-MM-DD`) left by earlier versions, so those are not deleted until one retention window after the first rotation after the upgrade.
+- `#bp.core.log.archive <main|networkdata|type>` rotates the file at once to `<base>.YYYY-MM-DD_HH-MM-SS` and archives it. Without a target it lists the valid targets.
+- The rename happens in the handler. The zip, sweep and prune run in a worker thread (`asyncio.to_thread`) when the event loop is running, and inline otherwise. A failed job is logged on the loop thread.
+
 ## Measured cost
 
 Scratch measurement after #247 (Python 3.12.12, one run, median of 5 runs of 2000 calls, a `NullHandler` only, no plugins): `get_logger(NAME).debug(...)` costs 0.54 us per call with debug off and 5.02 us with debug on; `log_to` with two sources costs 1.44 us with debug off and 5.03 us with debug on. `tests/benchmarks/test_bench_logging.py` asserts at most 5 us for the debug-off single-source call when benchmarks are enabled (`doit benchmark`).

@@ -123,6 +123,7 @@ Logging uses standard-library loggers with a thin helper module, and the log plu
 - Lazy `%` arguments
 - Per-name thresholds as a pre-filter
 - Handler routing by level, colour in the formatter
+- Log files: per-type files, the network data log, archive and retention
 
 ### 6. [Data Flow](data_flow.md)
 

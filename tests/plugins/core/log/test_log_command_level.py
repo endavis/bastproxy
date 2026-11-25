@@ -51,10 +51,10 @@ def _parser(kind: str) -> argparse.ArgumentParser:
     return parser
 
 
-def test_file_command_has_no_notimestamp() -> None:
+def test_file_notimestamp_is_wired() -> None:
     flags = [a for arg in _command("file").command_data.arguments for a in arg["args"]]
-    assert "-n" not in flags
-    assert "--notimestamp" not in flags
+    assert "-n" in flags
+    assert "--notimestamp" in flags
 
 
 def test_file_help_names_the_real_log_file() -> None:
