@@ -23,7 +23,9 @@ Issue #709 asks for user actions: commands that run when a line of MUD output ma
 - The plugin `plugins.client.actions` stores actions and gives each one a trigger in `plugins.core.triggers`, named after the action and owned by the plugin. Persistence, groups, enable and disable, `show` and `list` follow `plugins.client.aliases`.
 - The trigger event gains `groups`, the raw `match.groups()` tuple, with `None` for a group that did not take part. `matches` is unchanged.
 - References are `%1`-`%9` (numbered groups, so named groups count by position), `%*` (the whole line without colour codes) and `%<name>` (a named group). `%{name}` is not used because it is the variables syntax. `%%` before a reference makes it literal. Substitution is one pass and a group that did not take part is empty. `action.add` refuses a command that references a group the regex lacks.
-- The stored command is split on the command separator into trusted template parts. Each part runs in order through `plugins.core.commands:command.line.run(part, show_in_history=False)`.
+- An action has a target, `execute` (default), `client` or `mud` (#774). `client` and `mud` substitute the matched text in one pass and send it with `SendDataDirectlyToClient` or `SendDataDirectlyToMud`, with no split, no variable expansion and no command or alias checks; values lose CR and LF, and for `client` `@` in a value is doubled. Old stored actions are `execute`.
+- `%c` is the matched line with its colours as colour codes (#789). It is read only when the command has `%c`, and `%%c` is the literal. In `execute` it is escaped like any value; for `client` it is inserted as it is.
+- For the `execute` target, the stored command is split on the command separator into trusted template parts. Each part runs in order through `plugins.core.commands:command.line.run(part, show_in_history=False)`.
 - Matched text is escaped per part. Every value loses CR and LF and has the separator doubled. In a part that goes to the MUD a value has `@` turned into `@@`, and every `%{` with a character from a value, including one formed at a value's edge, becomes `%%{`. In a part that starts with the command prefix a value is `shlex.quote`d, so it is one argument. A firing runs nothing, and a WARNING names the action, when matched text would choose what runs: a MUD part would start with the command prefix after substitution, the first word of a MUD part comes from a value and is an enabled alias (checked through `plugins.client.aliases:alias.is.enabled` when that API exists), a MUD part holds matched text and starts with an alias whose expansion is re-sent (checked through `plugins.client.aliases:alias.expansion.is.resent`, which follows alias chains), or a value in a command part starts with `-`.
 - The `add` command stores a doubled separator in the regex and in the command as a single one, as aliases do. The `action.add` API stores both as passed.
 - The action group is kept by the plugin and not passed to triggers, whose group names are one global namespace. The trigger gets the effective state (action and group enabled).
@@ -35,6 +37,8 @@ Re-matching in the plugin would duplicate the trigger plugin's timeout and colou
 ## Related Issues
 
 - Issue #709: add user actions
+- Issue #774: add send targets for actions
+- Issue #789: add a %c reference for the colour-coded line
 - Issue #592: user variables, aliases, actions and loop
 
 ## Related Documentation

@@ -399,7 +399,7 @@ plugin (`src/bastproxy/plugins/core/commands/plugin/_commands.py`):
   `plugins.client.variables` expands `%{name}` references in the remaining lines at priority 60,
   after command handling; see [Aliases](client/aliases.md) and [Variables](client/variables.md).
   `plugins.client.actions` runs a command from a trigger's match through
-  `plugins.core.commands:command.line.run`, so its parts take this same path; see [Actions](client/actions.md).
+  `plugins.core.commands:command.line.run` for the `execute` target, so its parts take this same path (the `client` and `mud` targets send the text directly); see [Actions](client/actions.md).
 
 Details: [command execution flow](claude/command_system.md#command-execution-flow) and
 [decorators](claude/command_system.md#command-decorators).

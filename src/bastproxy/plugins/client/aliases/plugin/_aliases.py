@@ -13,7 +13,7 @@ from typing import Any
 
 # Project
 from bastproxy.libs.api import AddAPI
-from bastproxy.libs.logger import log_to
+from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.persistentdict import PersistentDict
 from bastproxy.libs.records import NetworkData, SendDataDirectlyToClient, UpdateFlag
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
@@ -71,18 +71,82 @@ class AliasesPlugin(BasePlugin):
         self.groups = PersistentDict(
             self.plugin_id, self.plugin_info.data_directory / "groups.txt", "c"
         )
+        self.state = PersistentDict(
+            self.plugin_id, self.plugin_info.data_directory / "state.txt", "c"
+        )
         self.session_hits: dict[str, int] = {}
         self._resend_depth = 0
+        self._upgrade()
 
     @RegisterPluginHook("save")
     def _phook_aliases_save(self) -> None:
-        """Save the aliases and the group state."""
+        """Save the aliases (with their hit counts), the group state and the id counter."""
         self.aliases.sync()
         self.groups.sync()
+        self.state.sync()
+
+    def _upgrade(self) -> None:
+        """Bring aliases loaded from an older file up to date.
+
+        Every alias gets ``hits`` and, when it lacks one, an ``id`` in sorted name
+        order, and the id counter moves past every id in use. Nothing is written
+        unless something changed. A digit-only name from an older file stays an
+        integer key, because PersistentDict turns every digit-only key into one; it
+        never matched a typed word and is reachable by its id.
+        """
+        changed = False
+        highest = 0
+        for item in self.aliases.values():
+            if "hits" not in item:
+                item["hits"] = 0
+                changed = True
+            if isinstance(item.get("id"), int):
+                highest = max(highest, item["id"])
+        next_id = max(int(self.state.get("next_id", 1)), highest + 1)
+        for name in sorted(self.aliases, key=str):
+            item = self.aliases[name]
+            if not isinstance(item.get("id"), int):
+                item["id"] = next_id
+                next_id += 1
+                changed = True
+        if self.state.get("next_id") != next_id:
+            self.state["next_id"] = next_id
+            changed = True
+        if changed:
+            self.aliases.sync()
+            self.state.sync()
+
+    def _next_id(self) -> int:
+        """Return the next free alias id and advance the counter, which is never lowered."""
+        value = int(self.state.get("next_id", 1))
+        self.state["next_id"] = value + 1
+        self.state.sync()
+        return value
+
+    def _resolve(self, key: Any) -> Any:
+        """Return the stored key of the alias for a typed name or id, or None.
+
+        A name wins; otherwise a digit string is looked up as an id. The stored key
+        is a string, except for a digit-only name from an older file.
+        """
+        key = str(key)
+        if key in self.aliases:
+            return key
+        if key.isdigit():
+            for name, item in self.aliases.items():
+                if item.get("id") == int(key):
+                    return name
+        return None
 
     def _valid_name(self, name: Any) -> bool:
         """Check that a name is a single word the input path can match."""
-        if not isinstance(name, str) or not name or re.search(r"\s", name) or "%" in name:
+        if (
+            not isinstance(name, str)
+            or not name
+            or name.isdigit()
+            or re.search(r"\s", name)
+            or "%" in name
+        ):
             return False
         if name.startswith(self.api("plugins.core.commands:command.prefix.get")()):
             return False
@@ -95,13 +159,14 @@ class AliasesPlugin(BasePlugin):
     ) -> bool:
         """Add an alias or replace an existing one.
 
-        @Yname@w        = the alias name, one word, no %, not starting with the prefix
+        @Yname@w        = the alias name, one word, no %, not only digits, not prefixed
         @Yexpansion@w   = the text to send, a string without CR or LF
         @Ygroup@w       = the group, letters, digits and underscores, optional
         @Yenabled@w     = whether the alias is enabled
 
-        This function returns True when the alias was stored. It returns False,
-        changing nothing, for a bad name, expansion or group.
+        An existing alias is replaced and keeps its id and hit count. This function
+        returns True when the alias was stored. It returns False, changing nothing,
+        for a bad name, expansion or group.
         """
         if not self._valid_name(name):
             log_to([self.plugin_id], logging.WARNING, "_api_alias_add: bad alias name")
@@ -117,7 +182,14 @@ class AliasesPlugin(BasePlugin):
         if not isinstance(group, str) or not GROUP_RE.fullmatch(group):
             log_to([self.plugin_id], logging.WARNING, "_api_alias_add: bad group for %s", name)
             return False
-        self.aliases[name] = {"expansion": expansion, "group": group, "enabled": bool(enabled)}
+        old = self.aliases.get(name)
+        self.aliases[name] = {
+            "expansion": expansion,
+            "group": group,
+            "enabled": bool(enabled),
+            "id": old["id"] if old is not None else self._next_id(),
+            "hits": old.get("hits", 0) if old is not None else 0,
+        }
         self.aliases.sync()
         return True
 
@@ -142,7 +214,7 @@ class AliasesPlugin(BasePlugin):
 
         @Yname@w   = the alias name
 
-        This function returns a dict with expansion, group and enabled, or None.
+        This function returns a dict with expansion, group, enabled, id and hits, or None.
         """
         item = self.aliases.get(name)
         return dict(item) if item is not None else None
@@ -242,6 +314,9 @@ class AliasesPlugin(BasePlugin):
     @AddParser(description="add an alias or change its expansion")
     @AddArgument("-g", "--group", help="the group of the alias", default="")
     @AddArgument("-d", "--disabled", help="add the alias disabled", action="store_true")
+    @AddArgument(
+        "-o", "--overwrite", help="replace the alias when the name exists", action="store_true"
+    )
     @AddArgument("name", help="the alias name")
     @AddArgument("expansion", help="the text to send", nargs="*")
     def _command_add(self) -> CommandResult:
@@ -252,6 +327,8 @@ class AliasesPlugin(BasePlugin):
                 False, ["Please provide an expansion, use remove to delete an alias"]
             )
         name = args["name"]
+        if name in self.aliases and not args.get("overwrite", False):
+            return CommandResult(False, [f"alias {name} exists, use -o to replace it"])
         expansion = " ".join(args["expansion"])
         # a typed line is split on the command separator before this command runs,
         # so a doubled separator is how a user types one; store it single so the
@@ -271,7 +348,8 @@ class AliasesPlugin(BasePlugin):
             False,
             [
                 f"could not set {name}: the name must be one word without % that does not "
-                "start with the command prefix or contain the command separator, the group "
+                "start with the command prefix, be only digits or contain the command separator, "
+                "the group "
                 "letters, digits and underscores, and the expansion cannot contain a line break"
             ],
         )
@@ -297,14 +375,14 @@ class AliasesPlugin(BasePlugin):
         )
 
     @AddParser(description="remove an alias")
-    @AddArgument("name", help="the alias name")
+    @AddArgument("name", help="the alias name or id")
     def _command_remove(self) -> CommandResult:
         """Remove an alias."""
         args = self.api("plugins.core.commands:command.current.args.get")()
-        name = args["name"]
+        name = self._resolve(args["name"]) or args["name"]
         if self.api(f"{self.plugin_id}:alias.remove")(name):
             return CommandResult(True, [f"alias {name} removed"])
-        return CommandResult(False, [f"alias {name} does not exist"])
+        return CommandResult(False, [f"alias {args['name']} does not exist"])
 
     @AddParser(description="list aliases")
     @AddArgument(
@@ -330,7 +408,7 @@ class AliasesPlugin(BasePlugin):
             if not self._api_alias_is_enabled(name):
                 tags.append("disabled")
             suffix = f" ({', '.join(tags)})" if tags else ""
-            lines.append(f"{escape(name)} : {escape(item['expansion'])}{suffix}")
+            lines.append(f"[{item['id']}] {escape(name)} : {escape(item['expansion'])}{suffix}")
         return CommandResult(True, lines)
 
     def _set_enabled(self, enabled: bool) -> tuple[bool, list[str]]:
@@ -346,12 +424,15 @@ class AliasesPlugin(BasePlugin):
         if group:
             count = self.api(f"{self.plugin_id}:alias.group.enabled.set")(group, enabled)
             return (True, [f"group {group} {word}, {count} aliases in it"])
-        if self.api(f"{self.plugin_id}:alias.enabled.set")(name, enabled):
-            return (True, [f"alias {name} {word}"])
+        resolved = self._resolve(name)
+        if resolved is not None and self.api(f"{self.plugin_id}:alias.enabled.set")(
+            resolved, enabled
+        ):
+            return (True, [f"alias {resolved} {word}"])
         return (False, [f"alias {name} does not exist"])
 
     @AddParser(description="enable an alias or a group of aliases")
-    @AddArgument("name", help="the alias name", default="", nargs="?")
+    @AddArgument("name", help="the alias name or id", default="", nargs="?")
     @AddArgument("-g", "--group", help="enable this group instead", default="")
     def _command_enable(self) -> CommandResult:
         """Enable an alias or a group."""
@@ -359,32 +440,53 @@ class AliasesPlugin(BasePlugin):
         return CommandResult(success, lines)
 
     @AddParser(description="disable an alias or a group of aliases")
-    @AddArgument("name", help="the alias name", default="", nargs="?")
+    @AddArgument("name", help="the alias name or id", default="", nargs="?")
     @AddArgument("-g", "--group", help="disable this group instead", default="")
     def _command_disable(self) -> CommandResult:
         """Disable an alias or a group."""
         success, lines = self._set_enabled(False)
         return CommandResult(success, lines)
 
+    @AddParser(description="toggle an alias or a group of aliases")
+    @AddArgument("name", help="the alias name or id", default="", nargs="?")
+    @AddArgument("-g", "--group", help="toggle this group instead", default="")
+    def _command_toggle(self) -> CommandResult:
+        """Flip an alias or a group between enabled and disabled."""
+        args = self.api("plugins.core.commands:command.current.args.get")()
+        name, group = args["name"], args["group"]
+        if bool(name) == bool(group):
+            return CommandResult(False, ["Please give exactly one of an alias name or -g GROUP"])
+        if group:
+            enabled = not self._api_alias_group_is_enabled(group)
+        else:
+            resolved = self._resolve(name)
+            if resolved is None:
+                return CommandResult(False, [f"alias {name} does not exist"])
+            enabled = not self.aliases[resolved]["enabled"]
+        success, lines = self._set_enabled(enabled)
+        return CommandResult(success, lines)
+
     @AddParser(description="show an alias")
-    @AddArgument("name", help="the alias name")
+    @AddArgument("name", help="the alias name or id")
     def _command_show(self) -> CommandResult:
         """Show an alias."""
         args = self.api("plugins.core.commands:command.current.args.get")()
-        name = args["name"]
-        item = self.aliases.get(name)
-        if item is None:
-            return CommandResult(False, [f"alias {name} does not exist"])
+        name = self._resolve(args["name"])
+        item = self.aliases.get(name) if name is not None else None
+        if name is None or item is None:
+            return CommandResult(False, [f"alias {args['name']} does not exist"])
         escape = self.api("plugins.core.colors:colorcode.escape")
         group = item["group"]
         return CommandResult(
             True,
             [
-                f"alias         : {escape(name)}",
+                f"alias         : {escape(str(name))}",
+                f"id            : {item['id']}",
                 f"expansion     : {escape(item['expansion'])}",
                 f"group         : {group or '(none)'}",
                 f"enabled       : {item['enabled']}",
                 f"group enabled : {self._api_alias_group_is_enabled(group) if group else True}",
+                f"total hits    : {item.get('hits', 0)}",
                 f"session hits  : {self.session_hits.get(name, 0)}",
             ],
         )
@@ -453,20 +555,65 @@ class AliasesPlugin(BasePlugin):
         outcome = "none"
         while True:
             parts = text.lstrip().split(None, 1)
-            if not parts or not self._api_alias_is_enabled(parts[0]):
+            if not parts:
                 return outcome, text, depth, name
-            name = parts[0]
+            tail = ""
+            if self._api_alias_is_enabled(parts[0]):
+                name = parts[0]
+            else:
+                matched = self._prefix_match(parts[0], command_prefix)
+                if matched is None:
+                    return outcome, text, depth, name
+                name, tail = matched
             if depth >= MAX_DEPTH:
                 return "stop", text, depth, name
             depth += 1
             outcome = "inplace"
+            item = self.aliases[name]
             if count_hits:
                 self.session_hits[name] = self.session_hits.get(name, 0) + 1
-            text = substitute_arguments(
-                self.aliases[name]["expansion"], parts[1] if len(parts) > 1 else ""
-            )
+                item["hits"] = item.get("hits", 0) + 1
+            expansion = item["expansion"]
+            if tail:
+                # the tail names a subcommand of the command the first word names, so it
+                # stays attached to that word, before any argument is substituted
+                stripped = expansion.lstrip()
+                end = len(stripped.split(None, 1)[0])
+                expansion = stripped[:end] + tail + stripped[end:]
+            rest = parts[1] if len(parts) > 1 else ""
+            text = substitute_arguments(expansion, rest)
+            if count_hits and (logger := get_logger(self.plugin_id)).isEnabledFor(logging.DEBUG):
+                logger.debug(
+                    "alias %s matched by %s: %r -> %r",
+                    name,
+                    f"prefix {tail}" if tail else "name",
+                    parts[0] + (" " + rest if rest else ""),
+                    text,
+                )
             if text.lstrip().startswith(command_prefix) or self._has_separator(text):
                 return "resend", text, depth, name
+
+    def _prefix_match(self, word: str, command_prefix: str) -> tuple[str, str] | None:
+        """Match a word such as ``map.find`` to an alias that shortens a proxy command.
+
+        For each ``.`` in the word, longest prefix first, the part before it must be an
+        enabled alias whose expansion starts with the command prefix, and the tail (the
+        dot and what follows) needs a character after the dot. Returns the alias name
+        and the tail, or None.
+        """
+        if "%" in word:
+            return None
+        for index in range(len(word) - 2, 0, -1):
+            if word[index] != ".":
+                continue
+            name = word[:index]
+            if (
+                name in self.aliases
+                and self._api_alias_is_enabled(name)
+                and self.aliases[name]["expansion"].lstrip().startswith(command_prefix)
+            ):
+                return name, word[index:]
+        return None
 
     def _resend(self, event_record: Any, text: str, name: str, depth: int) -> None:
         """Send the expansion back through the input path and drop the typed line."""

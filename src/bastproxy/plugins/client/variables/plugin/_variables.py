@@ -137,6 +137,9 @@ class VariablesPlugin(BasePlugin):
         return expand_references(text, self.variables)
 
     @AddParser(description="add a variable or change its value")
+    @AddArgument(
+        "-o", "--overwrite", help="replace the variable when the name exists", action="store_true"
+    )
     @AddArgument("name", help="the variable name")
     @AddArgument("value", help="the value", nargs="*")
     def _command_add(self) -> CommandResult:
@@ -145,6 +148,8 @@ class VariablesPlugin(BasePlugin):
         if not args["value"]:
             return CommandResult(False, ["Please provide a value, use remove to delete a variable"])
         name = args["name"]
+        if name in self.variables and not args.get("overwrite", False):
+            return CommandResult(False, [f"variable {name} exists, use -o to replace it"])
         if self.api(f"{self.plugin_id}:variable.set")(name, " ".join(args["value"])):
             return CommandResult(True, [f"variable {name} set"])
         return CommandResult(

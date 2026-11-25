@@ -100,6 +100,7 @@ def _wire(stand_ins: StandIns, tmp_path: Path) -> Wired:
     aliases.plugin_id = "plugins.client.aliases"
     aliases.aliases = PersistentDict("a", tmp_path / "aliases.txt", "c")
     aliases.groups = PersistentDict("a", tmp_path / "groups.txt", "c")
+    aliases.state = PersistentDict("a", tmp_path / "state.txt", "c")
     aliases.session_hits = {}
     aliases._resend_depth = 0
     aliases.api = _Api(

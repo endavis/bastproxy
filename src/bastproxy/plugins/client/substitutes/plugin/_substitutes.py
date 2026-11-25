@@ -349,6 +349,12 @@ class SubstitutesPlugin(BasePlugin):
 
     @AddParser(description="add a substitution or change it")
     @AddArgument("-r", "--regex", help="read the pattern as a regex", action="store_true")
+    @AddArgument(
+        "-o",
+        "--overwrite",
+        help="replace the substitution when the name exists",
+        action="store_true",
+    )
     @AddArgument("name", help="the substitution name")
     @AddArgument("pattern", help="the text to find in MUD output, quote it")
     @AddArgument("replacement", help="the text to show instead, '' to delete the match", nargs="+")
@@ -356,6 +362,8 @@ class SubstitutesPlugin(BasePlugin):
         """Add a substitution or change it."""
         args = self.api("plugins.core.commands:command.current.args.get")()
         name = args["name"]
+        if name in self.substitutes and not args.get("overwrite", False):
+            return CommandResult(False, [f"substitution {name} exists, use -o to replace it"])
         pattern = args["pattern"]
         replacement = " ".join(args["replacement"])
         # a typed line is split on the command separator before this command runs,
