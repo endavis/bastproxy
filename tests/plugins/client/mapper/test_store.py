@@ -47,6 +47,18 @@ def test_values_are_bound_safely(store: MapStore) -> None:
     assert [r["uid"] for r in store.list_rooms(name="'s 10")] == ["1", "2"]
 
 
+def test_list_rooms_exact(store: MapStore) -> None:
+    """exact matches the whole name, ignoring case, with wildcards literal (#799)."""
+    store.upsert_room({"uid": "1", "name": "Room C"})
+    store.upsert_room({"uid": "2", "name": "Room C annex"})
+    store.upsert_room({"uid": "3", "name": "100% sure"})
+    store.upsert_room({"uid": "4", "name": "100 sure"})
+    assert [r["uid"] for r in store.list_rooms("room c", exact=True)] == ["1"]
+    assert [r["uid"] for r in store.list_rooms("room c")] == ["1", "2"]
+    assert [r["uid"] for r in store.list_rooms("100% SURE", exact=True)] == ["3"]
+    assert store.list_rooms("100%", exact=True) == []
+
+
 def test_exits_roundtrip(store: MapStore) -> None:
     """Requirements round-trip through JSON and unexplored never overwrites known."""
     for requirement in (50, {"level": 5}, None):

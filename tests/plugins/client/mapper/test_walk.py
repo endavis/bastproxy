@@ -83,3 +83,12 @@ def test_reroute_sets_walking() -> None:
     walk.reroute(STEPS[1:], "B")
     assert walk.state == "walking"
     assert walk.reroutes == 1
+
+
+def test_searching_keeps_the_path_options() -> None:
+    """The walk remembers its path options, defaulting to all exits (#798)."""
+    walk = Walk()
+    walk.searching("C", "A")
+    assert (walk.portals, walk.recalls) == (True, True)
+    walk.searching("C", "A", portals=False, recalls=False)
+    assert (walk.portals, walk.recalls) == (False, False)

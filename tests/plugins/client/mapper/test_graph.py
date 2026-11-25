@@ -2,7 +2,13 @@
 
 from collections.abc import Callable
 
-from bastproxy.plugins.client.mapper.libs._graph import Exit, MapGraph, find_path, requirement_key
+from bastproxy.plugins.client.mapper.libs._graph import (
+    Exit,
+    MapGraph,
+    find_path,
+    requirement_key,
+    speedwalk,
+)
 
 
 def _graph() -> MapGraph:
@@ -201,3 +207,42 @@ def test_requirement_index() -> None:
     g.remove_room("C")
     assert len(g.requirements()) == 2
     assert requirement_key({"a": 1, "b": 2}) == requirement_key({"b": 2, "a": 1})
+
+
+def test_portals_option_blocks_the_exits_from_anywhere() -> None:
+    """With portals off the ``*`` exits are never used; the default uses them (#798)."""
+    graph = _graph()
+    assert _path("A", "F", graph=graph) == (1, ["portal f"])
+    result = find_path(graph, "A", "F", max_depth=300, allowed=_allow, portals=False)
+    assert result is None
+
+
+def test_recalls_option_blocks_the_exits_from_anywhere_else() -> None:
+    """With recalls off the ``**`` exits are never used, and portals stay on (#798)."""
+    graph = _graph()
+    assert _path("E", "A", graph=graph) == (1, ["recall"])
+    assert find_path(graph, "E", "A", max_depth=300, allowed=_allow, recalls=False) is None
+    result = find_path(graph, "E", "A", max_depth=300, allowed=_allow, portals=False)
+    assert result is not None
+    assert [s.dir for s in result.steps] == ["recall"]
+
+
+def test_speedwalk_compresses_runs() -> None:
+    """A run of plain directions becomes a count and a short direction (#799)."""
+    assert speedwalk(["n", "n", "n", "e", "e"], "|") == "3n2e"
+    assert speedwalk(["north", "north"], "|") == "2n"
+    assert speedwalk(["northeast", "n", "n"], "|") == "ne2n"
+
+
+def test_speedwalk_custom_exit_is_its_own_segment() -> None:
+    """A custom exit is joined to the runs with the separator (#799)."""
+    steps = ["n", "n", "enter portal", "e", "e", "s"]
+    assert speedwalk(steps, "|") == "2n|enter portal|2es"
+    assert speedwalk(steps, ";") == "2n;enter portal;2es"
+
+
+def test_speedwalk_single_and_empty() -> None:
+    """A single step stays bare and an empty path gives an empty string (#799)."""
+    assert speedwalk(["n"], "|") == "n"
+    assert speedwalk([], "|") == ""
+    assert speedwalk([Exit("A", "n", "B"), Exit("B", "n", "C")], "|") == "2n"

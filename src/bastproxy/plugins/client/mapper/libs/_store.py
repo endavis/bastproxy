@@ -233,11 +233,18 @@ class MapStore:
         area: str | None = None,
         flag: str | None = None,
         limit: int | None = None,
+        exact: bool = False,
     ) -> list[dict[str, Any]]:
-        """List rooms by case-insensitive name part, area and flag."""
+        """List rooms by case-insensitive name part, area and flag.
+
+        With ``exact`` the name must equal the whole room name, ignoring ASCII case.
+        """
         clauses: list[str] = []
         params: list[Any] = []
-        if name:
+        if name and exact:
+            clauses.append("name = ? COLLATE NOCASE")
+            params.append(name)
+        elif name:
             clauses.append("name LIKE ? ESCAPE '\\'")
             params.append(f"%{_like(name)}%")
         if area:

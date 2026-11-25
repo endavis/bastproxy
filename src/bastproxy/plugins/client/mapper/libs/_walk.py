@@ -46,6 +46,8 @@ class Walk:
         self.index = 0
         self.reroutes = 0
         self._origin: str | None = None
+        self.portals = True
+        self.recalls = True
 
     def start(self, target: str, steps: list[Exit], from_uid: str) -> None:
         """Begin a walk. The caller sends the first step."""
@@ -56,8 +58,20 @@ class Walk:
         self.reroutes = 0
         self._origin = from_uid
 
-    def searching(self, target: str, from_uid: str) -> None:
-        """Wait for a path search. Arrivals are ignored until the walk is started again."""
+    def searching(
+        self,
+        target: str,
+        from_uid: str,
+        *,
+        portals: bool = True,
+        recalls: bool = True,
+    ) -> None:
+        """Wait for a path search. Arrivals are ignored until the walk is started again.
+
+        ``portals`` and ``recalls`` are the path options the walk keeps for its reroutes.
+        """
+        self.portals = portals
+        self.recalls = recalls
         self.state = SEARCHING
         self.target = target
         self.steps = []

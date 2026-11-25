@@ -22,6 +22,8 @@ OWNER = "plugins.client.mapper"
 class FakeApi:
     """A stand-in for the plugin api: callable over a table of functions."""
 
+    command_separator: str = "|"
+
     def __init__(self, table: dict[str, Callable[..., Any]]) -> None:
         self.table = table
 
@@ -37,7 +39,12 @@ class Harness:
         self.events: list[tuple[str, dict[str, Any]]] = []
         self.mud: list[str] = []
         self.client: list[Any] = []
-        self.settings: dict[str, Any] = {"maxdepth": 300, "shownotes": True, "reroute": True}
+        self.settings: dict[str, Any] = {
+            "maxdepth": 300,
+            "shownotes": True,
+            "reroute": True,
+            "find_limit": 50,
+        }
         self.args: dict[str, Any] = {}
         self.tasks: list[asyncio.Task[Any]] = []
 
@@ -75,6 +82,8 @@ def harness(tmp_path: Path) -> Iterator[Harness]:
     plugin.plugin_id = OWNER
     plugin.current_room = None
     plugin.walk = Walk()
+    plugin.last_find = []
+    plugin.last_find_next = 0
     plugin.requirement_callbacks = {}
     plugin._search_token = 0
     plugin._unload_token = 0
