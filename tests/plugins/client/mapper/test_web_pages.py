@@ -97,11 +97,19 @@ def register(plugin: Any, routes: RouteTable, refuse: set[str] | None = None) ->
     """Run the registration hook against a real route table."""
     added: dict[str, Any] = {}
 
-    def add(owner: str, subpath: str, handler: Callable[..., Any], title: str, columns: Any) -> Any:
+    def add(
+        owner: str,
+        subpath: str,
+        handler: Callable[..., Any],
+        title: str,
+        columns: Any,
+        *,
+        listed: bool = True,
+    ) -> Any:
         if subpath in (refuse or set()):
             return None
         added[subpath] = title
-        return routes.add(owner, subpath, handler, title, columns)
+        return routes.add(owner, subpath, handler, title, columns, listed=listed)
 
     plugin.api.table["plugins.core.web:web.route.add"] = add
     MapperPlugin._phook_add_web_routes(plugin)
@@ -160,6 +168,24 @@ def test_four_routes_are_added_under_the_plugin_path(harness: Harness) -> None:
     }
     assert routes.count() == 4
     assert OWNER == "plugins.client.mapper"
+
+
+def test_only_the_entry_pages_are_listed(harness: Harness) -> None:
+    routes = RouteTable()
+    register(harness.plugin, routes)
+    listed = {
+        sub: getattr(routes.match(path), "listed", None)
+        for sub, path in harness.plugin.web_paths.items()
+    }
+    assert listed == {"": True, "area": False, "room": False, "find": True}
+
+
+async def test_the_index_leaves_out_the_pages_that_need_a_uid(web: Web) -> None:
+    _, _, body = await web.get("/")
+    assert f"href='{BASE}'" in body
+    assert f"href='{BASE}/find'" in body
+    assert f"{BASE}/area" not in body
+    assert f"{BASE}/room" not in body
 
 
 def test_a_refused_route_does_not_raise_and_is_not_linked(harness: Harness) -> None:

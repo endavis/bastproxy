@@ -42,13 +42,16 @@ def render_page(title: str, lines: list[str] | str, to_html: Callable[[str], str
 
 
 def render_index(routes_by_owner: Mapping[str, Sequence[Any]]) -> str:
-    """Build the index of routes, grouped by owner; each route has ``path`` and ``title``."""
+    """Build the index of listed routes by owner; each has ``path``, ``title`` and ``listed``."""
     parts = []
     for owner in sorted(routes_by_owner):
+        listed = [route for route in routes_by_owner[owner] if route.listed]
+        if not listed:
+            continue
         items = "".join(
             f"<li><a href='{html.escape(route.path, quote=True)}'>"
             f"{html.escape(route.title)}</a></li>"
-            for route in routes_by_owner[owner]
+            for route in listed
         )
         parts.append(f"<h2>{html.escape(owner)}</h2><ul>{items}</ul>")
     body = "".join(parts) or "<p>No pages are registered.</p>"

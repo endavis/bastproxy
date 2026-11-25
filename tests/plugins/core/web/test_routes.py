@@ -165,8 +165,14 @@ class Env:
         assert status == 303
         return headers["set-cookie"].split(";")[0].split("=", 1)[1]
 
-    def add(self, handler: Callable[..., Any], subpath: str = "page", title: str = "Page") -> str:
-        return self.app.routes.add(OWNER, subpath, handler, title)
+    def add(
+        self,
+        handler: Callable[..., Any],
+        subpath: str = "page",
+        title: str = "Page",
+        listed: bool = True,
+    ) -> str:
+        return self.app.routes.add(OWNER, subpath, handler, title, listed=listed)
 
 
 @pytest.fixture
@@ -411,6 +417,47 @@ async def test_the_index_lists_routes_by_owner_and_title_escaped(env: Env) -> No
     assert "<a href='/test/web/one'>&lt;i&gt;One&lt;/i&gt;</a>" in text
     assert "<a href='/test/web/two'>Two</a>" in text
     assert "<i>" not in text
+
+
+def test_a_route_is_listed_unless_added_unlisted() -> None:
+    table = RouteTable()
+    table.add(OWNER, "a", noop, "A")
+    table.add(OWNER, "b", noop, "B", listed=False)
+    assert getattr(table.match("/test/web/a"), "listed", None) is True
+    assert getattr(table.match("/test/web/b"), "listed", None) is False
+
+
+def test_remove_and_count_include_unlisted_routes() -> None:
+    table = RouteTable()
+    table.add(OWNER, "a", noop, "A")
+    table.add(OWNER, "b", noop, "B", listed=False)
+    assert table.count() == 2
+    assert table.remove(OWNER) == 2
+    assert table.match("/test/web/b") is None
+
+
+async def test_the_index_skips_unlisted_routes_but_they_are_served(env: Env) -> None:
+    env.add(noop, "one", "One")
+    env.add(noop, "two", "Two", listed=False)
+    sid = await env.login()
+    text = (await env.get("/", sid))[2].decode()
+    assert "/test/web/one" in text
+    assert "/test/web/two" not in text
+    assert (await env.get("/test/web/two", sid))[0] == 200
+    assert (await env.get("/test/web/two"))[0] == 401
+
+
+async def test_an_owner_with_only_unlisted_routes_has_no_heading(env: Env) -> None:
+    env.add(noop, "one", "One")
+    env.app.routes.add("plugins.test.hidden", "", noop, "Hidden", listed=False)
+    text = (await env.get("/", await env.login()))[2].decode()
+    assert f"<h2>{OWNER}</h2>" in text
+    assert "<h2>plugins.test.hidden</h2>" not in text
+
+
+async def test_the_index_with_only_unlisted_routes_says_so(env: Env) -> None:
+    env.add(noop, "one", "One", listed=False)
+    assert b"No pages are registered" in (await env.get("/", await env.login()))[2]
 
 
 async def test_the_index_with_no_routes_says_so(env: Env) -> None:

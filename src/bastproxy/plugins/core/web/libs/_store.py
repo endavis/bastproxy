@@ -152,6 +152,7 @@ class Route:
     handler: Callable[..., Any]
     title: str
     columns: tuple[Column, ...] | None = None
+    listed: bool = True
 
 
 class RouteTable:
@@ -172,8 +173,12 @@ class RouteTable:
         handler: Callable[..., Any],
         title: str,
         columns: Sequence[Mapping[str, Any]] | None = None,
+        *,
+        listed: bool = True,
     ) -> str:
         """Add a route and return its path.
+
+        A route added with ``listed=False`` is served as usual but left out of the index.
 
         Raises:
             ValueError: The subpath is invalid, the first segment is reserved, another
@@ -193,7 +198,7 @@ class RouteTable:
         if existing is not None and existing.owner != owner:
             msg = f"{path} is already served by {existing.owner}"
             raise ValueError(msg)
-        self._routes[path] = Route(owner, path, subpath, handler, title, declared)
+        self._routes[path] = Route(owner, path, subpath, handler, title, declared, listed)
         return path
 
     def remove(self, owner: str) -> int:

@@ -50,7 +50,7 @@ A walk only starts when you run `walkto` (or a plugin calls `walk.start`); it ne
 
 ## Web pages
 
-When the web server is enabled (see the [web server](../web-server.md) page) and you are logged in, the mapper serves four pages under `/client/mapper`. They are read only.
+When the web server is enabled (see the [web server](../web-server.md) page) and you are logged in, the mapper serves four pages under `/client/mapper`. They are read only. The index at `/` lists Areas and Find rooms; the area map and room pages are reached by links, because they need `?uid=`.
 
 | Page | What it shows |
 | :--- | :--- |

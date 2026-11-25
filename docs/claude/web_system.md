@@ -53,7 +53,7 @@ def _area_page(self, request) -> dict:
 self.api("plugins.core.web:web.route.add")(self.plugin_id, "area", self._area_page, "Area map")
 ```
 
-`web.route.add(owner, subpath, handler, title, columns=None) -> str | None`
+`web.route.add(owner, subpath, handler, title, columns=None, *, listed=True) -> str | None`
 
 | Argument | Meaning |
 | :--- | :--- |
@@ -62,7 +62,9 @@ self.api("plugins.core.web:web.route.add")(self.plugin_id, "area", self._area_pa
 | `handler` | A function or coroutine function that takes a `Request` and returns a dict. |
 | `title` | The text shown in the index at `/`. It is escaped. |
 | `columns` | Optional. A list of dicts with `name`, `label` and `type` that makes this a table route (see [Tables](#tables)). |
+| `listed` | Optional, keyword only. `False` serves the route as usual (session, GET only) but leaves it out of the index at `/`. |
 
+- **Listing.** List entry pages, not pages that need a parameter such as `?uid=`: register those with `listed=False` and reach them by links from other pages. An owner whose routes are all unlisted gets no heading in the index. Unlisted routes are still removed on unload and still counted by `#bp.core.web.status`.
 - **URL derivation.** `plugins.` is dropped from the owner id and the dots become slashes. `plugins.aardwolf.mapper` with subpath `area` is served at `/aardwolf/mapper/area`; with `""` it is `/aardwolf/mapper`. A plugin cannot pick a path outside its own prefix. A prefix that starts with `p`, `login` or `static` is reserved and refused, and so is a path that another plugin already serves.
 - **Refusals.** The call logs an error and returns `None` when `owner` is not the calling plugin (`libs.api:caller.owner.get`), is not a valid plugin id, or the route table refuses the subpath or prefix. On success it returns the path.
 - **Removal.** `web.route.remove(owner) -> int` removes a plugin's routes and returns how many. The web plugin also removes them when the plugin unloads (`ev_plugin_unloaded`), so a plugin only calls it to take routes down while it stays loaded. A reload of the web plugin itself keeps the routes, the sessions and the login tokens.
