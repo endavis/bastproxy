@@ -136,7 +136,15 @@ class PersistentDict(dict):
 
     The file is JSON, written atomically with permissions 0600.
 
+    `sync` skips the write when nothing changed since the last write or load.
+    Two checks decide that: a dirty flag set by every mutating method, and a
+    comparison of the serialized text with the text last written or loaded, which
+    catches values mutated in place (for example appending to a nested list).
+
     """
+
+    _dirty: bool = False
+    _last_saved: str | None = None
 
     def __init__(
         self,
@@ -185,8 +193,12 @@ class PersistentDict(dict):
         self.mode: int = stat.S_IWUSR | stat.S_IRUSR
 
         self.file_name = file_name
+        self._dirty = False
+        self._last_saved = None
         self.load()
         super().__init__(*args, **kwargs)
+        if args or kwargs:
+            self._dirty = True
 
     def sync(self) -> None:
         """Synchronize the in-memory dictionary with the file on disk.
@@ -195,6 +207,11 @@ class PersistentDict(dict):
         file on disk. It first writes the data to a temporary file and then
         atomically moves it to the target file to ensure data integrity. If the
         dictionary is opened in read-only mode, this method does nothing.
+
+        The write is also skipped, with no file I/O, when the dictionary is not
+        marked dirty, the file exists and the serialized dictionary equals the text
+        last written or loaded. Values mutated in place are detected by that
+        comparison.
 
         Returns:
             None
@@ -207,10 +224,18 @@ class PersistentDict(dict):
         """
         if self.flag == "r":
             return
+        text = self._serialize()
+        if (
+            not self._dirty
+            and self._last_saved is not None
+            and text == self._last_saved
+            and self.file_name.exists()
+        ):
+            return
         temp_name = self.file_name.with_suffix(".tmp")
 
         try:
-            self.dump(temp_name)
+            self.dump(temp_name, text)
         except Exception:
             Path(temp_name).unlink(missing_ok=True)
             raise
@@ -222,6 +247,17 @@ class PersistentDict(dict):
             finally:
                 os.close(dir_fd)
         Path(self.file_name).chmod(self.mode)
+        self._last_saved = text
+        self._dirty = False
+
+    def _serialize(self) -> str:
+        """Serialize the dictionary as the JSON text written to disk.
+
+        Returns:
+            The JSON text.
+
+        """
+        return json.dumps(self, separators=(",", ":"), skipkeys=True, indent=2)
 
     def close(self) -> None:
         """Close the dictionary and synchronize with the file on disk.
@@ -282,7 +318,7 @@ class PersistentDict(dict):
         """
         self.close()
 
-    def dump(self, file_object: "Path") -> None:
+    def dump(self, file_object: "Path", text: str | None = None) -> None:
         """Dump the dictionary to a file.
 
         This method serializes the in-memory dictionary as JSON and writes it to
@@ -291,6 +327,7 @@ class PersistentDict(dict):
 
         Args:
             file_object: The file to which the dictionary data will be written.
+            text: The already serialized JSON text. Serialized here if omitted.
 
         Returns:
             None
@@ -300,7 +337,7 @@ class PersistentDict(dict):
 
         """
         with file_object.open(mode="w", encoding="utf-8") as f:
-            json.dump(self, f, separators=(",", ":"), skipkeys=True, indent=2)
+            f.write(self._serialize() if text is None else text)
             f.flush()
             os.fsync(f.fileno())
 
@@ -333,7 +370,11 @@ class PersistentDict(dict):
                 tstuff = json.load(tfile)
 
             nstuff = convert_keys_to_int(tstuff)
-            return self.update(nstuff)
+            self.update(nstuff)
+            # what was loaded is what is on disk, so nothing needs writing
+            self._dirty = False
+            self._last_saved = self._serialize()
+            return None
 
         except Exception:  # pylint: disable=broad-except
             sources = [__name__]
@@ -413,6 +454,94 @@ class PersistentDict(dict):
             key = convert(key)
         val = convert(val)
         super().__setitem__(key, val)
+        self._dirty = True
+
+    def __delitem__(self, key: Any) -> None:
+        """Delete a key and mark the dictionary as changed.
+
+        Args:
+            key: The key to delete.
+
+        Raises:
+            KeyError: If the key is not in the dictionary.
+
+        """
+        super().__delitem__(key)
+        self._dirty = True
+
+    def pop(self, key: Any, *args: Any) -> Any:
+        """Remove a key and return its value, marking the dictionary changed.
+
+        Args:
+            key: The key to remove.
+            *args: An optional default returned when the key is missing.
+
+        Returns:
+            The removed value, or the default.
+
+        Raises:
+            KeyError: If the key is missing and no default is given.
+
+        """
+        present = key in self
+        value = super().pop(key, *args)
+        if present:
+            self._dirty = True
+        return value
+
+    def popitem(self) -> tuple[Any, Any]:
+        """Remove and return the last item, marking the dictionary changed.
+
+        Returns:
+            The removed ``(key, value)`` pair.
+
+        Raises:
+            KeyError: If the dictionary is empty.
+
+        """
+        item = super().popitem()
+        self._dirty = True
+        return item
+
+    def clear(self) -> None:
+        """Remove all items, marking the dictionary changed if there were any."""
+        if self:
+            self._dirty = True
+        super().clear()
+
+    def setdefault(self, key: Any, default: Any = None) -> Any:
+        """Return the value for a key, inserting the default if it is missing.
+
+        The default is stored as given (not converted), so callers can mutate the
+        returned object in place. The dictionary is marked changed only when the
+        key was inserted.
+
+        Args:
+            key: The key to look up.
+            default: The value stored when the key is missing.
+
+        Returns:
+            The existing value or the default.
+
+        """
+        size = len(self)
+        value = super().setdefault(key, default)
+        if len(self) != size:
+            self._dirty = True
+        return value
+
+    def __ior__(self, other: Any) -> Self:  # type: ignore[misc]  # dict.__or__ is overloaded for dict only; update() takes any mapping or pairs
+        """Merge ``other`` in place through `update`, so values are converted.
+
+        Args:
+            other: A mapping or iterable of key-value pairs.
+
+        Returns:
+            The dictionary itself.
+
+        """
+        self.update(other)
+        return self
 
     def update(self, *args: Any, **kwargs: Any) -> None:
         """Update the dictionary with the provided key-value pairs.
