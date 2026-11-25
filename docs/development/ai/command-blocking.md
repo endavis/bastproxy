@@ -140,13 +140,22 @@ argument. Four shapes, and they do not behave alike:
 
 The third row is why **commit messages go in a file**: a message describing `--admin` or
 `gh issue create` is refused as though it invoked one. That block names its alternative rather than
-giving the generic reason:
+giving the generic reason. The matched reason is kept and the hint is appended to it, so the
+agent still sees which pattern fired:
 
 ```
-Reason: A commit message passed by heredoc is scanned as command arguments, so a
-message naming a blocked pattern is refused. Write the message to
-tmp/agents/<agent-type>/ and pass it with `git commit -F <file>`.
+Reason: Releases must be run manually by the user, not by AI agents. A commit message
+passed by heredoc is scanned as command arguments, so a message naming a blocked
+pattern is refused. Write the message to tmp/agents/<agent-type>/ and pass it with
+`git commit -F <file>`.
 ```
+
+Any other data heredoc whose body alone trips a block (`cat > f.md <<EOF`) gets the same append
+with a general hint: the body is scanned as arguments, so write the file with the file-edit tool
+and pass it by path. That includes the #1234 shape below. The hint is detection only and runs after
+the verdict, so what is blocked does not change. It is withheld, leaving the plain reason, when
+something other than a data body is the cause: a body a shell executes (`bash <<EOF`), a command
+substitution in a body that really runs, or a blocked command outside the heredoc.
 
 See [Commit Guidelines — Passing the Message](../../../.github/CONTRIBUTING.md#commit-guidelines)
 for the convention, and

@@ -296,6 +296,21 @@ def test_perf_change_exists_on_every_wired_surface() -> None:
         assert path.exists(), f"Missing perf-change file: {path}"
 
 
+def test_ci_triage_exists_on_every_wired_surface() -> None:
+    """`ci-triage` walks an agent through a CI failure or slowdown (#1330).
+
+    Same two-surface layout as `perf-change`.
+    """
+    paths: list[Path] = []
+    if agent_is_present("claude"):
+        paths.append(REPO_ROOT / ".claude" / "skills" / "ci-triage" / "SKILL.md")
+    if any(agent_is_present(a) for a in ("codex", "antigravity", "copilot")):
+        paths.append(REPO_ROOT / ".agents" / "skills" / "ci-triage" / "SKILL.md")
+
+    for path in paths:
+        assert path.exists(), f"Missing ci-triage file: {path}"
+
+
 def test_merge_pr_exists_on_every_wired_surface() -> None:
     """`merge-pr` merges a green, labelled PR and closes the issues it fully addresses (#1062).
 

@@ -80,7 +80,7 @@ proceed.
 ## Never
 
 - Never apply the `ready-to-merge` label or edit the PR's labels.
-- Never use `--admin`, `--force` or `--no-verify`, or any other flag that overrides a block.
+- Never use `--admin`, `--force` or `--no-verify`, or any other flag that overrides a block; `--force-with-lease` on your own PR branch after a rebase is the documented update, not an override.
 - Never merge with a failing or pending check.
 - Never close an issue that is not fully addressed.
 

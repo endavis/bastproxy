@@ -38,7 +38,7 @@ doit <task_name>
 | [Security](#security-tasks) | `security`, `audit`, `licenses`, `sbom` | Security scanning and SBOM |
 | [Documentation](#documentation-tasks) | `docs_serve`, `docs_build`, `docs_deploy`, `docs_toc` | Documentation management |
 | [Dependencies](#dependency-tasks) | `install`, `install_dev`, `update_deps` | Package management |
-| [GitHub Workflow](#github-workflow-tasks) | `issue`, `pr`, `pr_merge`, `adr`, `labels_sync`, `delegation_context`, `agent_cmd`, `env_create`, `env_list`, `publish_setup` | Issue, PR, and environment management |
+| [GitHub Workflow](#github-workflow-tasks) | `issue`, `pr`, `pr_merge`, `adr`, `labels_sync`, `delegation_context`, `ci_timings`, `agent_cmd`, `env_create`, `env_list`, `publish_setup` | Issue, PR, and environment management |
 | [Release](#release-tasks) | `release`, `release_tag`, `publish` | Version and release management |
 | [Version](#version-tasks) | `bump`, `changelog` | Version bumping and changelog |
 | [Setup](#setup-tasks) | `pre_commit_install`, `completions`, `install_direnv`, `install_jq`, `worktree` | Development environment |
@@ -931,6 +931,28 @@ doit delegation_context --kind=pr --n=42 --out=tmp/agents/claude/multi-review-42
 `tmp/agents/claude/multi-review-123/`), per [AGENTS.md — Temporary Files](../../AGENTS.md#temporary-files). The orchestrating
 skill that creates the directory deletes it once every delegated agent has returned — this task
 does not clean up after itself.
+
+### `ci_timings`
+
+Print how long each job and step of a CI run took, optionally against a baseline run and per test.
+Used by the `ci-triage` skill to measure a slowdown instead of guessing.
+
+```bash
+doit ci_timings --run=45602796691
+doit ci_timings --run=45602796691 --compare=45600000000
+doit ci_timings --run=45602796691 --compare=45600000000 --tests
+```
+
+**What it does:**
+- Reads the jobs of `--run` from the GitHub API (`gh api`, one page of 100 jobs, with a warning when
+  the run has more) and prints each job and step with its duration. A step with no timestamps
+  shows `-`.
+- `--compare=<id>` adds the baseline run's durations and a signed delta, largest increase first.
+- `--tests` (requires `--compare`) downloads the `junit-*` artifacts of both runs with
+  `gh run download` into a temporary directory under `tmp/` (removed afterwards) and lists the 25
+  tests whose duration changed most, per artifact.
+- Run IDs must be digits only. A missing or unauthenticated `gh`, a failed `gh` call, or a run
+  without `junit-*` artifacts (kept 14 days, uploaded since #1329) exits 1 with a message.
 
 ### `agent_cmd`
 

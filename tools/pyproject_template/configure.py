@@ -30,6 +30,7 @@ from utils import (  # noqa: E402  # sys.path is set up above
     prompt,
     prompt_confirm,
     remove_template_owned_tests,
+    reset_changelog,
     update_file,
     update_test_files,
     validate_email,
@@ -473,6 +474,10 @@ def run_configure(
     if consumer_readme.exists():
         print("  ✓ Installing README.template.md as README.md")
         consumer_readme.replace(Path("README.md"))
+
+    # Start the project's own release history (#1315).
+    print("  ✓ Resetting CHANGELOG.md")
+    reset_changelog(Path.cwd())
 
     # Update files (using shared constant from utils.py)
     for file_path in FILES_TO_UPDATE:

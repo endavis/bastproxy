@@ -24,6 +24,7 @@ are no-ops here.
 from __future__ import annotations
 
 import re
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -31,14 +32,14 @@ from agent_roster import ALL_AGENTS, agent_is_present, present_agents
 from doc_scan import committed_markdown_files, is_excluded, load_sync_excludes
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DOCS_DIR = REPO_ROOT / "docs"
 
 # Markdown that ships with the template and is read by humans or agents.
 # Root-level files matter as much as `docs/`: README.md and
 # .github/CONTRIBUTING.md are the first thing a new contributor opens, and
 # their links were broken for as long as nothing checked them (#686).
-_ROOT_MARKDOWN = ("README.md", "README.template.md", "AGENTS.md", "CHANGELOG.md")
-_GITHUB_MARKDOWN_DIR = REPO_ROOT / ".github"
+# CHANGELOG.md is deliberately absent: it records paths as they were at each release,
+# so it may name files a later change removed or renamed (#1316).
+_ROOT_MARKDOWN = ("README.md", "README.template.md", "AGENTS.md")
 
 # Markdown inline links: [text](target). Reference-style and bare autolinks are
 # not used for repo paths in this docs tree.
@@ -52,17 +53,17 @@ _EXTERNAL_PREFIXES = ("http://", "https://", "mailto:", "tel:", "#")
 _PLACEHOLDER_PARTS = ("path/to/", "<", "{{", "$")
 
 
-def _iter_markdown() -> list[Path]:
+def _iter_markdown(root: Path = REPO_ROOT) -> list[Path]:
     """Every checked markdown file: docs/, the repo root, and .github/.
 
     Filtered through `doc_scan.committed_markdown_files` so a file git ignores
     -- a build artifact, a third-party tree someone checked out nearby -- is
     never read (#1012).
     """
-    paths = list(DOCS_DIR.rglob("*.md"))
-    paths += [REPO_ROOT / name for name in _ROOT_MARKDOWN if (REPO_ROOT / name).is_file()]
-    paths += list(_GITHUB_MARKDOWN_DIR.glob("*.md"))
-    committed = set(committed_markdown_files(REPO_ROOT))
+    paths = list((root / "docs").rglob("*.md"))
+    paths += [root / name for name in _ROOT_MARKDOWN if (root / name).is_file()]
+    paths += list((root / ".github").glob("*.md"))
+    committed = set(committed_markdown_files(root))
     return sorted(set(paths) & committed)
 
 
@@ -176,6 +177,19 @@ def test_non_excluded_missing_link_target_still_fails(tmp_path: Path) -> None:
     broken = _broken_links(doc, excludes=[], root=tmp_path)
     assert len(broken) == 1
     assert "docs/template/manage.md" in broken[0]
+
+
+def test_changelog_with_a_broken_link_is_not_checked(tmp_path: Path) -> None:
+    """The root CHANGELOG.md is skipped, but the same link elsewhere is still reported (#1316)."""
+    subprocess.run(["git", "init", "--quiet"], cwd=tmp_path, check=True, capture_output=True)
+    entry = "[old](docs/removed.md)\n"
+    (tmp_path / "CHANGELOG.md").write_text(entry, encoding="utf-8")
+    (tmp_path / "README.md").write_text(entry, encoding="utf-8")
+
+    scanned = _iter_markdown(tmp_path)
+
+    assert scanned == [tmp_path / "README.md"]
+    assert _broken_links(tmp_path / "README.md", excludes=[], root=tmp_path)
 
 
 def test_links_stay_inside_the_repository() -> None:

@@ -60,6 +60,7 @@ from utils import (  # noqa: E402  # sys.path is set up above
     prompt,
     prompt_confirm,
     remove_template_owned_tests,
+    reset_changelog,
     update_file,
     update_test_files,
 )
@@ -375,6 +376,9 @@ class RepositorySetup:
                 "security@example.com": self.config["author_email"],
                 "[INSERT CONTACT EMAIL]": self.config["author_email"],
             }
+
+            # Start the project's own release history (#1315).
+            reset_changelog(Path.cwd())
 
             # Update main configuration files (using shared constant from utils.py)
             for file_path in FILES_TO_UPDATE:

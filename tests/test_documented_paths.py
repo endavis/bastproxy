@@ -28,6 +28,10 @@ but-not-ignored markdown -- rather than `rglob()` minus a hardcoded skip set. A
 downstream project can also silence a path it deliberately did not adopt via
 `.config/pyproject_template/sync-exclude.toml` (ADR-9026); upstream has no such
 file, so that skip is a no-op here.
+
+The repo-root `CHANGELOG.md` is not scanned (#1316): a changelog records paths as they
+were at each release, so a later rename or removal leaves it naming files that no
+longer exist. That holds for a hand-written changelog and a generated one alike.
 """
 
 from __future__ import annotations
@@ -36,7 +40,12 @@ import re
 import subprocess
 from pathlib import Path
 
-from doc_scan import committed_markdown_files, is_excluded, load_sync_excludes
+from doc_scan import (
+    committed_markdown_files,
+    is_excluded,
+    is_historical_record,
+    load_sync_excludes,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -100,7 +109,9 @@ ALLOWED_PATTERNS: dict[re.Pattern[str], str] = {
 
 
 def _markdown_files(root: Path = REPO_ROOT) -> list[Path]:
-    return committed_markdown_files(root)
+    # The root CHANGELOG.md is a historical record of paths as they were at each
+    # release, so it is never scanned (#1316).
+    return [doc for doc in committed_markdown_files(root) if not is_historical_record(doc, root)]
 
 
 def _is_allowed(raw: str) -> bool:
@@ -202,6 +213,18 @@ def test_the_scanner_skips_worktrees(tmp_path: Path) -> None:
     (copy / "index.md").write_text("# Copy\n", encoding="utf-8")
 
     assert _markdown_files(tmp_path) == [tmp_path / "docs" / "kept.md"]
+
+
+def test_changelog_naming_a_missing_path_is_not_reported(tmp_path: Path) -> None:
+    """The root CHANGELOG.md is skipped, but the same text elsewhere is still reported (#1316)."""
+    _init_repo(tmp_path)
+    entry = "- moved `query/__init__.py` away\n"
+    (tmp_path / "CHANGELOG.md").write_text(entry, encoding="utf-8")
+    (tmp_path / "notes.md").write_text(entry, encoding="utf-8")
+
+    pairs = _documented_paths(tmp_path)
+
+    assert _unallowed_missing(pairs, [], root=tmp_path) == {"notes.md: query/__init__.py"}
 
 
 def test_the_scanner_reads_something() -> None:

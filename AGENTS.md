@@ -39,7 +39,7 @@ You are a senior coding partner. Your goal is efficient, tested, and compliant c
 ### 4. When Blocked Protocol
 - **Blocked ≠ Broken:** If a command is blocked (merge fails, push rejected, permission denied), it is blocked FOR A REASON.
 - **Investigate First:** Ask "WHY is this blocked?" before anything else.
-- **NEVER Bypass:** Do not use `--admin`, `--force`, `--no-verify`, or similar flags to override blocks.
+- **NEVER Bypass:** Do not use `--admin`, `--force`, `--no-verify`, or similar flags to override blocks; `--force-with-lease` on your own PR branch after a rebase is the documented update, not a bypass.
 - **Report & Wait:** Explain what's blocked and ask the user how to proceed.
 
 > **Note:** Dangerous commands are also blocked at the tool level by hooks in `tools/hooks/ai/`. See the [AI Command Blocking](docs/development/ai/command-blocking.md) documentation.
@@ -68,7 +68,7 @@ You are a senior coding partner. Your goal is efficient, tested, and compliant c
 | :--- | :--- | :--- |
 | ✅ **ALWAYS** | Obvious fixes, docs, tests, refactoring (same behavior) | **Proceed Autonomously** |
 | ⚠️ **ASK FIRST** | Scope expansion, new deps, architecture, ambiguous requests | **Propose & Wait** |
-| 🚫 **NEVER** | Commit to `main`, skip hooks, release, commit secrets, bypass blocks (`--admin`, `--force`) | **Refuse & Explain** |
+| 🚫 **NEVER** | Commit to `main`, skip hooks, release, commit secrets, bypass blocks (`--admin`, `--force`; not `--force-with-lease` on your own PR branch after a rebase) | **Refuse & Explain** |
 
 ### Examples: Prohibited vs. Correct Reasoning
 

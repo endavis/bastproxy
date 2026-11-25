@@ -236,7 +236,7 @@ ignore_missing_imports = true
 # (`from agent_roster import ...`); pytest finds them via `pythonpath`. tests/
 # is a package here, so adding it to mypy_path makes mypy see each helper under
 # two module names. Suppress the bare-name import instead.
-module = ["agent_roster", "doc_scan"]
+module = ["agent_roster", "doc_scan", "hook_loader", "test_merge_pr_skill"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
@@ -259,10 +259,12 @@ module = "tests.*"
 warn_unreachable = false
 
 [[tool.mypy.overrides]]
-# These adopted tests return values from the bare-name `doc_scan` helper, which
-# is untyped (Any) to mypy here (see the agent_roster/doc_scan override above).
+# These adopted tests return values from bare-name helpers (`doc_scan`,
+# `hook_loader`), which are untyped (Any) to mypy here (see the bare-name
+# override above).
 module = [
     "tests.test_documented_paths",
+    "tests.test_hook_dangerous_command_matrix",
     "tests.test_instruction_pointers",
     "tests.test_markdown_links",
 ]

@@ -9,7 +9,6 @@ Pattern mirrors ``tests/test_hook_cbm_code_discovery_gate.py``.
 
 from __future__ import annotations
 
-import importlib.util
 import io
 import json
 import subprocess
@@ -19,34 +18,48 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
+from hook_loader import (
+    DANGEROUS_HOOK_PATH,
+    load_hook,
+    rebound_globals,
+    reset_rebound,
+    snapshot_rebound,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
 
-HOOK_PATH = (
-    Path(__file__).resolve().parents[1] / "tools" / "hooks" / "ai" / "block-dangerous-commands.py"
-)
+HOOK_PATH = DANGEROUS_HOOK_PATH
 
 
-def _load_hook() -> types.ModuleType:
-    """Load the hook script as a fresh module instance."""
-    spec = importlib.util.spec_from_file_location("block_dangerous_commands", HOOK_PATH)
-    if spec is None or spec.loader is None:  # pragma: no cover - defensive
-        raise RuntimeError(f"could not load hook from {HOOK_PATH}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+@pytest.fixture(scope="module")
+def _hook_module() -> tuple[types.ModuleType, dict[str, object]]:
+    """Load the hook once for this file, with a snapshot of the globals it rebinds."""
+    module = load_hook(HOOK_PATH, "block_dangerous_commands")
+    return module, snapshot_rebound(module, rebound_globals(HOOK_PATH))
 
 
 @pytest.fixture
-def hook() -> Iterator[types.ModuleType]:
-    """Load a fresh copy of the hook module for each test."""
-    module = _load_hook()
+def hook(
+    _hook_module: tuple[types.ModuleType, dict[str, object]],
+    monkeypatch: pytest.MonkeyPatch,
+) -> Iterator[types.ModuleType]:
+    """Hand the shared hook module to each test, with rebound globals reset."""
+    module, snapshot = _hook_module
+    reset_rebound(module, snapshot, monkeypatch)
     sys.modules["block_dangerous_commands"] = module
     try:
         yield module
     finally:
         sys.modules.pop("block_dangerous_commands", None)
+
+
+def test_hook_fixture_shares_one_module(
+    hook: types.ModuleType,
+    _hook_module: tuple[types.ModuleType, dict[str, object]],
+) -> None:
+    """The ``hook`` fixture hands out the one module loaded for the file (#1323)."""
+    assert hook is _hook_module[0]
 
 
 def _set_stdin(monkeypatch: pytest.MonkeyPatch, payload: str) -> None:
@@ -933,6 +946,128 @@ def test_redirect_fires_only_on_a_commit_heredoc(
     """Scoped to the shape that has a better path available."""
     command = template.format(flag=_BLOCKED_FLAG)
     assert hook._is_commit_message_heredoc(command) is redirected
+
+
+# ---------------------------------------------------------------------------
+# Heredoc-body hint (#1319)
+# ---------------------------------------------------------------------------
+
+_RELEASE = "doit " + "release"  # assembled so this file is not itself blocked
+_DATA_HEREDOC = f"cat > tmp/agents/claude/m.txt <<'EOF'\nfix: x\n\nthe {_RELEASE} task ran\nEOF"
+# The #1234 shape: an `mv` line, then a backtick span holding a pipe.
+_ISSUE_1234 = "cat > tmp/b.md <<'EOF'\nmv data/a data/b\n`a | b`\nEOF"
+
+
+def _blocked_stderr(
+    hook: types.ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    command: str,
+) -> str:
+    """Run the hook through ``main()``, assert exit 2, return stderr."""
+    _set_stdin(monkeypatch, _bash_payload(command))
+    with pytest.raises(SystemExit) as exc_info:
+        sys.exit(hook.main())
+    assert exc_info.value.code == 2
+    return capsys.readouterr().err
+
+
+def test_data_heredoc_block_keeps_reason_and_adds_hint(
+    hook: types.ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A heredoc written to a file gets the heredoc hint after the matched reason."""
+    err = _blocked_stderr(hook, monkeypatch, capsys, _DATA_HEREDOC)
+    assert "Releases must be run manually" in err
+    assert hook._HEREDOC_BODY_HINT in err
+    assert hook._COMMIT_HEREDOC_REDIRECT not in err
+
+
+def test_data_heredoc_then_commit_file_gets_generic_hint(
+    hook: types.ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The heredoc's owner is ``cat``, so the commit wording does not apply."""
+    command = _DATA_HEREDOC + "\ngit commit -F tmp/agents/claude/m.txt"
+    err = _blocked_stderr(hook, monkeypatch, capsys, command)
+    assert hook._HEREDOC_BODY_HINT in err
+
+
+def test_commit_heredoc_keeps_original_reason_before_redirect(
+    hook: types.ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The commit redirect is appended to, not substituted for, the matched reason."""
+    command = f"git commit -F - <<EOF\ndocs: the {_BLOCKED_FLAG} bypass\nEOF"
+    _, original = hook.check_command(command)
+    err = _blocked_stderr(hook, monkeypatch, capsys, command)
+    assert original.rstrip(".") in err
+    assert hook._COMMIT_HEREDOC_REDIRECT in err
+
+
+def test_issue_1234_shape_gets_hint(hook: types.ModuleType) -> None:
+    """The #1234 mv-then-backtick-pipe body is data and now names the heredoc."""
+    command = _ISSUE_1234
+    is_dangerous, reason = hook.check_command(command)
+    assert is_dangerous
+    assert hook._HEREDOC_BODY_HINT in hook.redirect_reason(command, reason)
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        f"cat > m.txt <<'EOF'\nx\nEOF\n{_RELEASE}",
+        _RELEASE,
+        f"bash <<'EOF'\n{_RELEASE}\nEOF",
+        f"cat > m.txt <<EOF\nx $({_RELEASE}) y\nEOF",
+        f"git commit -F - <<EOF\nx `{_RELEASE}` y\nEOF",
+        f"cat > m.txt <<'EOF'\nthe {_RELEASE} task ran",
+        f"git commit -F - <<EOF\nx\nEOF\ngh pr merge 1 {_BLOCKED_FLAG}",
+    ],
+    ids=[
+        "heredoc-then-release",
+        "bare-release",
+        "shell-stdin-body",
+        "executed-dollar-paren",
+        "executed-backtick",
+        "unterminated",
+        "commit-heredoc-then-blocked",
+    ],
+)
+def test_other_causes_keep_the_plain_reason(hook: types.ModuleType, command: str) -> None:
+    """Executed bodies, substitutions and non-body causes get no heredoc hint."""
+    is_dangerous, reason = hook.check_command(command)
+    assert is_dangerous
+    assert hook.redirect_reason(command, reason) == reason
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        _DATA_HEREDOC,
+        _DATA_HEREDOC + "\ngit commit -F tmp/agents/claude/m.txt",
+        f"git commit -F - <<EOF\ndocs: the {_BLOCKED_FLAG} bypass\nEOF",
+        _ISSUE_1234,
+    ],
+)
+def test_hint_never_changes_the_verdict(hook: types.ModuleType, command: str) -> None:
+    """Detection only: every hinted command is still blocked."""
+    assert hook.check_command(command)[0] is True
+    assert hook.redirect_reason(command, "") == ""
+
+
+def test_copilot_deny_json_carries_the_hint(
+    hook: types.ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """A non-default output format carries the hint in its deny reason."""
+    code, out = _run_raw(hook, monkeypatch, capsys, _copilot_payload(_DATA_HEREDOC))
+    assert code == 0
+    assert hook._HEREDOC_BODY_HINT in json.dumps(json.loads(out))
 
 
 # ---------------------------------------------------------------------------
