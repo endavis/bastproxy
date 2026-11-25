@@ -60,6 +60,10 @@ UPSERT_ROOM_SQL = (
 )
 SELECT_CHUNK = 500
 
+# The web find page: column name -> the sql column. Only these fixed fragments reach a
+# statement; the values (the name and the filters) are always bound parameters.
+SEARCH_COLUMNS = {"uid": "uid", "name": "name", "area": "area", "terrain": "terrain"}
+
 
 def _select_in(db: Database, sql: str, values: Sequence[str]) -> list[dict[str, Any]]:
     """Run ``sql`` (with one ``{marks}`` placeholder list) for ``values``, in chunks."""
@@ -216,6 +220,77 @@ class MapStore:
         if flag:
             rooms = [r for r in rooms if flag in r["flags"]]
         return rooms[:limit] if limit is not None else rooms
+
+    def get_rooms(self, uids: Sequence[str]) -> dict[str, dict[str, Any]]:
+        """Get the stored rooms among ``uids`` by uid, in chunks of 500 parameters."""
+        rows = _select_in(self.db, "SELECT * FROM rooms WHERE uid IN ({marks})", list(uids))
+        return {r["uid"]: _row_to_room(r) for r in rows}
+
+    def area_counts(self) -> list[dict[str, Any]]:
+        """List the areas, plus any area only rooms name, with room and unexplored counts.
+
+        Each item has ``uid``, ``name``, ``rooms`` and ``unexplored`` (the rooms with an
+        unexplored exit), ordered by uid. Rooms without an area are not counted.
+        """
+        names = {a["uid"]: a["name"] or "" for a in self.list_areas()}
+        rooms = {
+            r["area"]: r["total"]
+            for r in self.db.select("SELECT area, COUNT(*) AS total FROM rooms GROUP BY area")
+        }
+        unexplored = {
+            r["area"]: r["total"]
+            for r in self.db.select(
+                "SELECT area, COUNT(*) AS total FROM rooms "
+                "WHERE uid IN (SELECT fromuid FROM exits WHERE touid = ?) GROUP BY area",
+                (UNKNOWN_UID,),
+            )
+        }
+        uids = sorted({*names, *rooms} - {""})
+        return [
+            {
+                "uid": uid,
+                "name": names.get(uid, ""),
+                "rooms": rooms.get(uid, 0),
+                "unexplored": unexplored.get(uid, 0),
+            }
+            for uid in uids
+        ]
+
+    def search_rooms(
+        self,
+        name: str = "",
+        *,
+        filters: Mapping[str, str] | None = None,
+        sort: str | None = None,
+        descending: bool = False,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> tuple[list[dict[str, Any]], int]:
+        """Search rooms by a case-insensitive name part, with column filters, sort and paging.
+
+        ``filters`` maps a column (uid, name, area or terrain) to a case-insensitive part; an
+        unknown column is ignored. ``sort`` is one of those columns (else uid), ties by uid.
+        The sql text is built from fixed fragments, every value is bound, and ``%``, ``_``
+        and the escape character in a part are matched literally. Returns the page of
+        rooms and the number of rooms that match in all.
+        """
+        clauses: list[str] = []
+        params: list[Any] = []
+        if name:
+            clauses.append("name LIKE ? ESCAPE '\\'")
+            params.append(f"%{_like(name)}%")
+        for column, part in (filters or {}).items():
+            if column in SEARCH_COLUMNS and part:
+                clauses.append(f"{SEARCH_COLUMNS[column]} LIKE ? ESCAPE '\\'")
+                params.append(f"%{_like(part)}%")
+        where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+        total_rows = self.db.select("SELECT COUNT(*) AS total FROM rooms" + where, params)
+        order_column = SEARCH_COLUMNS.get(sort or "", "uid")
+        order = f" ORDER BY {order_column} {'DESC' if descending else 'ASC'}, uid ASC"
+        rows = self.db.select(
+            "SELECT * FROM rooms" + where + order + " LIMIT ? OFFSET ?", [*params, limit, offset]
+        )
+        return [_row_to_room(r) for r in rows], int(total_rows[0]["total"])
 
     def unexplored(self, area: str | None = None) -> list[dict[str, Any]]:
         """List rooms that have an exit to an unexplored room."""

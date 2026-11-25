@@ -92,6 +92,7 @@ The handler returns a dict with a `kind`:
 | :--- | :--- | :--- |
 | `html` | `title`, `lines` (a list of strings or one string) | `text/html`. The web plugin escapes the title, and escapes and colour-converts the lines through `colorcode.to.html`, as for a one-off page. |
 | `table` | `title`, `rows` (a list of lists or tuples, one cell per column), `total` (the row count before paging), optional `lines` | `text/html`: the title, the lines, a filter form, the table and paging links. Cells go through `colorcode.to.html`. Only valid on a route with `columns`, else 500. |
+| `error` | `status` (400 or 404), `message` | `text/html`: the status page with the message escaped. Any other `status` returns 500. A handler uses it for a missing parameter (400) or an unknown id (404). |
 | `svg` | `svg` (a string holding the document) | `image/svg+xml`. |
 | `json` | `data` | `application/json`, from `json.dumps(data, default=str)`. |
 
@@ -124,6 +125,7 @@ self.api("plugins.core.web:web.route.add")(self.plugin_id, "mobs", self._mobs, "
 - **The query.** Before the handler runs, the web plugin parses the query into `request.table`, a frozen `TableQuery`: `sort` (a column name or `None`), `descending`, `filters` (column name to a `str`, `int` or `float` according to the column type), `page` (1 or more), `count` (rows per page) and `offset` (`(page - 1) * count`). The parameters are `sort`, `dir` (`asc` or `desc`), `f_<column>`, `page` and `count`; an empty value counts as not given, because a GET form sends every box. Other keys stay in `request.query`.
 - **400.** An unknown `sort` or `f_` column, a `dir` other than `asc` or `desc`, a `page` that is not an integer from 1 to 10,000,000, a `count` outside 1 to 500 (default 50), an `int` or `float` filter that does not parse (a float must be finite, an int must fit in 64 bits) or a text filter over 200 characters returns 400, and the handler is not called.
 - **The handler** returns `{"kind": "table", "title", "rows", "total"}` for the one page described by `request.table`, with `total` the count of all rows that match the filters. Each row has one cell per column; a row of another width returns 500.
+- **Link cells.** A cell may be `{"text": str, "href": str}` instead of text. It is rendered as `<a href="...">text</a>`: the text goes through `colorcode.to.html` like any cell, so a plugin escapes MUD text with `colorcode.escape` first, and the href is html-escaped. This format is stable; build it only with these two keys. The href must be a same-origin absolute path: it starts with `/`, not `//`, and has no backslash, whitespace or control character. Anything else (`javascript:x`, `http://x`, `//host`), a missing key, an extra key or a non-string `text` makes the page return 500 and the error is logged. Percent-encode query values yourself (`urllib.parse.urlencode`). The browser script reads cells with `textContent`, so a link cell sorts and filters by its text.
 - **SQL.** Filter values are untrusted. Bind them as parameters, and let a column name only choose a fixed fragment; never put request text in the SQL string.
 
 ```python

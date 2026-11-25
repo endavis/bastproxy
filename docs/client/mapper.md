@@ -48,6 +48,19 @@ A game plugin can import a whole map in batches with `map.batch.add`, in slices 
 
 A walk only starts when you run `walkto` (or a plugin calls `walk.start`); it never starts by itself. If the character ends up in a room the walk did not expect, the mapper finds a new path from there, up to 3 times, and then stops. A MUD disconnect stops a walk. `stop` keeps the target so `resume` can continue.
 
+## Web pages
+
+When the web server is enabled (see the [web server](../web-server.md) page) and you are logged in, the mapper serves four pages under `/client/mapper`. They are read only.
+
+| Page | What it shows |
+| :--- | :--- |
+| `/client/mapper` | The areas with their room and unexplored counts. Click an area to see its map. Sort and filter the columns. |
+| `/client/mapper/area?uid=<area>` | A map of the area, one picture per z level. Rooms are boxes (hover for the uid and name, click for the room page); lines are exits. Blue stubs leave the area, arrows go up or down, dashed orange stubs are unexplored exits. The current room is highlighted, a dashed border marks a noportal room and a dark red fill a norecall room. |
+| `/client/mapper/room?uid=<uid>` | A room's name, area, terrain, coordinates, flags and note, and a table of its exits with links to the rooms they lead to. |
+| `/client/mapper/find?name=<text>` | Rooms whose name has the text, with links to the room and its area. Leave `name` empty to list every room. |
+
+An unknown area or room gives a 404 page and a missing `uid` a 400 page.
+
 ## Paths
 
 The path is the cheapest by exit cost. Exits from anywhere (portals and recall) are used when the room allows them, and the game plugin decides which exits the character may take. The `maxdepth` setting limits the number of steps: a room whose cheapest route is longer than the limit is reported as unreachable, even if a costlier but shorter route exists.

@@ -62,6 +62,7 @@ Rooms, exits, costs and paths are the same in every game, while requirements, po
 - Issue #756: run mapper path searches off the event loop
 - Issue #760: write many mapper rooms and exits in one transaction
 - Issue #762: recapturing a room keeps its exits' requirement and cost
+- Issue #766: web pages for the area map and room lookup
 
 ## Related Documentation
 

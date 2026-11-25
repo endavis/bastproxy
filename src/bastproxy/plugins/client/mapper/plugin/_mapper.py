@@ -27,6 +27,15 @@ from bastproxy.plugins.client.mapper.libs._batch import (
     exit_problem,
 )
 from bastproxy.plugins.client.mapper.libs._graph import Exit, MapGraph, find_path, requirement_key
+from bastproxy.plugins.client.mapper.libs._pages import (
+    AREA_COLUMNS,
+    EXIT_COLUMNS,
+    FIND_COLUMNS,
+    draw_area_svg,
+    escape_rows,
+    link_cell,
+    page_rows,
+)
 from bastproxy.plugins.client.mapper.libs._schema import DB_NAME, DB_VERSION, TABLES, UNKNOWN_UID
 from bastproxy.plugins.client.mapper.libs._store import MapStore, room_differences
 from bastproxy.plugins.client.mapper.libs._walk import MAX_REROUTES, SEARCHING, Walk, WalkUpdate
@@ -35,6 +44,13 @@ from bastproxy.plugins.core.events import RegisterToEvent
 
 DEFAULT_MAX_DEPTH = 300
 FIND_LIMIT = 50
+MAX_WEB_NAME = 200
+WEB_ROUTES: dict[str, str] = {
+    "": "Areas",
+    "area": "Area map",
+    "room": "Room",
+    "find": "Find rooms",
+}
 
 EVENT_PREFIX = "ev_plugins.client.mapper_"
 EVENTS: dict[str, tuple[str, dict[str, str]]] = {
@@ -96,6 +112,7 @@ class MapperPlugin(BasePlugin):
         self.movement_callbacks: dict[str, Callable[[list[dict[str, Any]]], list[str]]] = {}
         self._search_token = 0
         self._unload_token = 0
+        self.web_paths: dict[str, str] = {}
 
     @RegisterPluginHook("uninitialize")
     def _phook_mapper_uninitialize(self) -> None:
@@ -132,6 +149,176 @@ class MapperPlugin(BasePlugin):
         self.api("plugins.core.settings:setting.add")(
             self.plugin_id, "reroute", True, bool, "find a new path when a walk ends up elsewhere"
         )
+
+    @RegisterPluginHook("after_load", priority=60)
+    def _phook_add_web_routes(self) -> None:
+        """Serve the map pages through the web plugin; a refused route is logged by it."""
+        add = self.api("plugins.core.web:web.route.add")
+        handlers: dict[str, tuple[Callable[..., Any], list[dict[str, str]] | None]] = {
+            "": (self._web_areas, AREA_COLUMNS),
+            "area": (self._web_area, None),
+            "room": (self._web_room, EXIT_COLUMNS),
+            "find": (self._web_find, FIND_COLUMNS),
+        }
+        self.web_paths = {}
+        for subpath, title in WEB_ROUTES.items():
+            handler, columns = handlers[subpath]
+            path = add(self.plugin_id, subpath, handler, title, columns)
+            if path:
+                self.web_paths[subpath] = path
+
+    # web pages
+    def _web_link(self, subpath: str, text: str, **params: str) -> Any:
+        """A link cell to one of this plugin's pages, or the plain text when it has no route."""
+        path = self.web_paths.get(subpath)
+        return link_cell(text, path, **params) if path else text
+
+    @staticmethod
+    def _web_error(status: int, message: str) -> dict[str, Any]:
+        return {"kind": "error", "status": status, "message": message}
+
+    @staticmethod
+    def _web_uid(request: Any) -> str:
+        """The uid query value, empty when missing."""
+        return str(request.query.get("uid") or "")
+
+    def _web_table(
+        self,
+        request: Any,
+        columns: list[dict[str, str]],
+        rows: list[list[Any]],
+        title: str,
+        lines: list[str] | str = "",
+    ) -> dict[str, Any]:
+        """Filter, sort and page raw rows by the request's table query and build the reply."""
+        query = request.table
+        page, total = page_rows(
+            rows,
+            columns,
+            sort=query.sort,
+            descending=query.descending,
+            filters=query.filters,
+            offset=query.offset,
+            count=query.count,
+        )
+        escape = self.api("plugins.core.colors:colorcode.escape")
+        return {
+            "kind": "table",
+            "title": title,
+            "lines": lines,
+            "rows": escape_rows(page, escape),
+            "total": total,
+        }
+
+    def _web_areas(self, request: Any) -> dict[str, Any]:
+        """The areas with their room and unexplored counts."""
+        rows = [
+            [
+                self._web_link("area", a["uid"], uid=a["uid"]),
+                a["name"],
+                a["rooms"],
+                a["unexplored"],
+            ]
+            for a in self.store.area_counts()
+        ]
+        return self._web_table(request, AREA_COLUMNS, rows, "Map areas")
+
+    async def _web_area(self, request: Any) -> dict[str, Any]:
+        """The svg map of an area, drawn in a worker thread from a frozen graph."""
+        uid = self._web_uid(request)
+        if not uid:
+            return self._web_error(400, "the uid of an area is required")
+        area = self.store.get_area(uid)
+        rooms = self.store.list_rooms(area=uid)
+        if area is None and not rooms:
+            return self._web_error(404, f"area {uid} is not known")
+        view = self.graph.freeze()
+        draw = partial(
+            draw_area_svg,
+            uid,
+            area["name"] if area else "",
+            rooms,
+            view,
+            current=self.current_room,
+            room_path=self.web_paths.get("room"),
+        )
+        svg = await asyncio.to_thread(draw)
+        return {"kind": "svg", "svg": svg}
+
+    def _web_room(self, request: Any) -> dict[str, Any]:
+        """A room's details as lines and its exits as table rows."""
+        uid = self._web_uid(request)
+        if not uid:
+            return self._web_error(400, "the uid of a room is required")
+        room = self._api_room_get(uid)
+        if room is None:
+            return self._web_error(404, f"room {uid} is not known")
+        escape = self.api("plugins.core.colors:colorcode.escape")
+        lines = [
+            f"room    : {room['uid']} {escape(room['name'])}",
+            f"area    : {escape(room['area'])}",
+            f"terrain : {escape(room['terrain'])}",
+            f"coords  : {room['x']} {room['y']} {room['z']}",
+            f"flags   : {escape(', '.join(room['flags']) or '(none)')}",
+            f"note    : {escape(room['note']) if room['note'] else '(none)'}",
+        ]
+        targets = self.store.get_rooms(
+            [e["touid"] for e in room["exits"] if e["touid"] != UNKNOWN_UID]
+        )
+        rows: list[list[Any]] = []
+        for exit_ in room["exits"]:
+            touid = exit_["touid"]
+            target = targets.get(touid)
+            if touid == UNKNOWN_UID:
+                to_cell: Any = "unexplored"
+            elif target is not None:
+                to_cell = self._web_link("room", touid, uid=touid)
+            else:
+                to_cell = touid
+            requirement = json.dumps(exit_["requirement"]) if exit_["requirement"] else ""
+            rows.append(
+                [
+                    exit_["dir"],
+                    to_cell,
+                    target["name"] if target else "",
+                    exit_["cost"],
+                    requirement,
+                ]
+            )
+        return self._web_table(request, EXIT_COLUMNS, rows, f"Room {uid} {room['name']}", lines)
+
+    def _web_find(self, request: Any) -> dict[str, Any]:
+        """Rooms whose name has a part, with column filters, sort and paging."""
+        name = str(request.query.get("name") or "")
+        if len(name) > MAX_WEB_NAME:
+            return self._web_error(400, "the name is too long")
+        query = request.table
+        found, total = self.store.search_rooms(
+            name,
+            filters={k: str(v) for k, v in query.filters.items()},
+            sort=query.sort,
+            descending=query.descending,
+            limit=query.count,
+            offset=query.offset,
+        )
+        escape = self.api("plugins.core.colors:colorcode.escape")
+        rows = [
+            [
+                self._web_link("room", r["uid"], uid=r["uid"]),
+                r["name"],
+                self._web_link("area", r["area"], uid=r["area"]) if r["area"] else "",
+                r["terrain"],
+            ]
+            for r in found
+        ]
+        lines = f"rooms with '{escape(name)}' in the name" if name else ""
+        return {
+            "kind": "table",
+            "title": "Find rooms",
+            "lines": lines,
+            "rows": escape_rows(rows, escape),
+            "total": total,
+        }
 
     # helpers
     def _raise(self, name: str, **event_args: Any) -> None:
