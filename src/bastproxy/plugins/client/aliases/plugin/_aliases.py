@@ -13,11 +13,12 @@ from typing import Any
 
 # Project
 from bastproxy.libs.api import AddAPI
+from bastproxy.libs.commandprefix import starts_with_command_prefix
 from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.persistentdict import PersistentDict
 from bastproxy.libs.records import NetworkData, SendDataDirectlyToClient, UpdateFlag
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
+from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
 ARG_RE = re.compile(r"%(%?)([1-9*])")
@@ -148,7 +149,7 @@ class AliasesPlugin(BasePlugin):
             or "%" in name
         ):
             return False
-        if name.startswith(self.api("plugins.core.commands:command.prefix.get")()):
+        if starts_with_command_prefix(name, self.api("plugins.core.commands:command.prefix.get")()):
             return False
         regex = self.api.command_split_regex
         return not (regex and len(re.split(regex, name)) > 1)
@@ -304,7 +305,7 @@ class AliasesPlugin(BasePlugin):
         Session hits are not counted.
         """
         command_prefix = self.api("plugins.core.commands:command.prefix.get")()
-        if line.lstrip().startswith(command_prefix):
+        if starts_with_command_prefix(line, command_prefix):
             return False
         outcome, _text, _depth, _name = self._expand_chain(
             line, 0, command_prefix, count_hits=False
@@ -384,6 +385,7 @@ class AliasesPlugin(BasePlugin):
             return CommandResult(True, [f"alias {name} removed"])
         return CommandResult(False, [f"alias {args['name']} does not exist"])
 
+    @AddCommand(default=True)
     @AddParser(description="list aliases")
     @AddArgument(
         "match",
@@ -527,7 +529,7 @@ class AliasesPlugin(BasePlugin):
             return
         command_prefix = self.api("plugins.core.commands:command.prefix.get")()
         text = line.line
-        if text.lstrip().startswith(command_prefix):
+        if starts_with_command_prefix(text, command_prefix):
             return
         outcome, text, depth, name = self._expand_chain(
             text, self._resend_depth, command_prefix, count_hits=True
@@ -590,7 +592,7 @@ class AliasesPlugin(BasePlugin):
                     parts[0] + (" " + rest if rest else ""),
                     text,
                 )
-            if text.lstrip().startswith(command_prefix) or self._has_separator(text):
+            if starts_with_command_prefix(text, command_prefix) or self._has_separator(text):
                 return "resend", text, depth, name
 
     def _prefix_match(self, word: str, command_prefix: str) -> tuple[str, str] | None:
@@ -610,7 +612,7 @@ class AliasesPlugin(BasePlugin):
             if (
                 name in self.aliases
                 and self._api_alias_is_enabled(name)
-                and self.aliases[name]["expansion"].lstrip().startswith(command_prefix)
+                and starts_with_command_prefix(self.aliases[name]["expansion"], command_prefix)
             ):
                 return name, word[index:]
         return None

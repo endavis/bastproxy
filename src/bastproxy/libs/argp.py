@@ -68,6 +68,14 @@ class ArgumentParser(argparse.ArgumentParser):
         """
         raise argparse.ArgumentError(None, message)
 
+    def has_positionals(self) -> bool:
+        """Return True if the parser has a positional argument (#791).
+
+        Any positional counts, including an optional one (``nargs="?"``), because
+        it could hold the word ``help``.
+        """
+        return any(not action.option_strings for action in self._actions)
+
 
 RawDescriptionHelpFormatter = argparse.RawDescriptionHelpFormatter
 HelpFormatter = argparse.RawTextHelpFormatter

@@ -19,6 +19,7 @@ from bastproxy.libs import argp
 # 3rd Party
 # Project
 from bastproxy.libs.api import AddAPI
+from bastproxy.libs.commandprefix import normalize_command_prefix, starts_with_command_prefix
 from bastproxy.libs.context import get_command_args, output_to_client, resending_in_place_of
 from bastproxy.libs.logger import get_logger, log_to
 from bastproxy.libs.persistentdict import PersistentDict
@@ -844,6 +845,27 @@ class CommandsPlugin(BasePlugin):
             if not saved_stats:
                 self.saved_command_stats.pop(plugin_id, None)
 
+        if getattr(command, "default", False):
+            other = next(
+                (
+                    name
+                    for name, item in plugin_command_data.items()
+                    if name != command_name and getattr(item, "default", False)
+                ),
+                None,
+            )
+            if other is not None:
+                log_to(
+                    [plugin_id, self.plugin_id],
+                    logging.ERROR,
+                    "commands - plugin %s already has default command %s, "
+                    "command %s is registered without default (#778)",
+                    plugin_id,
+                    other,
+                    command_name,
+                )
+                command.default = False
+
         plugin_command_data[command_name] = command
 
         return True
@@ -1076,7 +1098,8 @@ class CommandsPlugin(BasePlugin):
         command = command_line
 
         commandprefix = self.api("plugins.core.settings:setting.get")(self.plugin_id, "cmdprefix")
-        command_str = command
+        # the prefix matches in any case (#782); rewrite it to the configured case
+        command_str = normalize_command_prefix(command, commandprefix)
 
         if command_str in [
             commandprefix,
@@ -1112,6 +1135,21 @@ class CommandsPlugin(BasePlugin):
         command_list = list(command_data.keys())
         get_logger(self.plugin_id).debug("command_list=%r", command_list)
         get_logger(self.plugin_id).debug("temp_command=%r", temp_command)
+
+        if temp_command == "":
+            if split.args.strip() == "help":
+                # "help" alone asks for the plugin's help, not the default command (#778)
+                output = self.error_command_not_found_in_plugin(split.plugin, "")
+                return CommandLookup(None, "", False, command_str, output)
+            default = next((item for item in command_data.values() if item.default), None)
+            if default is not None:
+                return CommandLookup(
+                    default,
+                    split.args,
+                    default.show_in_history,
+                    f"found {default.full_cmd} (default)",
+                    [],
+                )
 
         new_command = self.api("plugins.core.fuzzy:string.match.best")(
             temp_command, tuple(command_list), scorer="token_set_ratio"
@@ -1386,7 +1424,7 @@ class CommandsPlugin(BasePlugin):
         # reach the next line (#390): read this line's value, then put the input's back
         input_show_in_history = event_record["showinhistory"]
 
-        if event_record["line"].line.lstrip().startswith(commandprefix):
+        if starts_with_command_prefix(event_record["line"].line, commandprefix):
             self.run_internal_command_from_event()
 
         else:

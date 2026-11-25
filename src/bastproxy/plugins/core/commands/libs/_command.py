@@ -73,6 +73,7 @@ class CommandClass:
         preamble: bool = True,
         show_in_history: bool = True,
         shelp: str = "",
+        default: bool = False,
     ) -> None:
         self.name = name
         self.function = function
@@ -83,6 +84,7 @@ class CommandClass:
         self.group = group or ""
         self.preamble = preamble
         self.show_in_history = show_in_history
+        self.default = default  # run on a bare #bp.<plugin> (#778)
         self.full_cmd = self.api("plugins.core.commands:command.format")(self.plugin_id, name)
         self.short_help = shelp
         self.count = 0  # lifetime count, carried over when the plugin reloads
@@ -260,6 +262,10 @@ class CommandClass:
                     exc.args[0],
                 )
                 return ParsedArgs(False, args, fail_message)
+
+        # a lone "help" shows the help, unless a positional could hold the word (#791)
+        if split_args_list == ["help"] and not self.arg_parser.has_positionals():
+            split_args_list = ["-h"]
 
         # parse the arguments and deal with errors
         try:

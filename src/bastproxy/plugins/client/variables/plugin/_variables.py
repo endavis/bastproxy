@@ -13,11 +13,12 @@ from collections.abc import Mapping
 
 # Project
 from bastproxy.libs.api import AddAPI
+from bastproxy.libs.commandprefix import starts_with_command_prefix
 from bastproxy.libs.logger import log_to
 from bastproxy.libs.persistentdict import PersistentDict
 from bastproxy.libs.records import UpdateFlag
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
+from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
 NAME_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
@@ -170,6 +171,7 @@ class VariablesPlugin(BasePlugin):
             return CommandResult(True, [f"variable {name} removed"])
         return CommandResult(False, [f"variable {name} does not exist"])
 
+    @AddCommand(default=True)
     @AddParser(description="list variables")
     @AddArgument(
         "match",
@@ -196,7 +198,7 @@ class VariablesPlugin(BasePlugin):
         if not line.is_io or not line.send or line.mask_log:
             return
         command_prefix = self.api("plugins.core.commands:command.prefix.get")()
-        if line.line.lstrip().startswith(command_prefix):
+        if starts_with_command_prefix(line.line, command_prefix):
             return
         expanded = expand_references(line.line, self.variables)
         if expanded != line.line:

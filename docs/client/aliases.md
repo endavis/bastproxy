@@ -36,7 +36,7 @@ An enabled alias whose expansion starts with the command prefix also matches a f
 
 ## Lines that start with the command prefix (#777)
 
-Lines that start with the command prefix are never expanded, and a name cannot start with it. The prefix match above already shortens proxy commands, so a typed `#bp.client.mapper.find` needs no alias. Expanding `#bp` lines would mean running before the commands plugin (priority 50), which breaks [ADR-0017](../decisions/0017-user-aliases-expand-the-first-word-on-the-input-path-at-priority-55.md)'s rule that the history holds the typed line.
+Lines that start with the command prefix, in any case, are never expanded, and a name cannot start with it. The prefix match above already shortens proxy commands, so a typed `#bp.client.mapper.find` needs no alias. Expanding `#bp` lines would mean running before the commands plugin (priority 50), which breaks [ADR-0017](../decisions/0017-user-aliases-expand-the-first-word-on-the-input-path-at-priority-55.md)'s rule that the history holds the typed line.
 
 ## Variables in expansions
 
@@ -70,6 +70,8 @@ One typed line goes through at most 10 expansions, counted across chains and re-
 | `#bp.client.aliases.add [-g GROUP] [-d] [-o] <name> <expansion...>` | Add an alias. The expansion is the rest of the line. `-g` sets the group, `-d` adds it disabled. An existing name is refused unless `-o` (`--overwrite`) is given; a replaced alias keeps its id and hit count. The command is not named `set` because every plugin already has a `set` command for its own settings. |
 | `#bp.client.aliases.remove <name or id>` | Remove an alias. |
 | `#bp.client.aliases.list [match]` | List aliases as `[id] name : expansion`, optionally only names containing `match`. |
+
+Typing only `#bp.client.aliases` runs `list` (the plugin's default command, #778).
 | `#bp.client.aliases.enable [name or id] [-g GROUP]` | Enable an alias, or a group. Give exactly one of the two. |
 | `#bp.client.aliases.disable [name or id] [-g GROUP]` | Disable an alias, or a group. Give exactly one of the two. |
 | `#bp.client.aliases.toggle [name or id] [-g GROUP]` | Flip an alias, or a group, between enabled and disabled. Give exactly one of the two. |
