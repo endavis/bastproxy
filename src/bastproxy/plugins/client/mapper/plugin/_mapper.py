@@ -1146,22 +1146,31 @@ class MapperPlugin(BasePlugin):
         args: dict[str, Any] = self.api("plugins.core.commands:command.current.args.get")()
         return args
 
-    def _room_line(self, room: dict[str, Any], steps: str) -> str:
-        """Format a room for a list, with the steps to it from the current room."""
-        escape = self.api("plugins.core.colors:colorcode.escape")
-        return f"{room['uid']} | {escape(room['name'])} | {escape(room['area'])} | {steps}"
-
     def _find_lines(
         self, rooms: list[dict[str, Any]], total: int, steps: list[str], limit: int
     ) -> list[str]:
         """Format the find table, numbering the rows for ``next``."""
-        lines = [
-            "# | uid | name | area | steps",
-            *(
-                f"{i} | {self._room_line(r, n)}"
-                for i, (r, n) in enumerate(zip(rooms, steps, strict=True), start=1)
-            ),
+        escape = self.api("plugins.core.colors:colorcode.escape")
+        columns = [
+            {"name": "#", "key": "num"},
+            {"name": "uid", "key": "uid"},
+            {"name": "name", "key": "name"},
+            {"name": "area", "key": "area"},
+            {"name": "steps", "key": "steps"},
         ]
+        data = [
+            {
+                "num": str(i),
+                "uid": room["uid"],
+                "name": escape(room["name"]),
+                "area": escape(room["area"]),
+                "steps": n,
+            }
+            for i, (room, n) in enumerate(zip(rooms, steps, strict=True), start=1)
+        ]
+        lines: list[str] = list(
+            self.api("plugins.core.utils:table.format")("Rooms found", data, columns)
+        )
         if limit and total > limit:
             lines.append(f"{total} rooms found, showing {limit}")
         return lines

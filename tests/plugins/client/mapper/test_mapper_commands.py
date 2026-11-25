@@ -42,6 +42,16 @@ def _sent(h: Harness) -> str:
     return "\n".join(line for msg in h.client for line in ([msg] if isinstance(msg, str) else msg))
 
 
+def _rows(text: str) -> list[list[str]]:
+    """Return the cells of each table line in a find output (the lines with cells)."""
+    return [line.split(" | ") for line in text.splitlines() if " | " in line]
+
+
+def _uids(text: str) -> list[str]:
+    """Return the uid cells of the data rows of a find table, in order."""
+    return [row[1] for row in _rows(text)[1:]]
+
+
 def _find_text(h: Harness, **args: Any) -> str:
     """Run find with a current room and return the table the client got."""
     h.client.clear()
@@ -54,14 +64,15 @@ def test_find(test_map: Harness) -> None:
     """find by name, area, flag, unexplored, and with no match."""
     test_map.plugin.current_room = "A"
     text = _find_text(test_map, text=["room", "c"])
-    assert "C | Room C | test | 2" in text
-    assert "uid | name" in text
-    assert "F |" not in text
-    assert "B |" in _find_text(test_map, flag="noportal")
-    assert "A |" in _find_text(test_map, area="test")
-    unexplored = _find_text(test_map, unexplored=True)
-    assert "E |" in unexplored
-    assert "A |" not in unexplored
+    assert ["1", "C", "Room C", "test", "2"] in _rows(text)
+    assert _rows(text)[0] == ["#", "uid", "name", "area", "steps"]
+    assert text.splitlines()[0] == "Rooms found"  # built by table.format (#815)
+    assert "F" not in _uids(text)
+    assert "B" in _uids(_find_text(test_map, flag="noportal"))
+    assert "A" in _uids(_find_text(test_map, area="test"))
+    unexplored = _uids(_find_text(test_map, unexplored=True))
+    assert "E" in unexplored
+    assert "A" not in unexplored
     assert _text(_run(test_map, "find", text=["zzz"])) == "No rooms found"
 
 
@@ -362,7 +373,7 @@ def test_find_exact(test_map: Harness) -> None:
     p._api_room_add({"uid": "X", "name": "Room C annex", "area": "test"})
     p.current_room = "A"
     text = _find_text(test_map, text=["room", "c"], exact=True)
-    assert "Room C |" in text
+    assert [row[2] for row in _rows(text)[1:]] == ["Room C"]
     assert "annex" not in text
     assert _run(test_map, "find", exact=True).success is False
 
@@ -469,11 +480,21 @@ def test_find_limit_setting(harness: Harness) -> None:
     text = _text(_run(harness, "find", text=["same"]))
     assert "showing 3" in text
     assert text.count("same") == 3
-    assert "1 | 0 | same" in text
-    assert "3 | 10 | same" in text
+    rows = _rows(text)
+    assert rows[1][:3] == ["1", "0", "same"]
+    assert rows[3][:3] == ["3", "10", "same"]
     assert harness.plugin.last_find == ["0", "1", "10"]
     harness.settings["find_limit"] = 0
     text = _text(_run(harness, "find", text=["same"]))
     assert text.count("same") == FIND_LIMIT + 5
     assert "showing" not in text
     assert len(harness.plugin.last_find) == FIND_LIMIT + 5
+
+
+def test_find_escapes_name_and_area(test_map: Harness) -> None:
+    """find escapes colour codes in the room name and area (#815)."""
+    p = test_map.plugin
+    p._api_room_add({"uid": "Z", "name": "Hot @Rroom", "area": "a@Gb"})
+    p.current_room = "A"
+    text = _find_text(test_map, text=["hot"])
+    assert _rows(text)[1][:4] == ["1", "Z", "Hot @@Rroom", "a@@Gb"]
