@@ -1273,12 +1273,13 @@ class MapperPlugin(BasePlugin):
 
     @AddParser(description="walk to a room one step at a time")
     @AddArgument("uid", help="the room uid")
-    @AddArgument("-p", "--portals", help="use portal and recall exits", action="store_true")
+    @AddArgument("-n", "--noportals", help="avoid portal and recall exits", action="store_true")
     def _command_walkto(self) -> CommandResult:
-        """Start a walk, without the exits from ``*`` and ``**`` unless ``-p`` is given."""
+        """Start a walk, using the exits from ``*`` and ``**`` unless ``-n`` is given."""
         args = self._args()
         uid = args["uid"]
-        if self._start_walk(uid, True, portals=args["portals"], recalls=args["portals"]):
+        use_exits = not args["noportals"]
+        if self._start_walk(uid, True, portals=use_exits, recalls=use_exits):
             return CommandResult(True, [f"finding a path to {uid}"])
         return CommandResult(False, [f"could not start a walk to {uid}"])
 
@@ -1290,7 +1291,7 @@ class MapperPlugin(BasePlugin):
         type=int,
         default=None,
     )
-    @AddArgument("-p", "--portals", help="use portal and recall exits", action="store_true")
+    @AddArgument("-n", "--noportals", help="avoid portal and recall exits", action="store_true")
     def _command_next(self) -> CommandResult:
         """Walk to a room of the last find result, like walkto."""
         args = self._args()
@@ -1306,7 +1307,8 @@ class MapperPlugin(BasePlugin):
         else:
             return CommandResult(False, [f"the index must be from 1 to {len(self.last_find)}"])
         uid = self.last_find[position]
-        if not self._start_walk(uid, True, portals=args["portals"], recalls=args["portals"]):
+        use_exits = not args["noportals"]
+        if not self._start_walk(uid, True, portals=use_exits, recalls=use_exits):
             return CommandResult(False, [f"could not start a walk to {uid}"])
         self.last_find_next = position + 1
         return CommandResult(True, [f"finding a path to {uid}"])
