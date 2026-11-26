@@ -255,3 +255,91 @@ def test_next_command_waits_for_old_window() -> None:
     assert stub._hide_armed is not None
     assert _feed(stub, "Name second").send is False
     assert stub._hide_open is not None
+
+
+_KEEP = r"^Keep status added to .+\.$"
+_COMBAT = ("You hit a goblin.", "A goblin hits you.", "You dodge.")
+
+
+def _queue_arg(stub: MagicMock, ctype: str, arg: str) -> None:
+    with patch.object(_mudcmds, "SendDataDirectlyToMud"):
+        MUDCmdsPlugin._api_command_queue(stub, ctype, arg)
+
+
+def _keep_reply(stub: MagicMock, prompt: bool) -> list[FakeLine]:
+    """Feed one keep reply as itemkeep does, finishing after its first line."""
+    lines = [_feed(stub, "Keep status added to a sword.")]
+    _finish(stub)
+    lines.append(_feed(stub, "Note one."))
+    lines.append(_feed(stub, "Note two."))
+    lines.append(_feed(stub, "{invitem}"))
+    lines.append(_feed(stub, ""))
+    lines.append(_feed(stub, "[Fighting: goblin]>", prompt=prompt))
+    return lines
+
+
+def test_back_to_back_queued_commands_close_at_marked_prompts(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    stub = _hide_stub(hide_start=_KEEP, hide_max=10)
+    stub._prompts_seen = True
+    for i in range(3):
+        _queue_arg(stub, "t1", str(i))
+    with caplog.at_level(logging.WARNING):
+        for _ in range(3):
+            assert all(not ln.send for ln in _keep_reply(stub, prompt=True))
+        assert all(_feed(stub, text).send for text in _COMBAT)
+    assert stub._hide_open is None
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+
+
+def test_next_type_window_opens_after_marked_prompt(caplog: pytest.LogCaptureFixture) -> None:
+    stub = _hide_stub(hide_start=_KEEP, hide_max=10)
+    stub._prompts_seen = True
+    MUDCmdsPlugin._api_type_add(
+        stub, "t2", "invdata", r"^invdata$", hide_output=True, hide_start=r"^\{invdata\}$"
+    )
+    _queue_arg(stub, "t1", "1")
+    _queue_arg(stub, "t2", "1")
+    with caplog.at_level(logging.WARNING):
+        assert all(not ln.send for ln in _keep_reply(stub, prompt=True))
+        assert _feed(stub, "{invdata}").send is False
+        assert _feed(stub, "item one").send is False
+        assert _feed(stub, "{/invdata}").send is False
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+
+
+def test_unmarked_prompt_keeps_finished_window_until_cap(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    stub = _hide_stub(hide_start=_KEEP, hide_max=10)
+    stub._prompts_seen = True
+    for i in range(3):
+        _queue_arg(stub, "t1", str(i))
+    first = _keep_reply(stub, prompt=False)
+    assert all(not ln.send for ln in first)
+    second = _keep_reply(stub, prompt=False)
+    assert [ln.send for ln in second] == [False, False, False, False, True, True]
+    with caplog.at_level(logging.WARNING):
+        third = _keep_reply(stub, prompt=False)
+        combat = [_feed(stub, text) for text in _COMBAT]
+    assert all(not ln.send for ln in third)
+    assert [ln.send for ln in combat] == [False, False, False]
+    messages = [r.getMessage() for r in caplog.records if r.levelno >= logging.WARNING]
+    assert any(
+        "t1" in m and "no prompt line closed the window" in m and "may not be marked" in m
+        for m in messages
+    )
+
+
+def test_cap_warning_unfinished_window_keeps_plain_text(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    stub = _hide_stub(hide_max=2)
+    _queue(stub)
+    with caplog.at_level(logging.WARNING):
+        for text in ("Name", "b", "c"):
+            _feed(stub, text)
+    messages = [r.getMessage() for r in caplog.records]
+    assert any("t1" in m for m in messages)
+    assert not any("no prompt line closed" in m for m in messages)

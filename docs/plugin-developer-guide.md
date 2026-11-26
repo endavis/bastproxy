@@ -686,6 +686,10 @@ sends is hidden; a command the user types never is.
   prompt is hidden. A `command.finish` called while that prompt line is itself being processed
   (from a trigger or an all-lines callback) closes the window on that prompt. When no prompt has been seen on the link (nothing marks prompts), it closes
   at `command.finish`.
+- Every prompt the MUD sends must be marked as a prompt (GA, EOR or a prompt-marking plugin). An
+  unmarked prompt, such as a second prompt format like a battle prompt, does not close a finished
+  window. The window then hides later lines until `hide_max`, and the cap warning says the command
+  finished but no prompt closed the window.
 - `hide_max` (an int of at least 1, default 500) caps the hidden lines. Past it the window closes,
   a warning names the type, and the line is shown.
 - The window closes on a timeout, a disconnect, `type.remove`, plugin unload and `fixqueue`.
