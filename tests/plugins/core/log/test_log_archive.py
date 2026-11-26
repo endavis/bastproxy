@@ -5,6 +5,7 @@ import datetime
 import logging
 import os
 import stat
+import time
 import zipfile
 from collections.abc import Callable
 from pathlib import Path
@@ -96,7 +97,9 @@ def test_rollover_archives_when_enabled(tmp_path: Path) -> None:
 def test_midnight_path_archives(tmp_path: Path) -> None:
     handler = _handler(tmp_path / "bastproxy.log")
     _write(handler, "one")
-    handler.rolloverAt = 0
+    # a rollover time already past; 0 would make doRollover call time.localtime on a time
+    # before 1970, which raises OSError on Windows (#832)
+    handler.rolloverAt = int(time.time()) - 1
     _write(handler, "two")
     handler.close()
     assert len(list((tmp_path / "archive").glob("*.zip"))) == 1
