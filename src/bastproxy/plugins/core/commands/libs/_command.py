@@ -75,11 +75,13 @@ class CommandClass:
         shelp: str = "",
         default: bool = False,
         literal_args: bool = False,
+        owner_id: str | None = None,
     ) -> None:
         self.name = name
         self.function = function
-        self.plugin_id = plugin_id
-        self.api = API(owner_id=f"{self.plugin_id}:{self.name}")
+        self.plugin_id = plugin_id  # the plugin the command sits under (#834)
+        self.owner_id = owner_id or plugin_id  # the plugin whose code runs
+        self.api = API(owner_id=f"{self.owner_id}:{self.name}")
         self.arg_parser = arg_parser
         self.format = format
         self.group = group or ""
@@ -97,6 +99,11 @@ class CommandClass:
         self.current_arg_string = ""
         self.last_run_start_time: datetime.datetime | None = None
         self.last_run_end_time: datetime.datetime | None = None
+
+    def _log_targets(self) -> list[str]:
+        """Return the logger ids for this command: owner, host, then the commands plugin."""
+        targets = [self.owner_id, self.plugin_id, "plugins.core.commands"]
+        return list(dict.fromkeys(targets))
 
     @contextmanager
     def _run_state(self, arg_string: str) -> Iterator[None]:
@@ -137,7 +144,7 @@ class CommandClass:
                 return self.run_finish(False, message, reason, format=format)
 
             args = CmdArgsRecord(
-                f"{self.plugin_id}:{self.name}",
+                f"{self.owner_id}:{self.name}",
                 vars(parsed.args),
                 arg_string=arg_string,
                 command=self.full_cmd,
@@ -152,13 +159,13 @@ class CommandClass:
 
             # run the command
             try:
-                with tracking_actor(f"{self.plugin_id}:{self.name}"), running_command(args):
+                with tracking_actor(f"{self.owner_id}:{self.name}"), running_command(args):
                     return_value = self()
             except Exception as exc:
                 self.record_error(exc)
                 message.extend([f"Error running command: {command_ran}"])
                 log_to(
-                    [self.plugin_id, "plugins.core.commands"],
+                    self._log_targets(),
                     logging.ERROR,
                     "Error running command: %s",
                     command_ran,
@@ -172,7 +179,7 @@ class CommandClass:
                 returned = type(return_value).__name__
                 self.record_error(TypeError(f"returned {returned}, not a CommandResult"))
                 log_to(
-                    [self.plugin_id, "plugins.core.commands"],
+                    self._log_targets(),
                     logging.ERROR,
                     "Command %s returned %s, not a CommandResult",
                     command_ran,
@@ -210,7 +217,7 @@ class CommandClass:
         except Exception as exc:
             self.record_error(exc)
             log_to(
-                [self.plugin_id, "plugins.core.commands"],
+                self._log_targets(),
                 logging.ERROR,
                 "Error formatting the output of command: %s %s",
                 self.full_cmd,
@@ -229,7 +236,7 @@ class CommandClass:
         """
         if len(arg_string) > MAX_ARGUMENT_LENGTH:
             log_to(
-                [self.plugin_id, "plugins.core.commands"],
+                self._log_targets(),
                 logging.INFO,
                 "Arguments for command %s.%s are longer than %d characters",
                 self.plugin_id,
@@ -256,7 +263,7 @@ class CommandClass:
                 ]
                 fail_message.extend(self.arg_parser.format_help().splitlines())
                 log_to(
-                    [self.plugin_id, "plugins.core.commands"],
+                    self._log_targets(),
                     logging.INFO,
                     "Error parsing args for command %s.%s %s - %s",
                     self.plugin_id,
@@ -277,7 +284,7 @@ class CommandClass:
             fail_message = [f"@RError: {exc.message}@w", ""]
             fail_message.extend(self.arg_parser.format_help().splitlines())
             log_to(
-                [self.plugin_id, "plugins.core.commands"],
+                self._log_targets(),
                 logging.INFO,
                 "Error parsing args for command %s.%s %s - %s",
                 self.plugin_id,
@@ -431,6 +438,8 @@ class CommandClass:
         return self.function(*args, **kwargs)
 
     def __repr__(self) -> str:
+        if self.owner_id != self.plugin_id:
+            return f"Command({self.name}, {self.plugin_id}, owner={self.owner_id}, {self.function})"
         return f"Command({self.name}, {self.plugin_id}, {self.function})"
 
     __str__ = __repr__

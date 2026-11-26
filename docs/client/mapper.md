@@ -44,6 +44,8 @@ Example, after a game plugin has filled the map:
 #bp.client.mapper.resume
 ```
 
+A game adapter can add its own commands under `#bp.client.mapper`. They are listed in a section named after the adapter, such as `aardwolf.mapper`, and the adapter's old `#bp.<adapter>.*` names keep working.
+
 ## Room changes
 
 When the game sends a stored room again, its name, terrain, coordinates and details are updated. A different area and exits that contradict stored ones are kept and reported (the `room_mismatch` event) until you run `accept`; a stored custom exit is never reported as removed. `accept` is gentler than `purge -r`, which deletes the room, its note and every exit leading to it. Use `purge -a` for a replaced area. For a room whose exits vary, set `ignoreexits`; list those rooms with `find -f ignoreexits`.

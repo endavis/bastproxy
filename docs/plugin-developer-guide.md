@@ -158,6 +158,7 @@ attributes of the plugin instance change what a reload does; their defaults are 
 | Attribute | Default | Effect |
 | :--- | :--- | :--- |
 | `can_reload_f` | `True` | When `False`, a reload is refused and nothing is unloaded. The watch plugin sets it in its `__init__` hook. |
+| `accepts_command_extensions_f` | `False` | When `True`, other plugins may add commands under this plugin's name with `command.add.for.plugin`. The mapper sets it in its `__init__` hook. |
 | `reload_dependents_f` | `False` | When `True`, the plugins that depend on this one are reloaded with it. The mudcmds plugin sets it. |
 | `attributes_to_save_on_reload` | `[]` | Names of attributes to carry over. The proxy plugin sets `["mud_connection"]`. |
 

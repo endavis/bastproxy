@@ -829,3 +829,12 @@ def test_room_flag_api(test_map: Harness) -> None:
     assert room is not None
     assert room["flags"] == []
     assert p.graph.room_flags("A") == frozenset()
+
+
+def test_mapper_accepts_command_extensions(harness: Harness) -> None:
+    """Game adapters add commands under the mapper (#834, ADR-0024)."""
+    plugin: Any = object.__new__(type(harness.plugin))
+    plugin.plugin_id = harness.plugin.plugin_id
+    plugin.api = harness.plugin.api
+    type(plugin)._phook_init_plugin(plugin)
+    assert plugin.accepts_command_extensions_f is True

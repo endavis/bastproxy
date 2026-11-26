@@ -193,10 +193,15 @@ class CommandsPlugin(BasePlugin):
         self.current_command: str | None = None
         self.current_input_event: None = None
 
+        # commands other plugins added under a host that accepts them (#834):
+        # host id -> command name -> (owner id, function)
+        self.command_extensions: dict[str, dict[str, tuple[str, Callable[..., Any]]]] = {}
+
         self.attributes_to_save_on_reload = [
             "current_input_event",
             "saved_command_counts",
             "saved_command_stats",
+            "command_extensions",
         ]
 
     @RegisterPluginHook("after_load")
@@ -446,11 +451,14 @@ class CommandsPlugin(BasePlugin):
 
         if not self.api.startup and event_record["plugin_id"] == self.plugin_id:
             self._add_commands_for_all_plugins()
+            for host_id in list(self.command_extensions):
+                self.add_extensions_for_plugin(host_id)
         else:
             get_logger(self.plugin_id).debug(
                 "_eventcb_plugin_loaded: loading commands for %s", event_record["plugin_id"]
             )
             self.update_commands_for_plugin(event_record["plugin_id"])
+            self.add_extensions_for_plugin(event_record["plugin_id"])
 
     def update_commands_for_plugin(self, plugin_id: str) -> None:
         """Update all commands for a plugin."""
@@ -501,6 +509,36 @@ class CommandsPlugin(BasePlugin):
     @AddAPI("command.add.by.func", description="add a command based on a decorated function")
     def _api_command_add_by_func(self, func: Callable[..., Any], force: bool = False) -> None:
         """Add a command based on the new decorator stuff."""
+        built = CommandsPlugin._build_command(self, func, force=force)
+        if built is None:
+            return
+        plugin_id, command_name, command = built
+        self.update_command(plugin_id, command_name, command)
+
+        command_entry = f"{plugin_id}.{command_name}"
+        if command_entry not in self.commands_list:
+            self.commands_list.append(command_entry)
+
+        log_to(
+            [self.plugin_id, plugin_id],
+            logging.DEBUG,
+            "added command %s.%s",
+            plugin_id,
+            command_name,
+        )
+
+    def _build_command(
+        self,
+        func: Callable[..., Any],
+        host_id: str | None = None,
+        force: bool = False,
+    ) -> tuple[str, str, CommandClass] | None:
+        """Validate a decorated function and build its CommandClass.
+
+        Without ``host_id`` the command sits under the function's own plugin. With
+        one it sits under that host, and the function's plugin is the owner (#834).
+        Returns (the plugin it sits under, the command name, the command), or None.
+        """
         get_logger(self.plugin_id).debug("adding command from func %s", func.__name__)
         if hasattr(func, "__self__"):
             if hasattr(func.__self__, "name"):
@@ -510,7 +548,7 @@ class CommandsPlugin(BasePlugin):
             else:
                 msg = f"func is from plugin {func.__self__.plugin_id}"
             get_logger(self.plugin_id).debug("%s", msg)
-        plugin_id = None
+        owner_id = None
 
         if not (
             isinstance(func, types.MethodType)
@@ -518,20 +556,20 @@ class CommandsPlugin(BasePlugin):
             and hasattr(func, "command_data")
         ):
             get_logger(self.plugin_id).warning("Function is not a command: %s", func.__name__)
-            return
+            return None
 
         if hasattr(func, "__self__") and hasattr(func.__self__, "plugin_id"):
-            plugin_id = func.__self__.plugin_id  # pyright: ignore reportGeneralTypeIssues
+            owner_id = func.__self__.plugin_id  # pyright: ignore reportGeneralTypeIssues
         else:
             get_logger(self.plugin_id).warning("Function does not have a plugin: %s", func.__name__)
-            return
+            return None
 
         command_data = copy.deepcopy(func.command_data)  # pyright: ignore reportGeneralTypeIssues
         if not command_data.command["autoadd"] and not force:
             get_logger(self.plugin_id).debug(
-                "Command %s in %s will not be added, autoadd set to False", func.__name__, plugin_id
+                "Command %s in %s will not be added, autoadd set to False", func.__name__, owner_id
             )
-            return
+            return None
 
         # Placeholders in the name, description and argument help are filled from the
         # plugin's attributes; a stray brace must skip only this command.
@@ -564,17 +602,18 @@ class CommandsPlugin(BasePlugin):
             get_logger(self.plugin_id).error(
                 "Command %s in %s skipped: could not build it from %r",
                 func.__name__,
-                plugin_id,
+                owner_id,
                 current_string,
                 exc_info=True,
             )
-            return
+            return None
 
         parser.add_argument("-h", "--help", help="show help", action="store_true")
         parser.formatter_class = functools.partial(
             _help_formatter, self.api, tokenize=functools.partial(_help_tokenize, self.api)
         )
 
+        plugin_id = host_id or owner_id
         parser.prog = self.api("plugins.core.commands:command.format")(plugin_id, command_name)
 
         command_kwargs = copy.deepcopy(command_data.command["kwargs"])
@@ -591,27 +630,151 @@ class CommandsPlugin(BasePlugin):
         if "show_in_history" not in command_kwargs:
             command_kwargs["show_in_history"] = True
 
+        if host_id:
+            # an extension is listed in a section named after its owner (#834)
+            command_kwargs["group"] = owner_id
+            command_kwargs["default"] = False
+            parser.epilog = f"Added by {owner_id.replace('plugins.', '')}"
+
         try:
-            command = CommandClass(plugin_id, command_name, func, parser, **command_kwargs)
+            command = CommandClass(
+                plugin_id, command_name, func, parser, owner_id=owner_id, **command_kwargs
+            )
         except Exception:
             get_logger(self.plugin_id).error(
                 "Error creating command %s: %s", func.__name__, command_kwargs, exc_info=True
             )
-            return
+            return None
 
-        self.update_command(plugin_id, command_name, command)
+        return plugin_id, command_name, command
 
-        command_entry = f"{plugin_id}.{command_name}"
-        if command_entry not in self.commands_list:
-            self.commands_list.append(command_entry)
+    @AddAPI(
+        "command.add.for.plugin",
+        description="add a command under another plugin that accepts it",
+    )
+    def _api_command_add_for_plugin(self, host_id: str, func: Callable[..., Any]) -> bool:
+        """Add a command under another plugin's name (#834).
 
+        @Yhost_id@w  = the plugin the command sits under; it must set
+                       accepts_command_extensions_f
+        @Yfunc@w     = a bound ``_command_`` method of the calling plugin, which owns it
+
+        returns True when the command was added, False when it was refused
+        """
+        owner_id = getattr(getattr(func, "__self__", None), "plugin_id", None)
+        if not isinstance(owner_id, str):
+            log_to(
+                [self.plugin_id],
+                logging.WARNING,
+                "command.add.for.plugin: %s is not a method of a plugin",
+                getattr(func, "__name__", func),
+            )
+            return False
+        targets = [owner_id, host_id, self.plugin_id]
+        if host_id == owner_id:
+            log_to(
+                targets,
+                logging.WARNING,
+                "plugin %s cannot extend itself with %s",
+                owner_id,
+                func.__name__,
+            )
+            return False
+        host = self.api("libs.plugins.loader:plugin.instance.get")(host_id)
+        if host is None:
+            log_to(
+                targets,
+                logging.WARNING,
+                "%s cannot add %s: plugin %s is not loaded",
+                owner_id,
+                func.__name__,
+                host_id,
+            )
+            return False
+        if not getattr(host, "accepts_command_extensions_f", False):
+            log_to(
+                targets,
+                logging.WARNING,
+                "%s cannot add %s: plugin %s does not accept commands",
+                owner_id,
+                func.__name__,
+                host_id,
+            )
+            return False
+        return CommandsPlugin._add_extension(self, host_id, func)
+
+    def _add_extension(self, host_id: str, func: Callable[..., Any]) -> bool:
+        """Build and register one extension command; record it for reloads."""
+        built = CommandsPlugin._build_command(self, func, host_id=host_id, force=True)
+        if built is None:
+            return False
+        _, command_name, command = built
+        owner_id = command.owner_id
+        existing = self.command_data.get(host_id, {}).get(command_name)
+        if existing is not None and existing.owner_id != owner_id:
+            log_to(
+                [owner_id, host_id, self.plugin_id],
+                logging.WARNING,
+                "%s cannot add command %s under %s: it already belongs to %s",
+                owner_id,
+                command_name,
+                host_id,
+                existing.owner_id,
+            )
+            return False
+        self.update_command(host_id, command_name, command)
+        entry = f"{host_id}.{command_name}"
+        if entry not in self.commands_list:
+            self.commands_list.append(entry)
+        self.command_extensions.setdefault(host_id, {})[command_name] = (owner_id, func)
         log_to(
-            [self.plugin_id, plugin_id],
+            [self.plugin_id, host_id, owner_id],
             logging.DEBUG,
-            "added command %s.%s",
-            plugin_id,
+            "added command %s.%s for %s",
+            host_id,
             command_name,
+            owner_id,
         )
+        return True
+
+    def add_extensions_for_plugin(self, host_id: str) -> None:
+        """Re-add the extensions of a host that was reloaded; the host's own commands win."""
+        for name, (owner_id, func) in list(self.command_extensions.get(host_id, {}).items()):
+            if not CommandsPlugin._add_extension(self, host_id, func):
+                self.command_extensions.get(host_id, {}).pop(name, None)
+                log_to(
+                    [owner_id, host_id, self.plugin_id],
+                    logging.WARNING,
+                    "dropped command %s of %s under %s",
+                    name,
+                    owner_id,
+                    host_id,
+                )
+        if host_id in self.command_extensions and not self.command_extensions[host_id]:
+            del self.command_extensions[host_id]
+
+    def remove_extensions_for_owner(self, owner_id: str) -> None:
+        """Remove the commands an unloaded plugin added under other plugins."""
+        for host_id in list(self.command_extensions):
+            names = [
+                name
+                for name, (owner, _) in self.command_extensions[host_id].items()
+                if owner == owner_id
+            ]
+            for name in names:
+                del self.command_extensions[host_id][name]
+                command = self.command_data.get(host_id, {}).get(name)
+                if command is not None and command.owner_id == owner_id:
+                    del self.command_data[host_id][name]
+                    counts = self.saved_command_counts.setdefault(host_id, {})
+                    counts[name] = command.count
+                    stats = self.saved_command_stats.setdefault(host_id, {})
+                    stats[name] = dataclasses.asdict(command.stats)
+                entry = f"{host_id}.{name}"
+                if entry in self.commands_list:
+                    self.commands_list.remove(entry)
+            if not self.command_extensions[host_id]:
+                del self.command_extensions[host_id]
 
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self) -> None:
@@ -622,6 +785,7 @@ class CommandsPlugin(BasePlugin):
         if event_record := self.api("plugins.core.events:event.current.record.get")():
             if event_record["plugin_id"] != self.plugin_id:
                 self.api(f"{self.plugin_id}:command.remove.for.plugin")(event_record["plugin_id"])
+                self.remove_extensions_for_owner(event_record["plugin_id"])
             else:
                 get_logger(self.plugin_id).debug(
                     "%s_plugin_unloaded: %s is me!", self.plugin_id, self.plugin_id
@@ -1687,6 +1851,11 @@ class CommandsPlugin(BasePlugin):
 
         return [
             {"item": "Plugin", "value": command.plugin_id},
+            *(
+                [{"item": "Owner", "value": command.owner_id}]
+                if command.owner_id != command.plugin_id
+                else []
+            ),
             {"item": "Group", "value": command.group},
             {"item": "Function", "value": command.function.__name__},
             {"item": "Calls (lifetime)", "value": str(command.count)},

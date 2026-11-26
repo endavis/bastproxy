@@ -34,6 +34,7 @@ The layout follows the MUSHclient mapper so an adapter can import an existing da
 1. Feed rooms and exits with `room.add` and `exit.add`. A room dict has `uid` (required), `name`, `area`, `terrain`, `x`, `y`, `z`, `flags` and `details`, and optionally `exits` as `{direction: touid}`.
 2. Call `room.current.set(uid)` whenever the character enters or re-enters a room. This is the only arrival signal; the mapper does not read GMCP.
 3. Register the callbacks, each keyed by the owner plugin id. The most recent registration is the active one, and registering over another owner logs a warning. A plugin's callbacks are dropped when it unloads.
+4. Optionally add the adapter's commands under the mapper with `self.api("plugins.core.commands:command.add.for.plugin")("plugins.client.mapper", self._command_x)` from `after_load`. The mapper sets `accepts_command_extensions_f`; see [ADR-0024](../decisions/0024-plugins-add-commands-under-another-plugins-name-only-when-that-plugin-accepts-them.md).
 
 | Callback | Signature | On failure |
 | :--- | :--- | :--- |
@@ -164,3 +165,5 @@ All are `plugins.client.mapper:<name>`. Names follow [ADR-0004](../decisions/000
 ## Commands
 
 `#bp.client.mapper.find`, `goto`, `walkto`, `next`, `resume`, `stop`, `where`, `speedwalk`, `showroom`, `purge`, `note`, `accept` and `ignoreexits`. See [Mapper](../client/mapper.md).
+
+An adapter's commands, added with `command.add.for.plugin`, appear under `#bp.client.mapper` in a help section named after the adapter. Their code, logs and errors belong to the adapter.
