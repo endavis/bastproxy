@@ -377,11 +377,18 @@ class MUDCmdsPlugin(BasePlugin):
             self._hide_armed = None
             self._hide_open = window = armed
         if window.count + 1 > window.max_lines:
+            unclosed = (
+                "; the command finished but no prompt line closed the window, "
+                "so the MUD's prompt may not be marked"
+                if window.finished
+                else ""
+            )
             get_logger(self.plugin_id).warning(
                 "hiding the output of command type %s reached its cap of %s lines, "
-                "showing the rest",
+                "showing the rest%s",
                 window.ctype,
                 window.max_lines,
+                unclosed,
             )
             self._hide_open = None
             return
