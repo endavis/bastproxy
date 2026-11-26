@@ -1,5 +1,6 @@
 """Tests for the ``database.add`` factory API (#597)."""
 
+import contextlib
 import sqlite3
 import types
 import warnings
@@ -265,3 +266,58 @@ def test_create_does_not_import_other_plugins() -> None:
     ).read_text(encoding="utf-8")
     assert "bastproxy.plugins.core" not in source
     warnings.simplefilter("default")
+
+
+def _mode(db: Sqldb) -> str:
+    return str(db.select("PRAGMA journal_mode")[0]["journal_mode"])
+
+
+def test_journal_mode_wal_set_and_reapplied_after_reopen(tmp_path: Path) -> None:
+    plugin = _plugin(tmp_path)
+    db = plugin._api_database_add(OWNER, "waldb", [TABLE], journal_mode="WAL")
+    assert _mode(db) == "wal"
+    # make the file leave wal behind our back, so only a re-applied pragma can restore it
+    db.close()
+    with contextlib.closing(sqlite3.connect(tmp_path / "waldb.sqlite")) as raw:
+        raw.execute("PRAGMA journal_mode=delete")
+    assert _mode(db) == "wal"
+
+
+def test_journal_mode_default_is_delete(tmp_path: Path) -> None:
+    plugin = _plugin(tmp_path)
+    db = plugin._api_database_add(OWNER, "plaindb", [TABLE])
+    assert _mode(db) == "delete"
+
+
+def test_unknown_journal_mode_raises_and_creates_nothing(tmp_path: Path) -> None:
+    plugin = _plugin(tmp_path)
+    with pytest.raises(ValueError, match="journal mode"):
+        plugin._api_database_add(OWNER, "baddb", [TABLE], journal_mode="bogus")
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_journal_mode_mismatch_logs_warning(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    db = _make(tmp_path)
+    fake = types.SimpleNamespace(
+        execute=lambda sql: types.SimpleNamespace(fetchone=lambda: {"journal_mode": "delete"})
+    )
+    with caplog.at_level("WARNING"):
+        db._apply_journal_mode(fake, "wal")  # type: ignore[arg-type]
+    assert any("sqlite reports delete" in r.getMessage() for r in caplog.records)
+    db.close()
+
+
+def test_backup_of_wal_database_holds_unflushed_rows(tmp_path: Path) -> None:
+    db = _make(tmp_path, journal_mode="wal")
+    db.modify("INSERT INTO things(name) VALUES (?)", ("kept",))
+    assert (tmp_path / "things_db.sqlite-wal").exists()
+    assert db.backupdb("wal1")
+    archive = tmp_path / "archive" / "things_db_wal1.sqlite.zip"
+    with zipfile.ZipFile(archive) as zf:
+        zf.extract("things_db_wal1.sqlite", tmp_path / "out")
+    with sqlite3.connect(tmp_path / "out" / "things_db_wal1.sqlite") as conn:
+        assert conn.execute("SELECT name FROM things").fetchall() == [("kept",)]
+    conn.close()
+    db.close()
