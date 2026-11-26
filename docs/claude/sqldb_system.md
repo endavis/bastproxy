@@ -66,6 +66,17 @@ plugin reloads its dependents, so a sqldb reload reloads the owner, which adds i
   or a callable taking the database.
 - **`directory`**: where the `<name>.sqlite` file lives. Default: the owner's plugin data directory.
 
+- **`journal_mode`** (optional, keyword-only): a sqlite journal mode, `delete`, `truncate`,
+  `persist`, `memory`, `wal` or `off`, in any case. `PRAGMA journal_mode=<mode>` runs on each
+  connection the database opens, so the mode is set again after `close()` and a reopen. Default
+  `None`: no pragma is run and sqlite keeps its default (`delete`). An unknown mode raises
+  `ValueError` before any file is created. If sqlite reports another mode back, a warning is
+  logged and the open still succeeds. Use `"wal"` when another connection reads the file while the
+  proxy writes: in rollback mode readers and the writer block each other. `backupdb` uses the
+  online backup API, so a backup of a WAL database holds the committed rows still in the `-wal`
+  file. The plugin cannot set the pragma itself: `modify()` runs in a savepoint, where sqlite
+  refuses to change the mode.
+
 A definition with an unknown key, a missing field, a hook that is not callable, a duplicate table
 or a gap in the migrations raises `ValueError` before any file is created.
 

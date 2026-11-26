@@ -58,6 +58,7 @@ class SQLDBPlugin(BasePlugin):
         version: int = 1,
         migrations: Mapping[int, str | Callable[[Sqldb], Any]] | None = None,
         directory: Path | None = None,
+        journal_mode: str | None = None,
     ) -> Sqldb:
         """Create a database for a plugin, with tables created and migrations applied.
 
@@ -70,6 +71,10 @@ class SQLDBPlugin(BasePlugin):
             migrations: Maps each version from 2 to ``version`` to a SQL script string
                 or a callable taking the db.
             directory: Where the file lives, default the owner's plugin data directory.
+            journal_mode: A sqlite journal mode (``delete``, ``truncate``, ``persist``,
+                ``memory``, ``wal`` or ``off``, any case), set on each connection the
+                database opens. Default None: no pragma is run and sqlite keeps its own
+                mode. A warning is logged if sqlite reports a different mode back.
 
         Returns:
             The ready Sqldb. Its ``{name}.*`` APIs and ``db*`` commands are registered
@@ -79,7 +84,8 @@ class SQLDBPlugin(BasePlugin):
             required with several.
 
         Raises:
-            ValueError: The owner is unknown, the database exists or a definition is invalid.
+            ValueError: The owner is unknown, the database exists, a definition is invalid
+                or the journal mode is unknown.
             sqlite3.Error: A table or a migration failed.
 
         """
@@ -94,7 +100,13 @@ class SQLDBPlugin(BasePlugin):
             directory = self.api.BASEDATAPLUGINPATH / owner_id
         try:
             db = create_database(
-                owner_id, name, tables, version=version, migrations=migrations, directory=directory
+                owner_id,
+                name,
+                tables,
+                version=version,
+                migrations=migrations,
+                directory=directory,
+                journal_mode=journal_mode,
             )
         except Exception:
             for tracked in list(self.databases.get(owner_id, ())):

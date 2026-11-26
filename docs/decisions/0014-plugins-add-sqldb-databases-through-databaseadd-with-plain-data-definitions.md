@@ -20,7 +20,7 @@ A plugin needed a database through `plugins.core.sqldb:baseclass.get`: it subcla
 
 ## Decision
 
-- `plugins.core.sqldb:database.add(owner_id, name, tables=(), *, version=1, migrations=None, directory=None)` returns a ready `Sqldb`: tables are created and migrations applied, with no `postinit()` from the plugin. The action word is `add` because ADR-0004's closed action list has no `create`.
+- `plugins.core.sqldb:database.add(owner_id, name, tables=(), *, version=1, migrations=None, directory=None, journal_mode=None)` returns a ready `Sqldb`: tables are created and migrations applied, with no `postinit()` from the plugin. The action word is `add` because ADR-0004's closed action list has no `create`.
 - Definitions are plain dicts, not TypedDicts or dataclasses. `bastproxy.plugins.core.sqldb.libs` belongs to the sqldb plugin package, which the loader drops from `sys.modules` on unload and reload, and plugins never import other plugins. API calls are untyped, so a TypedDict would add no caller-side checking. The factory validates at runtime and raises `ValueError` for unknown or missing keys, wrong types, duplicate tables, bad names and migration gaps, before any file is made.
 - A migration step is a SQL script string, run with `modifyscript`, or a callable taking the database. Table `precreate` and `postcreate` hooks also take the database.
 - The default directory is the owner's plugin data directory, so two plugins can name a database `stats`.
@@ -36,6 +36,7 @@ One call that takes data cannot forget `postinit()`, needs no subclass-in-a-func
 
 - Issue #597: Add a sqldb factory API that replaces the dbcreate subclass pattern
 - Issue #603: let the sqldb `db*` commands serve more than one database per plugin (implemented by `--db`)
+- Issue #829: let `database.add` set the sqlite journal mode (opt-in `journal_mode`)
 - ADR-0004 (API naming grammar)
 
 ## Related Documentation

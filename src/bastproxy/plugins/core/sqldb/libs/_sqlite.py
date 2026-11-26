@@ -90,12 +90,32 @@ class SQLTable:
     extra: dict[str, Any] = field(default_factory=dict)
 
 
+JOURNAL_MODES = frozenset({"delete", "truncate", "persist", "memory", "wal", "off"})
+
+
+def check_journal_mode(journal_mode: str | None) -> str | None:
+    """Return the lower-case journal mode, or None when no mode is asked for.
+
+    Raises:
+        ValueError: The mode is not one of sqlite's journal modes.
+
+    """
+    if journal_mode is None:
+        return None
+    mode = journal_mode.lower() if isinstance(journal_mode, str) else journal_mode
+    if mode not in JOURNAL_MODES:
+        msg = f"unknown journal mode {journal_mode!r}, use one of {sorted(JOURNAL_MODES)}"
+        raise ValueError(msg)
+    return str(mode)
+
+
 class Sqldb:
     """a class to manage sqlite3 databases."""
 
     def __init__(self, plugin_id: str, **kwargs: Any) -> None:
         """Initialize the class."""
         self.db_connection: sqlite3.Connection | None = None
+        self.journal_mode = check_journal_mode(kwargs.get("journal_mode"))
         self.plugin_id = plugin_id
         self.database_name = kwargs["dbname"] or "db" if "dbname" in kwargs else "db"
         self.api = API(owner_id=f"{self.plugin_id}:{self.database_name}")
@@ -168,8 +188,25 @@ class Sqldb:
         )
         connection.row_factory = dict_factory
         connection.text_factory = str
+        if self.journal_mode is not None:
+            self._apply_journal_mode(connection, self.journal_mode)
         self.db_connection = connection
         return connection
+
+    def _apply_journal_mode(self, connection: sqlite3.Connection, mode: str) -> None:
+        """Set the journal mode on a new connection and warn if sqlite keeps another."""
+        # mode is one of JOURNAL_MODES (checked in __init__), and PRAGMA takes no bound value
+        row = connection.execute(f"PRAGMA journal_mode={mode}").fetchone()
+        actual = next(iter(row.values())) if row else None
+        if actual is None or str(actual).lower() != mode:
+            log_to(
+                ["plugins.core.sqldb", self.plugin_id],
+                logging.WARNING,
+                "open: journal mode %s was asked for on %s but sqlite reports %s",
+                mode,
+                self.database_name,
+                actual,
+            )
 
     def _conn(self) -> sqlite3.Connection:
         """Return the open connection, opening the database if needed."""
@@ -1068,6 +1105,7 @@ def create_database(
     version: int = 1,
     migrations: Mapping[int, str | Callable[[Sqldb], Any]] | None = None,
     directory: Path,
+    journal_mode: str | None = None,
 ) -> Sqldb:
     """Build a ``Sqldb`` from plain data, create its tables and apply migrations.
 
@@ -1076,13 +1114,14 @@ def create_database(
     failure while building closes the db before it is re-raised.
 
     Raises:
-        ValueError: The definition is not valid.
+        ValueError: The definition or the journal mode is not valid.
         sqlite3.Error: A table or a migration failed.
 
     """
+    check_journal_mode(journal_mode)
     steps: Mapping[int, str | Callable[[Sqldb], Any]] = migrations or {}
     _check_definition(name, tables, version, steps)
-    db = Sqldb(owner_id, dbname=name, dbdir=directory)
+    db = Sqldb(owner_id, dbname=name, dbdir=directory, journal_mode=journal_mode)
     try:
         for table in tables:
             extra = {
