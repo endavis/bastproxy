@@ -57,8 +57,9 @@ Represents a single command:
 ```python
 class CommandClass:
     def __init__(self, plugin_id, name, function, arg_parser,
-                 format=True, group=None, preamble=True, show_in_history=True, shelp="", default=False, literal_args=False):
-        self.plugin_id = plugin_id          # Owning plugin
+                 format=True, group=None, preamble=True, show_in_history=True, shelp="", default=False, literal_args=False, owner_id=None):
+        self.plugin_id = plugin_id          # The plugin the command sits under (the host)
+        self.owner_id = owner_id or plugin_id  # The plugin whose function runs (#834)
         self.name = name                    # Command name
         self.function = function            # Bound method to execute
         self.arg_parser = arg_parser        # argp.ArgumentParser, built by the commands plugin
@@ -334,6 +335,7 @@ For `+` prefixes use stdlib argparse: `@AddParser` stores its kwargs and the com
 
 ### Command Discovery
 - `plugins.core.commands:command.add.by.func` - Add a command from a decorated method
+- `plugins.core.commands:command.add.for.plugin` - `(host_id, func)`: add a command under another plugin that accepts it (#834)
 - `plugins.core.commands:command.remove.for.plugin` - Remove a plugin's commands
 - `plugins.core.commands:command.data.get` - Get command data for a plugin (`{}` for a valid plugin with no commands, or an invalid one)
 - `plugins.core.commands:command.list.formatted` - Get formatted command list
@@ -606,6 +608,15 @@ There is no API to change a registered command's attributes (the old `commands.c
 called). `command.data.get` is read-only. A plugin that needs a different `show_in_history` or group removes the
 command and adds it again: `command.remove.for.plugin`, or `command.add.by.func(..., force=True)` with the
 changed decorator values. Decided in #792.
+
+### Commands Added Under Another Plugin (#834)
+
+`plugins.core.commands:command.add.for.plugin(host_id, func)` puts a bound `_command_` method of the calling plugin under another plugin's name, so `plugins.aardwolf.mapper` can add `#bp.client.mapper.portal`. The host must set `accepts_command_extensions_f = True` (the mapper does; `BasePlugin` defaults it to False). The call returns False and logs when the host is not loaded, has not opted in, is the owner, or `func` is not a command. [ADR-0024](../decisions/0024-plugins-add-commands-under-another-plugins-name-only-when-that-plugin-accepts-them.md) records the decision.
+
+- **Host and owner.** `CommandClass.plugin_id` is the host and drives `full_cmd`, `prog`, storage and lookup. `CommandClass.owner_id` is the plugin taken from `func.__self__.plugin_id`; it defaults to `plugin_id` and drives the log targets, the tracking actor, the `CmdArgsRecord` owner and the command's `api` owner. The function runs as the owner's bound method.
+- **Clashes.** A name the host already has under a different owner is refused with a WARNING naming both. The same owner adding the same name replaces it.
+- **Reload and unload.** The commands plugin keeps `command_extensions` (host, name, owner, function), saved across its own reload. A host reload re-adds them, and the host's own command wins a clash. An owner unload removes its commands from every host and keeps their counts and error stats for a re-add.
+- **Help.** The group is forced to the owner id, so `#bp.<host>` lists the command in a section named after the owner. The parser epilog reads `Added by <owner>` and `detail` shows an `Owner` row. An extension is never the host's default command.
 
 ### Programmatic Execution
 

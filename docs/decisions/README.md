@@ -172,3 +172,4 @@ The Issue contains the full discussion; the ADR summarizes the outcome.
 | [0021](0021-the-mapper-owns-the-map-and-walking-and-game-plugins-adapt-it-through-callbacks.md) | The mapper owns the map and walking, and game plugins adapt it through callbacks | Accepted |
 | [0022](0022-the-web-plugin-serves-token-links-and-session-gated-plugin-routes-over-a-get-only-standard-library-server.md) | The web plugin serves token links and session-gated plugin routes over a GET-only standard-library server | Accepted |
 | [0023](0023-user-plugin-packages-import-under-their-own-name.md) | User plugin packages import under their own name | Accepted |
+| [0024](0024-plugins-add-commands-under-another-plugins-name-only-when-that-plugin-accepts-them.md) | Plugins add commands under another plugin's name only when that plugin accepts them | Accepted |

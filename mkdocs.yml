@@ -187,6 +187,7 @@ nav:
       - "ADR-0021 The mapper owns the map and walking, and game plugins adapt it through callbacks": decisions/0021-the-mapper-owns-the-map-and-walking-and-game-plugins-adapt-it-through-callbacks.md
       - ADR-0022 The web plugin serves token links and session-gated plugin routes over a GET-only standard-library server: decisions/0022-the-web-plugin-serves-token-links-and-session-gated-plugin-routes-over-a-get-only-standard-library-server.md
       - ADR-0023 User plugin packages import under their own name: decisions/0023-user-plugin-packages-import-under-their-own-name.md
+      - "ADR-0024 Plugins add commands under another plugin's name only when that plugin accepts them": decisions/0024-plugins-add-commands-under-another-plugins-name-only-when-that-plugin-accepts-them.md
       - ADR-9001 uv: decisions/9001-use-uv-for-package-management.md
       - ADR-9002 doit: decisions/9002-use-doit-for-task-automation.md
       - ADR-9003 ruff: decisions/9003-use-ruff-for-linting-and-formatting.md

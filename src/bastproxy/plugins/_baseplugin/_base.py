@@ -52,6 +52,8 @@ class Plugin:  # pylint: disable=too-many-instance-attributes
 
         self.is_reloading_f = False
         self.can_reload_f = True
+        # other plugins may add commands under this one (#834)
+        self.accepts_command_extensions_f = False
         self.can_reset_f = True
         self.reload_dependents_f = False
 

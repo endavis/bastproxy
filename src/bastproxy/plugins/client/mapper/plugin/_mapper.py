@@ -123,6 +123,8 @@ class MapperPlugin(BasePlugin):
     @RegisterPluginHook("__init__")
     def _phook_init_plugin(self) -> None:
         """Initialize the instance."""
+        # game adapters add their commands under this plugin (ADR-0024, #834)
+        self.accepts_command_extensions_f = True
         self.current_room: str | None = None
         self.walk = Walk()
         self.requirement_callbacks: dict[str, Callable[[Any, dict[str, Any]], bool]] = {}
