@@ -3,6 +3,8 @@
 import argparse
 from typing import Any
 
+import pytest
+
 from bastproxy.plugins._baseplugin import BasePlugin
 from bastproxy.plugins.client.mapper.plugin._mapper import FIND_LIMIT, MapperPlugin
 from bastproxy.plugins.core.commands import CommandResult
@@ -19,8 +21,8 @@ def _run(h: Harness, name: str, **args: Any) -> CommandResult:
             "flag": None,
             "unexplored": False,
         },
-        "walkto": {"portals": False},
-        "next": {"index": None, "portals": False},
+        "walkto": {"noportals": False},
+        "next": {"index": None, "noportals": False},
         "purge": {"room": None, "area": None},
         "note": {"words": [], "delete": False},
         "showroom": {"uid": None},
@@ -274,16 +276,18 @@ def _parser(command: Any) -> argparse.ArgumentParser:
     return parser
 
 
-def test_walkto_avoids_portals_unless_asked(test_map: Harness) -> None:
-    """walkto does not use the exits from ``*``; ``-p`` does; goto always does (#798)."""
+def test_walkto_uses_portals_unless_told_not_to(test_map: Harness) -> None:
+    """walkto uses ``*`` exits and recalls; ``-n`` does not; goto always does (#798, #837)."""
     p = test_map.plugin
     p.current_room = "A"
     assert _run(test_map, "walkto", uid="F").success is True
+    assert test_map.mud == ["portal f"]
+    assert (p.walk.portals, p.walk.recalls) == (True, True)
+    p.walk.finish()
+    test_map.mud.clear()
+    assert _run(test_map, "walkto", uid="F", noportals=True).success is True
     assert "could not walk to F: no path" in _sent(test_map)
     assert test_map.mud == []
-    assert _run(test_map, "walkto", uid="F", portals=True).success is True
-    assert test_map.mud == ["portal f"]
-    p.walk.finish()
     test_map.mud.clear()
     assert _run(test_map, "goto", uid="F").success is True
     assert test_map.mud == ["portal f"]
@@ -293,14 +297,15 @@ def test_walk_keeps_its_options_on_reroute_and_resume(test_map: Harness) -> None
     """A reroute and a resume search the way the walk started, so no recall (#798)."""
     p = test_map.plugin
     p.current_room = "A"
-    _run(test_map, "walkto", uid="C")
+    _run(test_map, "walkto", uid="C", noportals=True)
     assert test_map.mud == ["n"]
+    assert (p.walk.portals, p.walk.recalls) == (False, False)
     p._api_room_current_set("E")  # an unexpected room: the reroute may not recall
     assert test_map.mud == ["n"]
     assert test_map.event("walk_failed")["reason"] == "unexpected room"
     p.current_room = "A"
     test_map.mud.clear()
-    _run(test_map, "walkto", uid="C")
+    _run(test_map, "walkto", uid="C", noportals=True)
     _run(test_map, "stop")
     p.current_room = "E"
     assert _run(test_map, "resume").success is True
@@ -347,14 +352,14 @@ def test_next_with_unknown_current_room_keeps_the_pointer(test_map: Harness) -> 
     assert p.last_find_next == 1
 
 
-def test_next_avoids_portals_unless_asked(test_map: Harness) -> None:
-    """next walks like walkto: ``-p`` allows the portal exits (#799)."""
+def test_next_uses_portals_unless_told_not_to(test_map: Harness) -> None:
+    """next walks like walkto: it uses the portal exits, ``-n`` does not (#799, #837)."""
     p = test_map.plugin
     p.current_room = "A"
     p.last_find = ["F"]
-    _run(test_map, "next")
+    _run(test_map, "next", noportals=True)
     assert test_map.mud == []
-    assert _run(test_map, "next", index=1, portals=True).success is True
+    assert _run(test_map, "next", index=1).success is True
     assert test_map.mud == ["portal f"]
 
 
@@ -448,15 +453,21 @@ def test_find_arguments_parse() -> None:
 
 
 def test_walk_command_arguments_parse() -> None:
-    """walkto -p, next [index] -p and speedwalk's two positionals (#798, #799)."""
+    """walkto -n, next [index] -n, -p rejected and speedwalk's two positionals (#798, #799)."""
     from bastproxy.plugins.client.mapper.plugin._mapper import MapperPlugin
 
-    assert _parser(MapperPlugin._command_walkto).parse_args(["C", "-p"]).portals is True
-    assert _parser(MapperPlugin._command_walkto).parse_args(["C"]).portals is False
+    walkto = _parser(MapperPlugin._command_walkto)
+    assert walkto.parse_args(["C", "-n"]).noportals is True
+    assert walkto.parse_args(["C", "--noportals"]).noportals is True
+    assert walkto.parse_args(["C"]).noportals is False
     nxt = _parser(MapperPlugin._command_next)
     assert nxt.parse_args([]).index is None
     assert nxt.parse_args(["3"]).index == 3
-    assert nxt.parse_args(["-p"]).portals is True
+    assert nxt.parse_args(["-n"]).noportals is True
+    assert nxt.parse_args([]).noportals is False
+    for parser, base in ((walkto, ["C"]), (nxt, [])):
+        with pytest.raises(SystemExit):
+            parser.parse_args([*base, "-p"])
     walk = _parser(MapperPlugin._command_speedwalk).parse_args(["A", "B"])
     assert (walk.start, walk.target) == ("A", "B")
 

@@ -21,8 +21,8 @@ The plugin can be unloaded. Its commands are `#bp.client.mapper.<name>`.
 | :--- | :--- |
 | `find <text> [-e] [-a [area]] [-f flag] [-u]` | Lists rooms whose name has the text (case-insensitive) as a table with the columns `#` (the row number), uid, name, area and the steps from the current room. `-e` matches the whole name instead (still case-insensitive). `-a area` and `-f flag` filter by area and flag; a bare `-a` means the current room's area, and must come after the text (`find temple -a`), because `find -a temple` reads `temple` as the area. `-u` lists rooms with unexplored exits. At most `find_limit` rooms are shown (default 50, 0 for no limit). The list is kept for `next`. A find with no match keeps the previous list. |
 | `goto <uid>` | Sends the whole path to the MUD at once, through the game plugin's movement callback when it has one. |
-| `walkto <uid> [-p]` | Walks to the room one step at a time. Each step is sent after the previous one is confirmed. It does not use the portal and recall exits (the exits from `*` and `**`) unless `-p` is given. |
-| `next [index] [-p]` | Walks to the next unvisited room of the last `find`, like `walkto` (no portals unless `-p`). `next 3` walks to row 3 of the table and the next `next` goes to row 4. It fails at the end of the list, with an index out of range, or before any `find`. |
+| `walkto <uid> [-n]` | Walks to the room one step at a time. Each step is sent after the previous one is confirmed. It uses the portal and recall exits (the exits from `*` and `**`) unless `-n` (`--noportals`) is given. |
+| `next [index] [-n]` | Walks to the next unvisited room of the last `find`, like `walkto` (portals and recalls unless `-n`). `next 3` walks to row 3 of the table and the next `next` goes to row 4. It fails at the end of the list, with an index out of range, or before any `find`. |
 | `stop` | Stops the walk and keeps its target. |
 | `resume` | Walks on to the target of a stopped walk, from the current room. |
 | `where <uid>` | Shows the directions and cost of the path without moving. |
@@ -73,7 +73,7 @@ An unknown area or room gives a 404 page and a missing `uid` a 400 page.
 
 ## Paths
 
-The path is the cheapest by exit cost. Exits from anywhere (portals and recall) are used when the room allows them, and the game plugin decides which exits the character may take. A portal is an exit from the virtual room `*` and a recall an exit from `**`; a room's own custom exit, such as `enter portal`, is neither. `walkto` and `next` search without them unless `-p` is given, while `goto`, `where`, `speedwalk` and the step counts of `find` use them. A reroute and `resume` search the way the walk started. The `maxdepth` setting limits the number of steps: a room whose cheapest route is longer than the limit is reported as unreachable, even if a costlier but shorter route exists.
+The path is the cheapest by exit cost. Exits from anywhere (portals and recall) are used when the room allows them, and the game plugin decides which exits the character may take. A portal is an exit from the virtual room `*` and a recall an exit from `**`; a room's own custom exit, such as `enter portal`, is neither. `walkto` and `next` use them unless `-n` is given, and `goto`, `where`, `speedwalk` and the step counts of `find` always use them. A reroute and `resume` search the way the walk started, with or without them. The `maxdepth` setting limits the number of steps: a room whose cheapest route is longer than the limit is reported as unreachable, even if a costlier but shorter route exists.
 
 ## Settings
 
@@ -90,7 +90,7 @@ Set with `#bp.client.mapper.set <name> <value>`.
 
 Where this plugin deliberately differs from the old Aardwolf mapper:
 
-- `walk` became `walkto`, which does not use portals or recalls, with `-p` to allow them. A walk is meant to go step by step, and a portal skips rooms.
+- `walk` became `walkto`, which walks step by step. It first avoided portals and recalls (`-p` allowed them); that reverses in #837: they are used by default and `-n` avoids them, for a walk that must not skip rooms.
 - `next` walks like `walkto`. The old one used `goto` with portals; it now walks step by step so that `stop` and `resume` apply.
 - `spw` became `speedwalk <start> <target>`. The old one glued custom exits into the string (`2nenter portal2es`), which cannot be sent; the new one joins them with the command separator.
 - `find -e` is case-insensitive. The old exact search was case-sensitive only as a side effect, and room names are typed by hand.
