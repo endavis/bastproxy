@@ -76,3 +76,15 @@ def test_two_clients_are_separated_by_a_blank_line() -> None:
     headers = [i for i, line in enumerate(lines) if line.startswith("== Client")]
     assert len(headers) == 2
     assert lines[headers[1] - 1] == ""
+
+
+def test_type_row_follows_the_connection_type() -> None:
+    lines = ClientPlugin._api_client_list_details(
+        _stub(_client(conn_type="websocket"), _client(conn_type="telnet"), _client())
+    )
+    types = [line for line in lines if line.startswith("Type ")]
+    assert types == [
+        "Type                          : websocket",
+        "Type                          : telnet",
+        "Type                          : -",
+    ]

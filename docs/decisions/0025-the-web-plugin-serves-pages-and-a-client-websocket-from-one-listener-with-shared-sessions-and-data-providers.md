@@ -36,10 +36,10 @@ Open-source web MUD clients (MUDPortal, oiMUD, Mudslinger and others) all parse 
 - **Colour as spans.** `colorcode.to.spans(text)` builds on `colorcode.to.tokens` (ADR-0008) and returns `[{"text", "fg", "bg", "bold", ...}]`. `colorcode.to.html` becomes spans to escaped HTML. Pages and the client then cannot disagree about colour, and escaping stays in one place. The browser never parses ANSI or `@` codes.
 - **The socket protocol is JSON text frames with a version.** Every message is `{"v": 1, "type": ...}`.
   - Server to client: `hello` (protocol version, proxy version, a connection id; the session id stays HttpOnly and is never sent), `output` (one line as spans, with `prompt` and record ids), `snapshot` and `update` (topic, data), `result` (call id, status, reply), `error`.
-  - Client to server: `input` (a line for the to-MUD pipeline), `subscribe` and `unsubscribe` (topic), `call` (id, command, arguments).
+  - Client to server: `input` (text for the to-MUD pipeline, one line per text line), `cols` (the window width and height, like telnet NAWS), `subscribe` and `unsubscribe` (topic), `call` (id, command, arguments).
   - An unknown `type` gets an `error`, never a disconnect. A client that needs a newer `v` closes with a message.
 - **Socket limits and close codes.** A message is at most 64 KiB (close 1009), the send queue holds 256 messages (close 1008), and binary frames are refused (close 1003). The proxy pings every 20 seconds and closes with 1011 after 40 seconds of silence. A logout, or a session that is no longer valid, closes with 4001. A shutdown or unload closes with 1001. Sockets count against the connection cap.
-- **A web client is a proxy client.** Each socket is registered through `plugins.core.clients` like a telnet client. It receives the MUD output stream after the same per-client steps, and its `input` goes through the same to-MUD pipeline. View-only is honoured, and it appears in the clients list with its type.
+- **A web client is a proxy client.** Each socket is registered through `plugins.core.clients` like a telnet client. It receives the MUD output stream after the same per-client steps, and its `input` goes through the same to-MUD pipeline. View-only is honoured: `#bp.core.web.viewlogin` gives a link that starts a view-only session, every socket of that session is view-only, and its `input` is answered with `error` code `view_only`. It appears in the clients list with its type, `websocket`.
 - **Command calls with structured replies.** `call` runs a `#bp` command, or an API a plugin exposes for the client, and returns its reply as data in `result`. The socket does not need to parse command text.
 - **The client bundle is served by the proxy.** A `clientdir` setting points at the built client. Files under it are served at `/webclient/`, behind the session. Only successful file responses there carry the ADR-0022 policy plus `connect-src 'self'` and `font-src 'self'`. Every other page keeps the ADR-0022 CSP, where `default-src 'none'` already blocks connections. Plugins still cannot ship scripts.
 - **Pages stay scriptless.** Live data goes to the client. Existing pages keep server rendering and `table.js` only.
@@ -63,7 +63,7 @@ One listener keeps one port, one TLS setup and one login, and the upgrade check 
 - `websockets` becomes a runtime dependency, once the repo admin approves it.
 - ADR-0022 is amended: the listener also accepts WebSocket upgrades, `/webclient/` has its own CSP, and providers sit alongside routes.
 - Snapshots run on the loop. A slow snapshot works on a copy with `asyncio.to_thread`, as route handlers do.
-- Output to a web client is held back by its socket. The per-client queue needs a limit, like a telnet client's.
+- Output to a web client is held back by its socket. The per-client output queue holds 5000 lines; one more closes the socket with 1008. Output uses at most half of the 256-message send queue, so replies to the client still fit.
 - Updates are debounced per topic with a trailing timer of 100 ms, so a burst of changes sends one update.
 - The protocol `v` is a contract with another repository. A change that breaks it bumps `v` and is recorded here.
 
@@ -73,6 +73,7 @@ One listener keeps one port, one TLS setup and one login, and the upgrade check 
 - Issue #840: data providers
 - Issue #842: the client socket endpoint `/ws`
 - Issue #843: subscriptions to data providers over the socket
+- Issue #844: a socket is a proxy client (output as spans, input to the MUD, view-only login)
 - Issue #846: the client bundle served from `clientdir`
 - The core issues filed with this ADR, listed in its PR
 

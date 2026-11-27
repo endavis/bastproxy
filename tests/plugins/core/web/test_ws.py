@@ -141,3 +141,39 @@ def test_hub_connections_is_a_copy() -> None:
     assert found == [connection]
     found.clear()
     assert hub.count() == 1
+
+
+def test_hub_listeners_hear_open_and_close_and_can_be_removed() -> None:
+    hub = SocketHub()
+    seen: list[tuple[str, Any]] = []
+
+    def opened(conn: Any) -> None:
+        seen.append(("open", conn))
+
+    def closed(conn: Any) -> None:
+        seen.append(("close", conn))
+
+    hub.add_listener(opened, closed)
+    hub.opened("a")  # type: ignore[arg-type]
+    hub.closed("a")  # type: ignore[arg-type]
+    assert seen == [("open", "a"), ("close", "a")]
+    hub.remove_listener(opened, closed)
+    hub.remove_listener(opened, closed)
+    hub.opened("b")  # type: ignore[arg-type]
+    assert len(seen) == 2
+
+
+def test_a_raising_listener_is_logged_and_the_others_still_run(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    hub = SocketHub()
+    seen: list[Any] = []
+
+    def boom(conn: Any) -> None:
+        raise RuntimeError("listener broke")
+
+    hub.add_listener(boom, boom)
+    hub.add_listener(seen.append, seen.append)
+    hub.opened("a")  # type: ignore[arg-type]
+    assert seen == ["a"]
+    assert any("socket listener failed" in r.getMessage() for r in caplog.records)

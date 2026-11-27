@@ -34,6 +34,8 @@ CANRELOAD = False
 PROTOCOL_VERSION = 1
 MAX_MESSAGE = 65536
 SEND_QUEUE_LIMIT = 256
+# output waits for room once this many messages are queued, leaving the rest for replies
+OUTPUT_SHARE = SEND_QUEUE_LIMIT // 2
 PING_INTERVAL = 20
 PING_TIMEOUT = 20
 CLOSE_TIMEOUT = 5
@@ -49,6 +51,7 @@ CLOSE_SESSION_ENDED = 4001
 DEFAULT_PORTS = {"http": 80, "https": 443}
 
 Handler = Callable[["SocketConnection", dict[str, Any]], Any]
+SocketListener = Callable[["SocketConnection"], None]
 
 
 def origin_of(value: str, *, strip_path: bool = False) -> str | None:
@@ -153,6 +156,8 @@ class SocketConnection:
         session_id: str | None,
         session_valid: Callable[[str | None], bool],
         hello: Callable[[str], dict[str, Any]],
+        *,
+        view_only: bool = False,
     ) -> None:
         self.id = secrets.token_urlsafe(8)
         self.protocol = protocol
@@ -167,6 +172,8 @@ class SocketConnection:
         self._fragments = bytearray()
         self._abort: asyncio.TimerHandle | None = None
         self.subscriptions: set[str] = set()
+        self.view_only = view_only
+        self._drained = asyncio.Event()
 
     @property
     def is_open(self) -> bool:
@@ -184,11 +191,19 @@ class SocketConnection:
             return False
         return True
 
+    async def send_wait(self, message: dict[str, Any]) -> bool:
+        """Queue a message, waiting while the queue is half full; False when not queued."""
+        while self.is_open and self._queue.qsize() >= OUTPUT_SHARE:
+            self._drained.clear()
+            await self._drained.wait()
+        return self.send(message)
+
     def close(self, code: int, reason: str) -> None:
         """Start the close handshake; the connection is aborted if the peer does not answer."""
         if not self.is_open:
             return
         self.protocol.send_close(code, reason)
+        self._drained.set()
         self._flush()
         if self._abort is None:
             loop = asyncio.get_running_loop()
@@ -205,6 +220,7 @@ class SocketConnection:
     async def run(self) -> None:
         """Serve the socket until it closes."""
         self.send(self._hello(self.id))
+        self.hub.opened(self)
         tasks = [
             asyncio.create_task(self._read(), name="ws-read"),
             asyncio.create_task(self._send_loop(), name="ws-send"),
@@ -216,6 +232,8 @@ class SocketConnection:
             for task in tasks:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
+            self._drained.set()
+            self.hub.closed(self)
             if self._abort is not None:
                 self._abort.cancel()
 
@@ -272,6 +290,7 @@ class SocketConnection:
     async def _send_loop(self) -> None:
         while True:
             text = await self._queue.get()
+            self._drained.set()
             if not self.is_open:
                 return
             self.protocol.send_text(text.encode("utf-8"))
@@ -298,6 +317,31 @@ class SocketHub:
     def __init__(self) -> None:
         self.handlers: dict[str, Handler] = {}
         self._connections: set[SocketConnection] = set()
+        self._listeners: list[tuple[SocketListener, SocketListener]] = []
+
+    def add_listener(self, opened: SocketListener, closed: SocketListener) -> None:
+        """Call ``opened`` for each socket once its hello is queued and ``closed`` when it ends."""
+        self._listeners.append((opened, closed))
+
+    def remove_listener(self, opened: SocketListener, closed: SocketListener) -> None:
+        """Stop calling a pair of listeners, if added."""
+        with contextlib.suppress(ValueError):
+            self._listeners.remove((opened, closed))
+
+    def opened(self, connection: "SocketConnection") -> None:
+        """Tell the listeners a socket opened; a listener that raises is logged."""
+        self._notify(0, connection)
+
+    def closed(self, connection: "SocketConnection") -> None:
+        """Tell the listeners a socket ended; a listener that raises is logged."""
+        self._notify(1, connection)
+
+    def _notify(self, index: int, connection: "SocketConnection") -> None:
+        for pair in list(self._listeners):
+            try:
+                pair[index](connection)
+            except Exception:
+                get_logger(LOGGER_NAME).error("socket listener failed", exc_info=True)
 
     def register(self, kind: str, handler: Handler) -> None:
         """Handle client messages of a type; a handler takes (connection, message).

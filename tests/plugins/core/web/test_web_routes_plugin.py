@@ -1,5 +1,6 @@
 """The web plugin's route api, login and logout commands, and status (#424)."""
 
+import asyncio
 import json
 import logging
 from types import SimpleNamespace
@@ -272,3 +273,38 @@ async def test_the_allowed_origin_follows_publicurl(stub: Any) -> None:
     conn = await _open_socket(stub, sid, "https://proxy.example.net")
     assert json.loads(await conn.recv())["proxy"] == __version__
     await conn.close()
+
+
+def test_viewlogin_is_hidden_from_history_and_says_so_when_disabled(stub: Any) -> None:
+    kwargs = WebPlugin._command_viewlogin.command_data.command["kwargs"]
+    assert kwargs["show_in_history"] is False
+    stub.settings["enabled"] = False
+    result = WebPlugin._command_viewlogin(stub)
+    assert "not enabled" in result.message[0]
+    assert stub.logins._tokens == {}
+
+
+async def test_viewlogin_link_starts_a_view_only_socket_and_login_a_full_one(stub: Any) -> None:
+    await stub._restart(0)
+    origin = f"http://127.0.0.1:{stub.port}"
+    stub.settings["publicurl"] = origin
+    views = {}
+    for command in (WebPlugin._command_viewlogin, WebPlugin._command_login):
+        (line,) = command(stub).message
+        assert line.startswith(
+            "View-only login link: " if command.__name__ == "_command_viewlogin" else "Login link: "
+        )
+        token = line.rsplit("/", 1)[1]
+        _, headers, _ = await http_get(stub.port, get_request(f"/login/{token}"))
+        sid = str(headers["set-cookie"].split(";")[0].split("=", 1)[1])
+        conn = await _open_socket(stub, sid, origin)
+        assert json.loads(await conn.recv())["type"] == "hello"
+        views[command.__name__] = stub.sessions.is_view_only(sid)
+        (server_side,) = [c for c in stub.server.sockets.connections() if c.id]
+        assert server_side.view_only is views[command.__name__]
+        await conn.close()
+        for _ in range(200):
+            if stub.server.sockets.count() == 0:
+                break
+            await asyncio.sleep(0.01)
+    assert views == {"_command_viewlogin": True, "_command_login": False}

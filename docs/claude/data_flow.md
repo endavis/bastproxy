@@ -46,6 +46,9 @@ References in this page are to files and symbols, not line numbers, so they stay
  ProcessDataToClient ──► ev_to_client_data_modify ──► SendDataDirectlyToClient
                           (triggers)                   (lock, format, per-client
                                                         filter, raise ev_to_client_data_read)
+                                                                      │
+                                                       SocketClient.write ──► output {spans, prompt, record}
+                                                       (a web client, #844)
 ```
 
 | Component | File | Symbol |
@@ -131,6 +134,14 @@ MXP markup is ordinary text in the data stream, so the proxy passes it to a clie
 - **Stripping** (`mxp.strip`, used for clients without MXP and for `noansi` and `colorcoded` when `mxp_mode` is set): one forward pass. Mode escapes are removed. Outside locked mode, a tag starts at `<` followed by a letter, `/` or `!`, and ends at the first `>` outside a `'...'` or `"..."` value; every other `<` stays (`HP < 50`). `&lt;`, `&gt;`, `&amp;`, `&quot;` and decimal `&#NNN;` are decoded; custom entities stay as written. ANSI colour codes are kept. In locked mode the text is literal. Limits: `MXP_MAX_TAG_LENGTH` (2048) characters for a tag and `MXP_MAX_ENTITY_LENGTH` (32) for an entity; a `<` or `&` that does not close within them stays literal. The look-ahead for a whole line is limited to `MXP_SCAN_FACTOR` (2) times its length plus `MXP_MAX_TAG_LENGTH`; once a line has used it, later `<` in that line stay literal. Well-formed lines stay far below the limit.
 - **Triggers:** `noansi` and `colorcoded` strip MXP first, so triggers, `matchcolor` ones included, see text without tags. A plugin that writes `noansi` text back into `line` drops the MXP markup.
 - **Known gaps:** a tag split over two lines is not handled (stripping is per line, and an unclosed `<` stays literal); custom entities are not decoded; a late joiner gets the MUD's default mode and its stored definitions (see Definitions above).
+
+### Socket clients (#844, ADR-0025)
+
+A client socket served at `/ws` is registered as a proxy client, so it goes through the same `plugins.core.clients` steps as a telnet client. `SocketClient` (`src/bastproxy/plugins/core/web/libs/_proxyclient.py`) offers the attributes the clients plugin and the records read from a `ClientConnection`: `uuid`, `addr`, `port`, `conn_type` (`websocket`), `connected`, `state`, `view_only`, `send_to`, `naws_reported`, `cols`, `rows`, the counters and `term_type` (`websocket`). `SocketClients` registers it with `client.add` when the socket opens, logs it in (`client.logged.in.set`, or `client.logged.in.set.view.only` for a view-only session) and removes it with `client.remove` and `WINDOW_SIZE.client_gone` when the socket ends. The telnet pipeline is not touched.
+
+- **Output.** `can_send_to_client` decides as for telnet (gags, view-only filtering of internal lines, `clients`, `exclude_clients`, the login check). `client.send` calls `SocketClient.send_to`, which skips lines that are not IO and puts the rest on a queue of `OUTPUT_QUEUE_LIMIT` (5000) lines; a full queue closes the socket with 1008. `SocketClient.write` makes each line's text with `mxp.render_for_client(line, False)`, strips the line ending, turns the ANSI into spans with `ansicode.to.spans` and sends `output` (`spans`, `prompt`, `record` = the line's uuid) with `SocketConnection.send_wait`, which waits while the socket's send queue is half full.
+- **Input.** An `input` message's `text` is split into lines, each sent as a `NetworkDataLine(..., originated=Originated.CLIENT)` through `ProcessDataToMud`, with `mask_log` while the MUD has echo off. A view-only socket gets `error` `view_only` and nothing reaches the MUD.
+- **Window size.** `cols` sets `cols`, `rows` and `naws_reported` and calls `WINDOW_SIZE.client_resized`; a full socket also takes part in `client_ready` and `client_input`, as a telnet client does.
 
 ### Window size (NAWS) (#308)
 
@@ -309,6 +320,8 @@ Commands and triggers register at the default priority, 50. Watch registers at 5
 ## Data Flow Paths
 
 ### Client command to MUD
+
+A web client's `input` message enters the same pipeline: `SocketClient.handle_input` builds one `NetworkDataLine` per text line and calls `ProcessDataToMud` (see Socket clients).
 
 ```
 "say hello" from a logged-in client
