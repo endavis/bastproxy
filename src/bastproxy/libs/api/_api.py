@@ -74,6 +74,7 @@ class API:  # sourcery skip: upper-camel-case-classes
     # the basepath that the proxy was run from, will be dynamically set in
     # bastproxy.py
     BASEPATH: Path = Path()
+    BASEHOMEPATH: Path = Path()
     BASEDATAPATH: Path = Path()
     BASEDATAPLUGINPATH: Path = Path()
     BASEDATALOGPATH: Path = Path()

@@ -41,6 +41,8 @@ Change them with `#bp.core.web.set <name> <value>`. A change to `enabled`, `port
 | `sessionhours` | `12` | How long a login session lasts, in hours (1 to 720). It is read when a session starts. |
 | `clientdir` | empty | The directory of the built web client, served at `/webclient/` (see [Web client bundle](#web-client-bundle)). A relative path is relative to `BASTPROXY_HOME`. Empty turns it off. It is read on each request. |
 
+**Upgrade note:** `certfile`, `keyfile` and `clientdir` were once resolved under `BASTPROXY_HOME/data/` by mistake. If you put files or symlinks there as a workaround, change the settings to paths relative to `BASTPROXY_HOME` (or absolute).
+
 **Plain HTTP is allowed only on a loopback bind** (`127.0.0.1`, `::1`, `localhost`). If `bindaddress` is anything else and `certfile` or `keyfile` is empty, the server refuses to start and logs an error that names the setting. There is no override. Setting only one of `certfile` and `keyfile` also refuses to start.
 
 ## Commands

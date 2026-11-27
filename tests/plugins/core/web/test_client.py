@@ -247,9 +247,9 @@ def test_client_dir_is_none_when_empty(stub: Any) -> None:
     assert stub._client_dir() is None
 
 
-def test_client_dir_is_relative_to_the_data_directory(stub: Any) -> None:
+def test_client_dir_is_relative_to_the_home_directory(stub: Any) -> None:
     stub.settings["clientdir"] = "web/dist"
-    assert stub._client_dir() == Path(stub.api.BASEDATAPATH) / "web/dist"
+    assert stub._client_dir() == Path(stub.api.BASEHOMEPATH) / "web/dist"
 
 
 def test_client_dir_keeps_an_absolute_path(stub: Any, tmp_path: Path) -> None:
