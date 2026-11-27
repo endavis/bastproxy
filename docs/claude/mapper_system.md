@@ -40,8 +40,10 @@ The layout follows the MUSHclient mapper so an adapter can import an existing da
 | :--- | :--- | :--- |
 | `requirement.register(owner_id, callback)` | `callback(requirement, exit_dict) -> bool`, only called for an exit that has a requirement, with `exit_dict` the one exit that carries it. True lets the path use the exit. A walk or command search asks it on the event loop before the search, once for every distinct requirement in the map; `path.get` asks it lazily, once per requirement it reaches. | A callback that raises is logged and blocks the exit. With no callback, exits are allowed. |
 | `movement.register(owner_id, callback)` | `callback(steps: list[dict]) -> list[str]`, steps being exit dicts. Returns the commands to send. | A callback that raises or returns something other than a list of strings is logged, and the directions are sent. |
+| `room.marker.register(owner_id, callback)` | `callback(room: dict) -> list[str]`, room being a copy of the room dict. The strings are drawn inside the room box on the area map (cut to a few characters). Markers are never stored. | A callback that raises or returns something other than a list of strings is logged at ERROR and the room gets no markers. |
+| `terrain.color.register(owner_id, colors)` | `colors: {terrain: "#rgb" or "#rrggbb"}`, the fill of rooms by terrain. A terrain without a colour gets a stable colour from the first byte of its sha256 (never `hash()`), a room without terrain is `#222`. | A non-mapping is ignored with a warning; invalid colours are dropped with one warning. |
 
-The requirement callback runs at most once per distinct requirement in one search, always on the event loop, so it may call `self.api(...)` and log. A walk calls the movement callback with one step at a time; the `goto` command calls it with the whole path, so an adapter can return a speedwalk such as `run 3n2e`. Commands are sent with `SendDataDirectlyToMud`.
+The requirement callback runs at most once per distinct requirement in one search, always on the event loop, so it may call `self.api(...)` and log. The marker callback also runs on the event loop: the `area` page calls it for every room before it hands the rooms to the worker thread. A walk calls the movement callback with one step at a time; the `goto` command calls it with the whole path, so an adapter can return a speedwalk such as `run 3n2e`. Commands are sent with `SendDataDirectlyToMud`.
 
 ## Pathfinding
 
@@ -75,7 +77,7 @@ Walks (`walk.start`, `walk.restart` and reroutes) and the commands `find`, `goto
 - **Requirement callbacks stay on the loop.** Before the search the plugin asks the callback about every distinct requirement in the map and gives the worker a lookup, so adapters keep the API and the log. A requirement missing from the answers blocks its exit.
 - **`path.get` stays synchronous** and runs on the event loop.
 - **`load_graph` stays synchronous** at plugin load. The database connection belongs to the loop thread, and an adapter may write rooms right after load.
-- **Web pages draw in a worker too.** The `area` page reads the area and its rooms on the loop, takes `graph.freeze()` and `current_room`, then draws with `await asyncio.to_thread(draw_area_svg, ...)`. The worker only reads the frozen view and the room dicts; it never calls an API or the database.
+- **Web pages draw in a worker too.** The `area` page reads the area and its rooms on the loop, asks the marker callback for each room's markers (adding a `markers` list to a copy of each room dict), reads the `room` query value, takes `graph.freeze()`, `current_room` and the active terrain colours, then draws with `await asyncio.to_thread(draw_area_svg, ...)`. The worker only reads the frozen view and the room dicts; it never calls an API or the database.
 - A search result is dropped when the plugin unloads or the walk was stopped or restarted meanwhile.
 
 ## Web pages
@@ -85,7 +87,7 @@ Walks (`walk.start`, `walk.restart` and reroutes) and the commands `find`, `goto
 | Path | Kind | Content |
 | :--- | :--- | :--- |
 | `/client/mapper` | table | Areas with room and unexplored counts; the uid links to the area map. |
-| `/client/mapper/area?uid=` | svg | The area map, one nested `<svg>` per z level. |
+| `/client/mapper/area?uid=` (and `&room=`) | svg | The area map, one nested `<svg>` per z level. A room box shows its uid and markers inside and its name under it, filled by terrain colour (`fill` attribute; CSS sets only strokes). With `area_path` set, a box links to `area?uid=<area>&room=<uid>`; the selected room (when in the area) gets the `selected` class and a script-free details panel, a nested `<svg class='panel'>` of `<text>` and one `<a>` to the room page, its lines wrapped and never cut. |
 | `/client/mapper/room?uid=` | table | Room details as lines, exits as rows linking to the target rooms. |
 | `/client/mapper/find?name=` | table | Rooms whose name has the text, with column filters, sort and paging. |
 
@@ -136,7 +138,7 @@ All are `plugins.client.mapper:<name>`. Names follow [ADR-0004](../decisions/000
 | `map.batch.add(areas=None, rooms=None, exits=None, notes=None, overwrite=True)` | the counts dict, or None when over `BATCH_LIMIT` |
 | `exit.add(fromuid, dir, touid="-1", cost=1, requirement=None)`, `exit.remove(fromuid, dir)`, `exit.list(fromuid)` | bool, bool, list of dicts |
 | `path.get(start, target, max_depth=None, portals=True, recalls=True)` | `{"start", "target", "cost", "steps": [{"fromuid", "touid", "dir", "cost", "requirement"}]}` or None |
-| `requirement.register`, `requirement.unregister`, `movement.register`, `movement.unregister` | None |
+| `requirement.register`, `requirement.unregister`, `movement.register`, `movement.unregister`, `room.marker.register`, `room.marker.unregister`, `terrain.color.register`, `terrain.color.unregister` | None |
 | `walk.start(target, portals=True, recalls=True)`, `walk.restart()`, `walk.clear(reason="stopped")` | bool |
 | `walk.get()` | `{state, target, steps, index, reroutes}`, state being `idle`, `searching`, `walking` or `stopped` |
 

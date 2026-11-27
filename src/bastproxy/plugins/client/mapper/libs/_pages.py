@@ -14,9 +14,12 @@ Link cells are the dicts ``{"text": str, "href": str}`` that ``plugins.core.web`
 links in a table; the href is a same-origin absolute path.
 """
 
+import hashlib
 import html
+import json
 import math
 import re
+import textwrap
 from collections import deque
 from collections.abc import Callable, Mapping, Sequence
 from itertools import count
@@ -27,11 +30,37 @@ from ._graph import MapGraph
 from ._schema import NOPORTAL_FLAG, NORECALL_FLAG, UNKNOWN_UID
 
 # the grid: one room per PITCH, drawn as a BOX square, with STUB long exit stubs
-PITCH = 40
-BOX = 24
-STUB = 14
-MARGIN = 36
+PITCH = 88
+BOX = 32
+STUB = 18
+MARGIN = 48
 LABEL = 22
+# the longest text drawn in or under a room box; longer text is cut with an ellipsis
+NAME_CHARS = 14
+NUMBER_CHARS = 5
+MARKER_CHARS = 5
+# the details panel: the line width in characters, the line height and character width in px
+PANEL_CHARS = 40
+PANEL_LINE = 16
+_PANEL_CHAR_WIDTH = 8
+_PANEL_PAD = 16
+# the fill of a room with no terrain, and of the terrains no adapter colours
+EMPTY_TERRAIN = "#222"
+FALLBACK_PALETTE = (
+    "#2e5e8c",
+    "#3d7a4a",
+    "#6b4f8a",
+    "#8a6a2e",
+    "#2e7f7f",
+    "#7a3d5c",
+    "#4f6b2e",
+    "#4a4a8c",
+    "#7f5a3c",
+    "#2f6f5f",
+    "#5c5c5c",
+    "#3c6e9e",
+)
+COLOR_RE = re.compile(r"#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})")
 
 _UP = "u"
 _DOWN = "d"
@@ -66,10 +95,14 @@ def _xml_char(char: str) -> bool:
 
 _SVG_STYLE = (
     "rect.bg{fill:#000}.level-label{fill:#999;font:12px monospace}"
-    ".room rect{fill:#222;stroke:#888;stroke-width:1.5}"
-    ".room.current rect{fill:#26a;stroke:#fff;stroke-width:2.5}"
+    ".room rect{stroke:#888;stroke-width:1.5}"
+    ".room.norecall rect{stroke:#c33}"
     ".room.unexplored rect{stroke:#e90}.room.noportal rect{stroke-dasharray:4 2}"
-    ".room.norecall rect{fill:#322}"
+    ".room.current rect{stroke:#fff;stroke-width:3}"
+    ".room.selected rect{stroke:#4c4;stroke-width:3}"
+    ".room text{font:10px monospace;text-anchor:middle}"
+    ".room text.name{fill:#ccc;paint-order:stroke;stroke:#000;stroke-width:3}"
+    ".panel text{fill:#ccc;font:12px monospace}.panel a text{fill:#6cf}"
     ".link{stroke:#888;stroke-width:1.5}.leaves{stroke:#6cf;stroke-width:1.5;fill:none}"
     "circle.leaves{fill:#6cf}.unexplored-stub{stroke:#e90;stroke-width:1.5;stroke-dasharray:3 2}"
     ".updown{fill:#6cf;font:11px monospace}.updown.unexplored{fill:#e90}"
@@ -103,6 +136,46 @@ def xml_text(text: Any) -> str:
     then ``& < > "`` and ``'`` are escaped.
     """
     return html.escape("".join(c for c in str(text) if _xml_char(c)), quote=True)
+
+
+def valid_color(value: Any) -> bool:
+    """Return True when ``value`` is a ``#rgb`` or ``#rrggbb`` colour string."""
+    return isinstance(value, str) and COLOR_RE.fullmatch(value) is not None
+
+
+def terrain_color(terrain: str, colors: Mapping[str, str] | None = None) -> str:
+    """Return the fill colour of a terrain.
+
+    The adapter's mapping wins when it holds a valid colour; an empty terrain is
+    ``EMPTY_TERRAIN``; any other terrain gets a palette colour from the first byte of its
+    sha256, so it is the same on every run (never ``hash()``, which is seeded per process).
+    """
+    if colors is not None:
+        value = colors.get(terrain)
+        if valid_color(value):
+            return str(value)
+    if not terrain:
+        return EMPTY_TERRAIN
+    digest = hashlib.sha256(terrain.encode("utf-8", "surrogatepass")).digest()
+    return FALLBACK_PALETTE[digest[0] % len(FALLBACK_PALETTE)]
+
+
+def text_color(background: str) -> str:
+    """Return ``#000`` or ``#fff``, whichever reads better on the ``background`` colour."""
+    digits = background[1:]
+    if len(digits) == 3:
+        digits = "".join(c * 2 for c in digits)
+    channels = []
+    for i in (0, 2, 4):
+        value = int(digits[i : i + 2], 16) / 255
+        channels.append(value / 12.92 if value <= 0.03928 else ((value + 0.055) / 1.055) ** 2.4)
+    luminance = 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+    return "#000" if luminance > 0.179 else "#fff"
+
+
+def _cut(text: str, limit: int) -> str:
+    """Return ``text``, cut to ``limit`` characters with a final ellipsis when it is longer."""
+    return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
 def href(path: str, **params: str) -> str:
@@ -355,6 +428,10 @@ def _level(
     current: str | None,
     room_path: str | None,
     pos: Mapping[str, tuple[int, int, int]],
+    area_uid: str = "",
+    area_path: str | None = None,
+    selected: str | None = None,
+    terrain_colors: Mapping[str, str] | None = None,
 ) -> tuple[str, int, int]:
     """Draw one z level as a nested svg body: the svg text without its position, width, height."""
     xs = [pos[str(r["uid"])][0] for r in rooms]
@@ -432,16 +509,111 @@ def _level(
             classes.append("noportal")
         if NORECALL_FLAG in flags:
             classes.append("norecall")
-        tip = xml_text(f"{uid} {room.get('name') or ''}".strip())
+        if uid == selected:
+            classes.append("selected")
+        name = str(room.get("name") or "")
+        tip = xml_text(f"{uid} {name}".strip())
+        fill = terrain_color(str(room.get("terrain") or ""), terrain_colors)
+        ink = xml_text(text_color(fill))
+        half = BOX // 2
+        markers = [m for m in (room.get("markers") or ()) if isinstance(m, str)]
+        texts = (
+            f"<text class='uid' x='{cx}' y='{cy - 2}' fill='{ink}'>"
+            f"{xml_text(_cut(uid, NUMBER_CHARS))}</text>"
+        )
+        if markers:
+            texts += (
+                f"<text class='markers' x='{cx}' y='{cy + 10}' fill='{ink}'>"
+                f"{xml_text(_cut(''.join(markers), MARKER_CHARS))}</text>"
+            )
+        if name:
+            texts += (
+                f"<text class='name' x='{cx}' y='{cy + half + 13}'>"
+                f"{xml_text(_cut(name, NAME_CHARS))}</text>"
+            )
         body = (
             f"<g class='{' '.join(classes)}'><title>{tip}</title>"
-            f"<rect x='{cx - BOX // 2}' y='{cy - BOX // 2}' width='{BOX}' height='{BOX}'/></g>"
+            f"<rect x='{cx - half}' y='{cy - half}' width='{BOX}' height='{BOX}' "
+            f"fill='{xml_text(fill)}'/>{texts}</g>"
         )
-        if room_path is not None:
+        if area_path is not None:
+            link = href(area_path, uid=area_uid, room=uid)
+            body = f"<a href='{xml_text(link)}'>{body}</a>"
+        elif room_path is not None:
             body = f"<a href='{xml_text(href(room_path, uid=uid))}'>{body}</a>"
         boxes.append(body)
     label = f"<text class='level-label' x='8' y='15'>z {z}</text>"
     return label + "".join(lines) + "".join(marks) + "".join(boxes), width, height
+
+
+def _panel_lines(room: Mapping[str, Any], graph: MapGraph, by_uid: Mapping[str, Any]) -> list[str]:
+    """The details lines of a room, in the order of the ``showroom`` command."""
+    uid = str(room["uid"])
+    flags = ", ".join(str(f) for f in room.get("flags") or ()) or "(none)"
+    markers = ", ".join(m for m in (room.get("markers") or ()) if isinstance(m, str))
+    lines = [
+        f"room: {uid} {room.get('name') or ''}".rstrip(),
+        f"area: {room.get('area') or ''}",
+        f"terrain: {room.get('terrain') or ''}",
+        f"coords: {room.get('x')} {room.get('y')} {room.get('z')}",
+        f"flags: {flags}",
+        f"markers: {markers or '(none)'}",
+    ]
+    details = room.get("details") or {}
+    if details:
+        lines.append("details:")
+        for key in sorted(details, key=str):
+            value = details[key]
+            text = value if isinstance(value, str) else json.dumps(value, default=str)
+            lines.append(f"{key}: {text}")
+    else:
+        lines.append("details: (none)")
+    exits = sorted(graph.exits_from(uid), key=lambda e: e.dir)
+    lines.append("exits:" if exits else "exits: (none)")
+    for exit_ in exits:
+        if exit_.touid in (UNKNOWN_UID, "-1"):
+            line = f"{exit_.dir} -> unexplored"
+        else:
+            target = by_uid.get(exit_.touid)
+            name = f" {target.get('name') or ''}".rstrip() if target is not None else ""
+            line = f"{exit_.dir} -> {exit_.touid}{name}"
+        line += f" (cost {exit_.cost})"
+        if exit_.requirement:
+            line += f" requires {json.dumps(exit_.requirement, sort_keys=True, default=str)}"
+        lines.append(line)
+    return lines
+
+
+def _panel(
+    room: Mapping[str, Any],
+    graph: MapGraph,
+    by_uid: Mapping[str, Any],
+    room_path: str | None,
+    x: int,
+) -> tuple[str, int, int]:
+    """Draw the details panel as a nested svg holding only text and a link: svg, width, height."""
+    wrapped: list[str] = []
+    for line in _panel_lines(room, graph, by_uid):
+        wrapped.extend(textwrap.wrap(line, PANEL_CHARS) or [""])
+    texts = [
+        f"<text x='{_PANEL_PAD}' y='{_PANEL_PAD + (i + 1) * PANEL_LINE}'>{xml_text(line)}</text>"
+        for i, line in enumerate(wrapped)
+    ]
+    if room_path is not None:
+        y = _PANEL_PAD + (len(wrapped) + 2) * PANEL_LINE
+        link = xml_text(href(room_path, uid=str(room["uid"])))
+        texts.append(f"<a href='{link}'><text x='{_PANEL_PAD}' y='{y}'>room page</text></a>")
+        rows = len(wrapped) + 2
+    else:
+        rows = len(wrapped)
+    width = PANEL_CHARS * _PANEL_CHAR_WIDTH + 2 * _PANEL_PAD
+    height = 2 * _PANEL_PAD + (rows + 1) * PANEL_LINE
+    svg = (
+        f"<svg class='panel' x='{x}' y='0' width='{width}' height='{height}'>"
+        + "".join(texts)
+        + "</svg>"
+    )
+    return svg, width, height
 
 
 def draw_area_svg(
@@ -452,6 +624,9 @@ def draw_area_svg(
     *,
     current: str | None = None,
     room_path: str | None = None,
+    area_path: str | None = None,
+    selected: str | None = None,
+    terrain_colors: Mapping[str, str] | None = None,
 ) -> str:
     """Draw an area as one svg document with a nested svg per z level.
 
@@ -461,7 +636,13 @@ def draw_area_svg(
         rooms: the rooms of the area, dicts with uid, name, x, y, z and flags.
         graph: a frozen view of the map graph, the source of the exits.
         current: the uid of the room the character is in, marked when it is drawn.
-        room_path: the path of the room page; with it every room box links to its room.
+        room_path: the path of the room page; with it every room box links to its room, and
+            the details panel links to the room page.
+        area_path: the path of the area page; with it every room box links to the area page
+            with the room selected (``?uid=<area>&room=<uid>``), instead of to the room page.
+        selected: the uid of the room to show in the details panel, when it is in the area.
+        terrain_colors: the adapter's ``{terrain: "#rgb"}`` fill colours; other terrains get a
+            stable fallback colour.
 
     Rooms are boxes on a grid from their x and y (y grows downwards). When the stored
     coordinates do not spread the rooms (a room without an int x or y, or two rooms in one
@@ -469,8 +650,10 @@ def draw_area_svg(
     A line joins two rooms
     of a level. An exit that leaves the area is a short ``leaves`` stub (a dot when it has no
     compass direction), an exit to another level is an up or down arrow, and an unexplored
-    exit is a dashed stub. The room classes are ``current``, ``unexplored``, ``noportal`` and
-    ``norecall``. All MUD text (names, uids) is escaped, and the svg has no script.
+    exit is a dashed stub. The room classes are ``current``, ``unexplored``, ``noportal``,
+    ``norecall`` and ``selected``. A room box shows its number and its ``markers`` inside and
+    its name under it, filled by terrain colour. All MUD text (names, uids) is escaped, and the
+    svg has no script.
     """
     by_uid = {str(r["uid"]): r for r in rooms}
     pos = _positions(rooms, graph, current)
@@ -481,7 +664,19 @@ def draw_area_svg(
     offset = 0
     total_width = 2 * MARGIN
     for z in sorted(levels):
-        body, width, height = _level(z, levels[z], by_uid, graph, current, room_path, pos)
+        body, width, height = _level(
+            z,
+            levels[z],
+            by_uid,
+            graph,
+            current,
+            room_path,
+            pos,
+            area_uid,
+            area_path,
+            selected,
+            terrain_colors,
+        )
         parts.append(
             f"<svg class='level' data-z='{z}' x='0' y='{offset}' width='{width}' "
             f"height='{height}' viewBox='0 0 {width} {height}'>{body}</svg>"
@@ -491,6 +686,13 @@ def draw_area_svg(
     if not parts:
         parts.append("<text class='level-label' x='8' y='20'>no rooms</text>")
         offset = 2 * MARGIN
+    if selected is not None and selected in by_uid:
+        panel, panel_width, panel_height = _panel(
+            by_uid[selected], graph, by_uid, room_path, total_width
+        )
+        parts.append(panel)
+        total_width += panel_width
+        offset = max(offset, panel_height)
     title = xml_text(f"{area_uid} {area_name}".strip())
     return (
         "<?xml version='1.0' encoding='UTF-8'?>"
