@@ -10,6 +10,7 @@ from bastproxy.plugins.client.mapper.libs._pages import (
     BOX,
     MARGIN,
     PITCH,
+    _positions,
     draw_area_svg,
     escape_rows,
     href,
@@ -134,6 +135,122 @@ def test_tooltips_and_links_are_escaped_and_the_svg_parses() -> None:
     assert parse_qs(urlsplit(link).query) == {"uid": ["a<1>"]}
     tips = [t.text or "" for t in root.iter(f"{NS}title")]
     assert any("<script>alert('x')</script> & \"q\"" in t for t in tips)
+
+
+def bare(uid: str, **coords: Any) -> dict[str, Any]:
+    return {"uid": uid, "name": f"Room {uid}", "flags": [], **coords}
+
+
+def drawn(svg: str) -> dict[str, tuple[int, int, int]]:
+    """The grid cell (x, y, z) every room box is drawn at, relative to its level."""
+    found: dict[str, tuple[int, int, int]] = {}
+    for level in parse(svg).findall(f"{NS}svg"):
+        z = int(level.get("data-z") or 0)
+        for group in level.iter(f"{NS}g"):
+            title = group.find(f"{NS}title")
+            rect = group.find(f"{NS}rect")
+            assert title is not None
+            assert rect is not None
+            x = (int(rect.get("x") or 0) - (MARGIN - BOX // 2)) // PITCH
+            y = (int(rect.get("y") or 0) - (MARGIN + 22 - BOX // 2)) // PITCH
+            found[(title.text or "").split()[0]] = (x, y, z)
+    return found
+
+
+def test_rooms_sharing_one_coordinate_are_laid_out_from_exits() -> None:
+    rooms = [room("a", 30, 20), room("b", 30, 20), room("c", 30, 20)]
+    exits = [Exit("a", "e", "b"), Exit("b", "s", "c")]
+    cells = drawn(draw_area_svg("ar", "", rooms, graph_of(rooms, exits)))
+    assert cells == {"a": (0, 0, 0), "b": (1, 0, 0), "c": (1, 1, 0)}
+
+
+def test_rooms_without_coordinates_are_laid_out() -> None:
+    absent = [bare("a"), bare("b")]
+    nones = [bare("a", x=None, y=None), bare("b", x=None, y=None)]
+    mixed = [room("a", 4, 4), bare("b", x=None, y=2)]
+    for rooms in (absent, nones, mixed):
+        graph = graph_of(rooms, [Exit("a", "n", "b")])
+        assert drawn(draw_area_svg("ar", "", rooms, graph)) == {"a": (0, 1, 0), "b": (0, 0, 0)}
+
+
+def test_a_collision_moves_the_room_to_the_nearest_free_cell() -> None:
+    rooms = [room("a", 1, 1), room("b", 1, 1), room("c", 1, 1)]
+    exits = [Exit("a", "e", "b"), Exit("a", "se", "c"), Exit("b", "s", "c")]
+    pos = _positions(rooms, graph_of(rooms, exits), None)
+    assert pos["a"] == (0, 0, 0)
+    assert pos["b"] == (1, 0, 0)
+    assert pos["c"] == (1, 1, 0)
+    taken = [Exit("a", "e", "b"), Exit("c", "e", "b")]
+    pos = _positions(rooms, graph_of(rooms, taken), None)
+    assert len(set(pos.values())) == 3
+    assert pos["b"] == (1, 0, 0)
+    assert pos["c"] == (0, -1, 0)
+
+
+def test_unconnected_parts_are_placed_side_by_side() -> None:
+    rooms = [room("a", 0, 0), room("b", 0, 0), room("c", 0, 0), room("d", 0, 0)]
+    exits = [Exit("a", "e", "b"), Exit("c", "e", "d")]
+    pos = _positions(rooms, graph_of(rooms, exits), None)
+    assert pos["a"] == (0, 0, 0)
+    assert pos["b"] == (1, 0, 0)
+    assert pos["c"] == (3, 0, 0)
+    assert pos["d"] == (4, 0, 0)
+
+
+def test_a_reverse_edge_alone_places_the_source() -> None:
+    rooms = [room("a", 0, 0), room("b", 0, 0)]
+    pos = _positions(rooms, graph_of(rooms, [Exit("b", "e", "a")]), None)
+    assert pos["a"] == (0, 0, 0)
+    assert pos["b"] == (-1, 0, 0)
+
+
+def test_the_walk_starts_at_the_current_room_else_the_lowest_uid() -> None:
+    rooms = [room("10", 0, 0), room("2", 0, 0), room("zz", 0, 0)]
+    exits = [Exit("10", "e", "2"), Exit("2", "e", "zz")]
+    graph = graph_of(rooms, exits)
+    assert _positions(rooms, graph, None)["2"] == (0, 0, 0)
+    assert _positions(rooms, graph, "zz")["zz"] == (0, 0, 0)
+    assert _positions(rooms, graph, "elsewhere")["2"] == (0, 0, 0)
+
+
+def test_distinct_coordinates_are_kept_including_one_x_y_on_two_levels() -> None:
+    rooms = [room("a", 5, 3, 0), room("b", 7, 4, 0), room("c", 5, 3, 1)]
+    graph = graph_of(rooms, [Exit("a", "w", "b")])
+    assert _positions(rooms, graph, None) == {"a": (5, 3, 0), "b": (7, 4, 0), "c": (5, 3, 1)}
+
+
+def test_up_and_down_exits_change_the_level() -> None:
+    rooms = [room("a", 0, 0), room("b", 0, 0), room("c", 0, 0)]
+    exits = [Exit("a", "u", "b"), Exit("a", "d", "c")]
+    cells = drawn(draw_area_svg("ar", "", rooms, graph_of(rooms, exits)))
+    assert cells["a"][2] == 0
+    assert cells["b"][2] == 1
+    assert cells["c"][2] == -1
+
+
+def test_the_layout_is_deterministic() -> None:
+    rooms = [room(u, 0, 0) for u in ("a", "b", "c", "d")]
+    exits = [Exit("a", "e", "b"), Exit("a", "e", "c"), Exit("c", "n", "d"), Exit("d", "w", "a")]
+    graph = graph_of(rooms, exits)
+    first = draw_area_svg("ar", "", rooms, graph, current="c")
+    assert draw_area_svg("ar", "", rooms, graph, current="c") == first
+    assert _positions(list(reversed(rooms)), graph, "c") == _positions(rooms, graph, "c")
+
+
+def test_stubs_and_custom_exits_do_not_place_rooms_but_stubs_are_drawn() -> None:
+    rooms = [room("a", 0, 0), room("b", 0, 0)]
+    exits = [
+        Exit("a", "n", "-1"),
+        Exit("a", "w", "outside"),
+        Exit("a", "enter portal", "b"),
+    ]
+    graph = graph_of(rooms, exits)
+    pos = _positions(rooms, graph, None)
+    assert pos["a"] == (0, 0, 0)
+    assert pos["b"] == (2, 0, 0)
+    css = [e.get("class") for e in parse(draw_area_svg("ar", "", rooms, graph)).iter(f"{NS}line")]
+    assert "unexplored-stub" in css
+    assert "leaves" in css
 
 
 def test_an_area_without_rooms_still_parses() -> None:
