@@ -23,6 +23,7 @@ from .conftest import MakeCert, get_request, http_get, needs_openssl, to_html
 HELPERS = (
     "_setting",
     "_path",
+    "_client_dir",
     "_base_url",
     "_restart",
     "_schedule_restart",
@@ -87,6 +88,7 @@ class _Stub:
             "keyfile": "",
             "publicurl": "",
             "sessionhours": 12,
+            "clientdir": "",
         }
         self.caller = "plugins.test.caller"
         self.unloaded = ""
@@ -138,6 +140,7 @@ def test_settings_and_defaults(stub: Any) -> None:
         "keyfile": "",
         "publicurl": "",
         "sessionhours": 12,
+        "clientdir": "",
     }
 
 

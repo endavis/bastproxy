@@ -66,7 +66,7 @@ Tokens in the URL give a link that works in any browser and expires, without sen
 - Pages and sessions are in memory; a restart drops them. A reload of the web plugin carries the pages over.
 - A handler that does slow work must use `asyncio.to_thread` on a snapshot; API calls are not thread-safe, so colour conversion and page rendering stay on the loop.
 - Parts 2 and 3 add to this plugin without changing the part 1 behaviour: the dispatch order is method check, `/p/<token>`, then (later) static, login, `/`, routes, and 404.
-- [ADR-0025](0025-the-web-plugin-serves-pages-and-a-client-websocket-from-one-listener-with-shared-sessions-and-data-providers.md) amends this: data providers sit alongside routes in the same table (issue #840), and the listener later also accepts WebSocket upgrades.
+- [ADR-0025](0025-the-web-plugin-serves-pages-and-a-client-websocket-from-one-listener-with-shared-sessions-and-data-providers.md) amends this: data providers sit alongside routes in the same table (issue #840), and the listener later also accepts WebSocket upgrades. Successful files under `/webclient/` (issue #846) carry the ADR-0022 policy plus `connect-src 'self'` and `font-src 'self'`.
 
 ## Related Issues
 

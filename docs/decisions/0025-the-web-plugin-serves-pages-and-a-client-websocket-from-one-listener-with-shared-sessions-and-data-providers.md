@@ -40,7 +40,7 @@ Open-source web MUD clients (MUDPortal, oiMUD, Mudslinger and others) all parse 
   - An unknown `type` gets an `error`, never a disconnect. A client that needs a newer `v` closes with a message.
 - **A web client is a proxy client.** Each socket is registered through `plugins.core.clients` like a telnet client. It receives the MUD output stream after the same per-client steps, and its `input` goes through the same to-MUD pipeline. View-only is honoured, and it appears in the clients list with its type.
 - **Command calls with structured replies.** `call` runs a `#bp` command, or an API a plugin exposes for the client, and returns its reply as data in `result`. The socket does not need to parse command text.
-- **The client bundle is served by the proxy.** A `clientdir` setting points at the built client. Files under it are served at `/client/`, behind the session. Only those responses carry `script-src 'self'; connect-src 'self'`. Every other page keeps the ADR-0022 CSP with `connect-src 'none'`. Plugins still cannot ship scripts.
+- **The client bundle is served by the proxy.** A `clientdir` setting points at the built client. Files under it are served at `/webclient/`, behind the session. Only successful file responses there carry the ADR-0022 policy plus `connect-src 'self'` and `font-src 'self'`. Every other page keeps the ADR-0022 CSP, where `default-src 'none'` already blocks connections. Plugins still cannot ship scripts.
 - **Pages stay scriptless.** Live data goes to the client. Existing pages keep server rendering and `table.js` only.
 
 ## Rationale
@@ -60,7 +60,7 @@ One listener keeps one port, one TLS setup and one login, and the upgrade check 
 ## Consequences
 
 - `websockets` becomes a runtime dependency, once the repo admin approves it.
-- ADR-0022 is amended: the listener also accepts WebSocket upgrades, `/client/` has its own CSP, and providers sit alongside routes.
+- ADR-0022 is amended: the listener also accepts WebSocket upgrades, `/webclient/` has its own CSP, and providers sit alongside routes.
 - Snapshots run on the loop. A slow snapshot works on a copy with `asyncio.to_thread`, as route handlers do.
 - Output to a web client is held back by its socket. The per-client queue needs a limit, like a telnet client's.
 - The protocol `v` is a contract with another repository. A change that breaks it bumps `v` and is recorded here.
@@ -69,6 +69,7 @@ One listener keeps one port, one TLS setup and one login, and the upgrade check 
 
 - Issue #424: the internal web server (ADR-0022)
 - Issue #840: data providers
+- Issue #846: the client bundle served from `clientdir`
 - The core issues filed with this ADR, listed in its PR
 
 ## Related Documentation
