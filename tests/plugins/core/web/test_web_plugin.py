@@ -8,6 +8,7 @@ from typing import Any
 
 import pytest
 
+from bastproxy.plugins.core.web.libs._call import Calls
 from bastproxy.plugins.core.web.libs._server import WebServer
 from bastproxy.plugins.core.web.libs._store import (
     LoginTokens,
@@ -107,6 +108,7 @@ class _Stub:
         self.subscriptions = Subscriptions(
             self.server.sockets, lambda: self.routes, self.provider_listeners
         )
+        self.command_calls = Calls(self.server.sockets, lambda *_a: {}, lambda text: [])
         self.cert: Any = None
         self._generation = 0
         self._lock = asyncio.Lock()
