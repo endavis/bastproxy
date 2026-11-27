@@ -16,6 +16,7 @@ from bastproxy.plugins.core.web.libs._store import (
     RouteTable,
     SessionStore,
 )
+from bastproxy.plugins.core.web.libs._subscribe import Subscriptions
 from bastproxy.plugins.core.web.plugin._web import WebPlugin
 
 from .conftest import MakeCert, get_request, http_get, needs_openssl, to_html
@@ -33,6 +34,7 @@ HELPERS = (
     "_provider_event_fired",
     "_refuse",
     "_escape",
+    "_remove_routes",
 )
 
 
@@ -101,6 +103,9 @@ class _Stub:
         self.logins = LoginTokens()
         self.sessions = SessionStore()
         self.server = WebServer()
+        self.subscriptions = Subscriptions(
+            self.server.sockets, lambda: self.routes, self.provider_listeners
+        )
         self.cert: Any = None
         self._generation = 0
         self._lock = asyncio.Lock()

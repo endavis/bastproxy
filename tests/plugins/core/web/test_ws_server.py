@@ -105,7 +105,8 @@ async def test_hello_carries_a_connection_id_and_no_session_id(env: Env) -> None
         assert isinstance(hello["connection"], str)
         assert hello["connection"] != env.sid
         assert env.sid not in json.dumps(hello)
-        assert set(hello) == {"v", "type", "protocol", "proxy", "connection"}
+        assert set(hello) == {"v", "type", "protocol", "proxy", "connection", "topics"}
+        assert hello["topics"] == []
         assert env.server.sockets.count() == 1
     await wait_for(lambda: env.server.sockets.count() == 0)
 

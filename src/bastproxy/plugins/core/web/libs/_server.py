@@ -126,6 +126,7 @@ class WebApp:
             protocol=PROTOCOL_VERSION,
             proxy=self._proxy_version,
             connection=connection_id,
+            topics=self.routes.topics(),
         )
 
     async def dispatch(self, request: Request) -> Response:

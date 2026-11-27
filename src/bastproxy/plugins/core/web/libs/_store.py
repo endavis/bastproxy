@@ -13,7 +13,7 @@ import secrets
 import time
 from collections import OrderedDict
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from bastproxy.libs.logger import get_logger
@@ -159,6 +159,15 @@ class Provider:
     topic: str
     kind: str
     event: str | None = None
+    snapshot: Callable[[], Any] | None = field(default=None, compare=False)
+
+
+async def run_snapshot(snapshot: Callable[[], Any]) -> Any:
+    """Call a provider's snapshot function and await the result when it is async."""
+    data = snapshot()
+    if inspect.isawaitable(data):
+        data = await data
+    return data
 
 
 @dataclass(frozen=True)
@@ -215,9 +224,7 @@ def _provider_handler(
     """Build the route handler that serves a provider's snapshot."""
 
     async def handler(request: Request) -> dict[str, Any]:
-        data = snapshot()
-        if inspect.isawaitable(data):
-            data = await data
+        data = await run_snapshot(snapshot)
         if kind == "table" and columns is not None and request.table is not None:
             page, total = page_rows(data, columns, request.table)
             return {
@@ -329,15 +336,25 @@ class RouteTable:
         path = self._claim(owner, name, provider=True)
         topic = path[1:].replace("/", ".")
         handler = _provider_handler(snapshot, kind, topic, declared, escape)
-        self._routes[path] = Route(
-            owner, path, name, handler, topic, declared, True, Provider(name, topic, kind, event)
-        )
+        provider = Provider(name, topic, kind, event, snapshot)
+        self._routes[path] = Route(owner, path, name, handler, topic, declared, True, provider)
         return topic
 
     def providers(self) -> list[Route]:
         """Every provider route, sorted by topic."""
         found = [r for r in self._routes.values() if r.provider is not None]
         return sorted(found, key=lambda r: r.path)
+
+    def topics(self) -> list[str]:
+        """The topics of all providers, sorted."""
+        return [r.provider.topic for r in self.providers() if r.provider]
+
+    def provider_for_topic(self, topic: str) -> Route | None:
+        """Return the provider route of a topic, or None (a plain route is not a provider)."""
+        route = self._routes.get("/" + topic.replace(".", "/"))
+        if route is not None and route.provider is not None and route.provider.topic == topic:
+            return route
+        return None
 
     def provider(self, owner: str, name: str) -> Route | None:
         """Return the provider route an owner registered under a name."""

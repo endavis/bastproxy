@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 
 from bastproxy.plugins.core.web.libs._http import Request
-from bastproxy.plugins.core.web.libs._store import ProviderListeners, RouteTable
+from bastproxy.plugins.core.web.libs._store import ProviderListeners, RouteTable, run_snapshot
 
 from .conftest import http_get
 from .test_routes import OWNER, Env  # reason: reuse the fixture
@@ -228,3 +228,34 @@ async def test_the_index_lists_providers(env: Env) -> None:
     sid = await env.login()
     _, _, body = await env.get("/", sid)
     assert b"/test/web/mobs" in body
+
+
+def test_topics_are_sorted_and_leave_out_plain_routes() -> None:
+    table = RouteTable()
+    table.add_provider(OWNER, "zeta", snap, None, "json", None, escape)
+    table.add_provider(OWNER, "alpha", snap, None, "json", None, escape)
+    table.add(OWNER, "page", noop, "Page")
+    assert table.topics() == ["test.web.alpha", "test.web.zeta"]
+
+
+def test_provider_for_topic() -> None:
+    table = RouteTable()
+    table.add_provider(OWNER, "mobs", snap, None, "json", None, escape)
+    table.add(OWNER, "page", noop, "Page")
+    route = table.provider_for_topic("test.web.mobs")
+    assert route is not None
+    assert route.provider is not None
+    assert route.provider.snapshot is snap
+    assert table.provider_for_topic("test.web.other") is None
+    assert table.provider_for_topic("test.web.page") is None
+    assert table.provider_for_topic("") is None
+    table.remove(OWNER)
+    assert table.provider_for_topic("test.web.mobs") is None
+
+
+async def test_run_snapshot_awaits_async_snapshots() -> None:
+    async def later() -> int:
+        return 3
+
+    assert await run_snapshot(later) == 3
+    assert await run_snapshot(lambda: 4) == 4

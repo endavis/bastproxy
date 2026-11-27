@@ -84,11 +84,17 @@ def envelope(kind: str, **fields: Any) -> dict[str, Any]:
     return {"v": PROTOCOL_VERSION, "type": kind, **fields}
 
 
-def error_message(code: str, message: str, for_type: str | None = None) -> dict[str, Any]:
-    """An error message; ``for_type`` names the client message type it answers."""
+def error_message(
+    code: str, message: str, for_type: str | None = None, **extra: Any
+) -> dict[str, Any]:
+    """An error message; ``for_type`` names the client message type it answers.
+
+    ``extra`` adds more fields, for example the ``topic`` the error is about.
+    """
     fields: dict[str, Any] = {"code": code, "message": message}
     if for_type is not None:
         fields["for"] = for_type
+    fields.update(extra)
     return envelope("error", **fields)
 
 
@@ -160,6 +166,7 @@ class SocketConnection:
         self._last_received = time.monotonic()
         self._fragments = bytearray()
         self._abort: asyncio.TimerHandle | None = None
+        self.subscriptions: set[str] = set()
 
     @property
     def is_open(self) -> bool:
@@ -314,6 +321,10 @@ class SocketHub:
     def discard(self, connection: SocketConnection) -> None:
         """Stop tracking a socket."""
         self._connections.discard(connection)
+
+    def connections(self) -> list[SocketConnection]:
+        """The open sockets, as a new list."""
+        return list(self._connections)
 
     def count(self) -> int:
         """The number of open sockets."""

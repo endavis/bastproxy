@@ -1,5 +1,7 @@
 """The client socket helpers: origins, upgrade, messages and the handler registry (#842)."""
 
+from typing import Any
+
 import pytest
 
 from bastproxy.plugins.core.web.libs._http import parse_head, read_request
@@ -7,6 +9,7 @@ from bastproxy.plugins.core.web.libs._store import RESERVED_SEGMENTS
 from bastproxy.plugins.core.web.libs._ws import (
     SocketHub,
     envelope,
+    error_message,
     is_upgrade,
     origin_of,
     parse_message,
@@ -115,3 +118,26 @@ def test_hub_register_and_unregister() -> None:
     assert "a" not in hub.handlers
     assert hub.count() == 0
     assert hub.close_all(1001, "x") == 0
+
+
+def test_error_message_takes_extra_fields() -> None:
+    message = error_message("unknown_topic", "no", "subscribe", topic="a.b")
+    assert message == {
+        "v": 1,
+        "type": "error",
+        "code": "unknown_topic",
+        "message": "no",
+        "for": "subscribe",
+        "topic": "a.b",
+    }
+    assert "for" not in error_message("x", "y", topic="t")
+
+
+def test_hub_connections_is_a_copy() -> None:
+    hub = SocketHub()
+    connection: Any = object()
+    hub.add(connection)
+    found = hub.connections()
+    assert found == [connection]
+    found.clear()
+    assert hub.count() == 1
