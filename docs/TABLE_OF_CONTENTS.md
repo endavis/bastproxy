@@ -100,7 +100,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [bastproxy System Documentation](claude/README.md) - Index of the bastproxy architecture notes and how the systems fit together
 - [CI/CD Testing Guide](development/ci-cd-testing.md) - GitHub Actions pipelines for testing, linting, and coverage
 - [Claude Code Statusline](development/ai/statusline.md) - Custom statusline showing git branch, Python version, and project info
-- [Colour System](claude/colors_system.md) - The colour-code syntax, the one tokenizer that defines it, and how conversion, stripping, validation, html and width are built on it
+- [Colour System](claude/colors_system.md) - The colour-code syntax, the one tokenizer that defines it, and how conversion, stripping, validation, spans, html and width are built on it
 - [Colour System Analysis and Findings](claude/colors_findings.md) - Audit of the colors plugin - its APIs and callers, the colour-code conversion bugs reproduced on main, why they happen, and the recommended single-tokenizer design
 - [Command System](claude/command_system.md) - How client commands are parsed, dispatched and documented
 - [Command System Analysis and Findings](claude/command_system_findings.md) - Audit of the commands plugin - how a client line becomes a command, state consistency across add, reload and unload, failure handling, test coverage, docs accuracy and patterns, with defects and a patterns review
@@ -161,7 +161,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [bastproxy Documentation](index.md) - Overview of bastproxy and an index of its architecture, development and process docs
 - [bastproxy System Documentation](claude/README.md) - Index of the bastproxy architecture notes and how the systems fit together
 - [Claude Code Statusline](development/ai/statusline.md) - Custom statusline showing git branch, Python version, and project info
-- [Colour System](claude/colors_system.md) - The colour-code syntax, the one tokenizer that defines it, and how conversion, stripping, validation, html and width are built on it
+- [Colour System](claude/colors_system.md) - The colour-code syntax, the one tokenizer that defines it, and how conversion, stripping, validation, spans, html and width are built on it
 - [Colour System Analysis and Findings](claude/colors_findings.md) - Audit of the colors plugin - its APIs and callers, the colour-code conversion bugs reproduced on main, why they happen, and the recommended single-tokenizer design
 - [Command System](claude/command_system.md) - How client commands are parsed, dispatched and documented
 - [Command System Analysis and Findings](claude/command_system_findings.md) - Audit of the commands plugin - how a client line becomes a command, state consistency across add, reload and unload, failure handling, test coverage, docs accuracy and patterns, with defects and a patterns review
@@ -264,7 +264,7 @@ Complete index of all documentation, organized by audience and as a full alphabe
 - [bastproxy System Documentation](claude/README.md) - Index of the bastproxy architecture notes and how the systems fit together
 - [CI/CD Testing Guide](development/ci-cd-testing.md) - GitHub Actions pipelines for testing, linting, and coverage
 - [Claude Code Statusline](development/ai/statusline.md) - Custom statusline showing git branch, Python version, and project info
-- [Colour System](claude/colors_system.md) - The colour-code syntax, the one tokenizer that defines it, and how conversion, stripping, validation, html and width are built on it
+- [Colour System](claude/colors_system.md) - The colour-code syntax, the one tokenizer that defines it, and how conversion, stripping, validation, spans, html and width are built on it
 - [Colour System Analysis and Findings](claude/colors_findings.md) - Audit of the colors plugin - its APIs and callers, the colour-code conversion bugs reproduced on main, why they happen, and the recommended single-tokenizer design
 - [Command System](claude/command_system.md) - How client commands are parsed, dispatched and documented
 - [Command System Analysis and Findings](claude/command_system_findings.md) - Audit of the commands plugin - how a client line becomes a command, state consistency across add, reload and unload, failure handling, test coverage, docs accuracy and patterns, with defects and a patterns review

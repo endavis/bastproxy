@@ -20,6 +20,7 @@ from bastproxy.plugins.core.colors.libs._colors import (
     CONVERTCOLORS,
 )
 from bastproxy.plugins.core.colors.libs._sgr import sgr_to_colorcode
+from bastproxy.plugins.core.colors.libs._spans import RESET_CODE, Span, line_spans
 from bastproxy.plugins.core.colors.libs._tokenizer import (
     Token,
     TokenKind,
@@ -34,8 +35,8 @@ logger = get_logger(__name__)
 
 _CODE_KINDS = (TokenKind.COLOR, TokenKind.XTERM_FG, TokenKind.XTERM_BG)
 _VISIBLE_KINDS = (TokenKind.TEXT, TokenKind.ESCAPE)
-# @w is the general reset: it clears the background as well as setting white
-RESET_CODE = "w"
+# @D is bold black (index 8); html shows no foreground for it
+_DARK_GREY = 8
 
 
 def convertcolorcodetohtml(colorcode: str | int) -> str:
@@ -64,34 +65,25 @@ def createspan(foreground: str | None, background: str | None, text: str) -> str
     return f"<span style='{';'.join(styles)}'>{text}</span>"
 
 
-def _html_line(tokens: list[Token]) -> str:
-    """Build the html for the tokens of one line; colors reset at the start of each line."""
-    foreground: str | None = None
-    background: str | None = None
+def _spans_html(spans: list[Span]) -> str:
+    """Build the html for the spans of one line."""
     out: list[str] = []
-    buffer: list[str] = []
-
-    def flush() -> None:
-        if buffer:
-            out.append(createspan(foreground, background, "".join(buffer)))
-            buffer.clear()
-
-    for token in tokens:
-        if token.kind in _VISIBLE_KINDS:
-            buffer.append(html.escape(token.visible))
-        elif token.kind is TokenKind.COLOR:
-            flush()
-            foreground = None if token.value in ("w", "D") else convertcolorcodetohtml(token.value)
-            if token.value == RESET_CODE:
-                background = None
-        elif token.kind is TokenKind.XTERM_FG:
-            flush()
-            foreground = convertcolorcodetohtml(token.value)
-        elif token.kind is TokenKind.XTERM_BG:
-            flush()
-            background = convertcolorcodetohtml(token.value)
-    flush()
+    for span in spans:
+        no_foreground = span.fg is None or (span.fg == _DARK_GREY and span.bold)
+        foreground = None if no_foreground or span.fg is None else convertcolorcodetohtml(span.fg)
+        background = None if span.bg is None else convertcolorcodetohtml(span.bg)
+        out.append(createspan(foreground, background, html.escape(span.text)))
     return "".join(out)
+
+
+def _text_spans(text: str) -> list[dict[str, str | int | bool | None]]:
+    """Split ``text`` into spans, colours reset on each line, a plain newline span between."""
+    result: list[dict[str, str | int | bool | None]] = []
+    for number, line in enumerate(text.splitlines()):
+        if number:
+            result.append(Span("\n").as_dict())
+        result.extend(span.as_dict() for span in line_spans(tokenize(line)))
+    return result
 
 
 def _to_ansicode(tokens: list[Token]) -> str:
@@ -152,7 +144,35 @@ class ColorsPlugin(BasePlugin):
         The visible text is html-escaped and raw ansi (SGR) sequences are dropped, so the
         result is safe to put inside an html element.
         """
-        return "\n".join(_html_line(tokenize(line.rstrip())) for line in sinput.splitlines())
+        return "\n".join(
+            _spans_html(line_spans(tokenize(line.rstrip()))) for line in sinput.splitlines()
+        )
+
+    @AddAPI(
+        "colorcode.to.spans",
+        description="split colorcodes into spans of text with fg, bg and bold",
+    )
+    def _api_colorcode_to_spans(self, text: str) -> list[dict[str, str | int | bool | None]]:
+        # pylint: disable=no-self-use
+        """Split text into spans: ``text``, ``fg``, ``bg`` (256-colour index or None) and ``bold``.
+
+        Built on the tokenizer only. Colours reset on each line and a ``"\\n"`` span separates
+        lines. The text is not html-escaped.
+        """
+        return _text_spans(text)
+
+    @AddAPI(
+        "ansicode.to.spans",
+        description="split an ansi coded string into spans of text with fg, bg and bold",
+    )
+    def _api_ansicode_to_spans(self, text: str) -> list[dict[str, str | int | bool | None]]:
+        # pylint: disable=no-self-use
+        """Split an ansi coded string into spans, as :func:`colorcode.to.spans` does.
+
+        The ansi is converted with ``sgr_to_colorcode`` first, so it is as lossy as
+        ``ansicode.to.colorcode``.
+        """
+        return _text_spans(sgr_to_colorcode(text))
 
     @AddAPI(
         "color.length.difference.get",
