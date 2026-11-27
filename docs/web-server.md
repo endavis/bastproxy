@@ -211,11 +211,15 @@ server {
 
     location / {
         proxy_pass http://127.0.0.1:9998;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_read_timeout 3600s;
     }
 }
 ```
 
-Set `publicurl` to `https://bastproxy.example.net`.
+Set `publicurl` to `https://bastproxy.example.net`. The `Upgrade` and `Connection` lines let the client socket through; the proxy sends the `Origin` it received on to bastproxy unchanged, so it must equal `publicurl`.
 
 ## Web client bundle
 
@@ -225,6 +229,15 @@ The `clientdir` setting points at a built web client. Files under it are served 
 - **Refusals are 404.** Every path segment must match `^[A-Za-z0-9_][A-Za-z0-9._-]*$`, so `..`, hidden files, empty segments and backslashes are refused. The file must resolve inside the directory (a symlink that leaves it is refused), be a regular file, and be at most 8 MiB. A larger file is also logged.
 - **Types.** Only these suffixes are served: `.html`, `.js`, `.css`, `.json`, `.svg`, `.png` and `.woff2`. Anything else, such as `.map`, is 404.
 - **Policy.** Files served here carry the client policy described under Response headers; `Cache-Control: no-store` and the other headers stay. The segment `webclient` is reserved, so no plugin route or provider can use it.
+
+## Client socket
+
+The listener also answers a WebSocket upgrade at `/ws`, on the same port, TLS and connection cap (a socket counts as one connection). `GET /ws` without an upgrade is 404.
+
+- **Who may connect.** The `bpsession` cookie must be a live session, else 401. The `Origin` header must be present, appear once and equal the origin of `publicurl` (or of the address the server listens on when it is unset), compared with a lower-case scheme and host and the default port dropped; anything else is 403. Both refusals carry the usual security headers. A missing key is 400 and a missing `Connection: Upgrade` is 426.
+- **Messages.** JSON text frames shaped `{"v": 1, "type": ...}`. The proxy sends `{"v":1,"type":"hello","protocol":1,"proxy":"<version>","connection":"<id>"}` first. The connection id is new for each socket; the session id is never sent. A client message that is not valid JSON, not an object, has no string `type`, has a `v` other than the integer 1, or has a type nobody handles gets `{"v":1,"type":"error","code":...,"message":...}` (codes `bad_json`, `bad_message`, `version`, `unknown_type`, `internal`, with `for` naming the type when known). An error never closes the socket. No client message type is handled yet, so every one answers `unknown_type`.
+- **Limits.** A message is at most 64 KiB (close 1009), the send queue holds 256 messages (close 1008) and binary frames are refused (close 1003). The proxy pings every 20 seconds and closes with 1011 when nothing arrived for 40 seconds.
+- **Close codes.** 1001 for a shutdown or plugin unload, 4001 when `#bp.core.web.logout` ends the session or the session is no longer valid (checked at each ping), plus the codes above. `#bp.core.web.status` shows a `Sockets` line.
 
 ## Data providers
 

@@ -61,6 +61,7 @@ class Request:
     path: str
     query: dict[str, str] = field(default_factory=dict)
     cookies: dict[str, str] = field(default_factory=dict)
+    headers: dict[str, str] = field(default_factory=dict)
     subpath: str = ""
     table: "TableQuery | None" = None
 
@@ -104,14 +105,19 @@ def parse_head(head: bytes) -> Request:
         raise HttpError(HTTPStatus.BAD_REQUEST)
 
     cookies: dict[str, str] = {}
+    headers: dict[str, str] = {}
     for line in lines[1:]:
         if not line:
             continue
         name, sep, value = line.partition(":")
         if not sep or not name or name != name.strip():
             raise HttpError(HTTPStatus.BAD_REQUEST)
-        if name.lower() == "cookie":
+        lowered = name.lower()
+        if lowered == "cookie":
             cookies.update(_parse_cookies(value.strip()))
+        # a repeated header is joined with a comma, so a doubled Origin never matches
+        previous = headers.get(lowered)
+        headers[lowered] = value.strip() if previous is None else f"{previous}, {value.strip()}"
 
     raw_path, _, raw_query = target.partition("?")
     try:
@@ -124,14 +130,14 @@ def parse_head(head: bytes) -> Request:
     if _CONTROL_RE.search(path):
         raise HttpError(HTTPStatus.BAD_REQUEST)
     query = {key: values[0] for key, values in parsed.items()}
-    return Request(method=method, path=path, query=query, cookies=cookies)
+    return Request(method=method, path=path, query=query, cookies=cookies, headers=headers)
 
 
-async def read_request(reader: asyncio.StreamReader) -> Request:
-    """Read and parse one request head; the body is never read.
+async def read_head(reader: asyncio.StreamReader) -> bytes:
+    """Read one request head, up to and including the blank line.
 
-    Raises HttpError(431) for a head over MAX_HEAD, HttpError(400) for a truncated or bad
-    one, and TimeoutError when the client is too slow (the caller closes the connection).
+    Raises HttpError(431) for a head over MAX_HEAD, HttpError(400) for a truncated one, and
+    TimeoutError when the client is too slow (the caller closes the connection).
     """
     try:
         async with asyncio.timeout(READ_TIMEOUT):
@@ -140,7 +146,15 @@ async def read_request(reader: asyncio.StreamReader) -> Request:
         raise HttpError(HTTPStatus.REQUEST_HEADER_FIELDS_TOO_LARGE) from exc
     except asyncio.IncompleteReadError as exc:
         raise HttpError(HTTPStatus.BAD_REQUEST) from exc
-    return parse_head(head)
+    return head
+
+
+async def read_request(reader: asyncio.StreamReader) -> Request:
+    """Read and parse one request head; the body is never read.
+
+    Raises what ``read_head`` and ``parse_head`` raise.
+    """
+    return parse_head(await read_head(reader))
 
 
 def serialize(response: Response) -> bytes:

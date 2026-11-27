@@ -73,6 +73,7 @@ Tokens in the URL give a link that works in any browser and expires, without sen
 - Issue #424: add an internal web server that plugins extend with pages
 - Issue #766: core mapper pages (SVG area map, room lookup)
 - Issue #840: data providers sit alongside routes in the same table (ADR-0025)
+- Issue #842: `/ws` is answered on the same listener, with the same sessions (ADR-0025)
 - endavis/bastproxy-aardwolf#127: Aardwolf mapper pages
 - endavis/bastproxy-aardwolf#128: statdb tables and charts
 

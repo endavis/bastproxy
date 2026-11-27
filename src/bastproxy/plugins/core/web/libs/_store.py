@@ -145,7 +145,7 @@ class SessionStore:
 
 SUBPATH_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9_-]*)*$")
 CLIENT_SEGMENT = "webclient"
-RESERVED_SEGMENTS = frozenset({"p", "login", "static", CLIENT_SEGMENT})
+RESERVED_SEGMENTS = frozenset({"p", "login", "static", "ws", CLIENT_SEGMENT})
 
 
 PROVIDER_KINDS = ("json", "table")

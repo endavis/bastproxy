@@ -35,9 +35,10 @@ Open-source web MUD clients (MUDPortal, oiMUD, Mudslinger and others) all parse 
   - The owner check, the reserved names and the removal on `ev_plugin_unloaded` are shared with routes.
 - **Colour as spans.** `colorcode.to.spans(text)` builds on `colorcode.to.tokens` (ADR-0008) and returns `[{"text", "fg", "bg", "bold", ...}]`. `colorcode.to.html` becomes spans to escaped HTML. Pages and the client then cannot disagree about colour, and escaping stays in one place. The browser never parses ANSI or `@` codes.
 - **The socket protocol is JSON text frames with a version.** Every message is `{"v": 1, "type": ...}`.
-  - Server to client: `hello` (protocol version, session, proxy version), `output` (one line as spans, with `prompt` and record ids), `snapshot` and `update` (topic, data), `result` (call id, status, reply), `error`.
+  - Server to client: `hello` (protocol version, proxy version, a connection id; the session id stays HttpOnly and is never sent), `output` (one line as spans, with `prompt` and record ids), `snapshot` and `update` (topic, data), `result` (call id, status, reply), `error`.
   - Client to server: `input` (a line for the to-MUD pipeline), `subscribe` and `unsubscribe` (topic), `call` (id, command, arguments).
   - An unknown `type` gets an `error`, never a disconnect. A client that needs a newer `v` closes with a message.
+- **Socket limits and close codes.** A message is at most 64 KiB (close 1009), the send queue holds 256 messages (close 1008), and binary frames are refused (close 1003). The proxy pings every 20 seconds and closes with 1011 after 40 seconds of silence. A logout, or a session that is no longer valid, closes with 4001. A shutdown or unload closes with 1001. Sockets count against the connection cap.
 - **A web client is a proxy client.** Each socket is registered through `plugins.core.clients` like a telnet client. It receives the MUD output stream after the same per-client steps, and its `input` goes through the same to-MUD pipeline. View-only is honoured, and it appears in the clients list with its type.
 - **Command calls with structured replies.** `call` runs a `#bp` command, or an API a plugin exposes for the client, and returns its reply as data in `result`. The socket does not need to parse command text.
 - **The client bundle is served by the proxy.** A `clientdir` setting points at the built client. Files under it are served at `/webclient/`, behind the session. Only successful file responses there carry the ADR-0022 policy plus `connect-src 'self'` and `font-src 'self'`. Every other page keeps the ADR-0022 CSP, where `default-src 'none'` already blocks connections. Plugins still cannot ship scripts.
@@ -69,6 +70,7 @@ One listener keeps one port, one TLS setup and one login, and the upgrade check 
 
 - Issue #424: the internal web server (ADR-0022)
 - Issue #840: data providers
+- Issue #842: the client socket endpoint `/ws`
 - Issue #846: the client bundle served from `clientdir`
 - The core issues filed with this ADR, listed in its PR
 

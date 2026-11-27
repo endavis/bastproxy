@@ -184,8 +184,17 @@ self.api("plugins.core.web:web.provider.add")(
 - **Removal.** `web.route.remove(owner)` and the unload of the plugin remove its providers and their event registrations. A reload of the web plugin keeps the providers, and re-registers their events.
 - **Listener interface.** Inside the web plugin, `ProviderListeners` (`add(listener)`, `remove(listener)`, `notify(topic)`) is held as `provider_listeners`. A listener is a function taking the topic. A listener that raises is logged and skipped. Nothing outside the web plugin calls it yet; a later change attaches the client socket here. It is not saved on reload.
 
+## Client socket
+
+`src/bastproxy/plugins/core/web/libs/_ws.py` holds the socket code and `WebServer._answer` hands a `GET /ws` upgrade to it, after `WebApp.check_upgrade` has checked the session cookie (401) and the `Origin` (403). The handshake and framing are `websockets.server.ServerProtocol` (sans-I/O) over the reader and writer the server already owns; see [Web server](../web-server.md#client-socket) for the wire format, limits and close codes.
+
+- **`SocketConnection`** has a bounded send queue (`send(message)` is synchronous and returns False when it cannot queue) and three tasks: a reader, a sender and a keepalive. `close(code, reason)` starts the close handshake and aborts the connection after `CLOSE_TIMEOUT`.
+- **`SocketHub`** (`WebServer.sockets`) tracks the open sockets and holds the handlers of client message types. `register(type, handler)` and `unregister(type)` are the hook for later work; a handler takes `(connection, message)`, may be sync or async, and runs under the handler timeout. A handler that raises is logged and the client gets an `internal` error. `close_all(code, reason)` closes every socket.
+- The constants (`MAX_MESSAGE`, `SEND_QUEUE_LIMIT`, `PING_INTERVAL`, `PING_TIMEOUT`, `CLOSE_TIMEOUT`, `READ_CHUNK`) are module level in `_ws.py`.
+
 ## Lifecycle
 
+- `#bp.core.web.logout` also closes every socket with 4001.
 - The web plugin starts its listener in a queued task (`libs.asynch:task.add`), so connections do not inherit the context of the command or event that started it.
-- When the plugin unloads, it closes the listener and aborts the open connections before the base unload hook raises `ev_plugin_unloaded`.
+- When the plugin unloads, it closes the listener, closes the open sockets with 1001 and aborts the other open connections before the base unload hook raises `ev_plugin_unloaded`.
 - When the web plugin is reloaded, the stored pages, routes (and data providers), sessions and login tokens carry over (`attributes_to_save_on_reload`), so links and sessions keep working. The classes of these stores live in a module with `CANRELOAD = False`, so their identity survives the reload.

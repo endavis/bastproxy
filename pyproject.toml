@@ -49,6 +49,7 @@ dependencies = [
     "telnetlib3>=5.0.3",
     "pydatatracker",
     "wcwidth>=0.9.4",
+    "websockets>=17.4",
 ]
 
 [project.optional-dependencies]

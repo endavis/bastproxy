@@ -15,7 +15,7 @@ import html
 import importlib.resources
 import inspect
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any
@@ -30,7 +30,8 @@ from ._http import (
     Request,
     Response,
     message_response,
-    read_request,
+    parse_head,
+    read_head,
     redirect,
     serialize,
     text_response,
@@ -39,6 +40,16 @@ from ._render import render_index, render_page, render_table, render_table_page
 from ._store import CLIENT_SEGMENT, LoginTokens, PageStore, Route, RouteTable, SessionStore
 from ._table import FILTER_PREFIX, TABLE_KEYS, parse_table_query
 from ._tls import LOGGER_NAME, CertManager
+from ._ws import (
+    CLOSE_GOING_AWAY,
+    PROTOCOL_VERSION,
+    SocketConnection,
+    SocketHub,
+    envelope,
+    handshake,
+    is_upgrade,
+    origin_of,
+)
 
 CANRELOAD = False
 
@@ -48,6 +59,7 @@ PAGE_PREFIX = "/p/"
 LOGIN_PREFIX = "/login/"
 SESSION_COOKIE = "bpsession"
 TABLE_SCRIPT_PATH = "/static/table.js"
+SOCKET_PATH = "/ws"
 CLIENT_PREFIX = f"/{CLIENT_SEGMENT}/"
 HANDLER_ERROR_STATUSES = (HTTPStatus.BAD_REQUEST, HTTPStatus.NOT_FOUND)
 
@@ -74,6 +86,8 @@ class WebApp:
         secure_cookie: Callable[[], bool] = lambda: False,
         session_seconds: Callable[[], float] = lambda: 12 * 3600,
         client_dir: Callable[[], Path | None] = lambda: None,
+        allowed_origins: Callable[[], Iterable[str]] = lambda: (),
+        proxy_version: str = "",
     ) -> None:
         self.pages = pages
         self.routes = routes if routes is not None else RouteTable()
@@ -84,6 +98,35 @@ class WebApp:
         self._secure_cookie = secure_cookie
         self._session_seconds = session_seconds
         self._client_dir = client_dir
+        self._allowed_origins = allowed_origins
+        self._proxy_version = proxy_version
+
+    def check_upgrade(self, request: Request) -> Response | None:
+        """Check a socket upgrade request; None means it may go on, else the refusal.
+
+        A request without a live session cookie is 401; one whose Origin is missing, repeated
+        or not the proxy's own is 403.
+        """
+        if not self._has_session(request):
+            return self._unauthorized()
+        allowed = {
+            origin
+            for origin in (origin_of(url, strip_path=True) for url in self._allowed_origins())
+            if origin is not None
+        }
+        origin = origin_of(request.headers.get("origin", ""))
+        if origin is None or origin not in allowed:
+            return message_response(HTTPStatus.FORBIDDEN, "the Origin is not allowed")
+        return None
+
+    def hello(self, connection_id: str) -> dict[str, Any]:
+        """The first message of a socket; it carries a connection id, never the session id."""
+        return envelope(
+            "hello",
+            protocol=PROTOCOL_VERSION,
+            proxy=self._proxy_version,
+            connection=connection_id,
+        )
 
     async def dispatch(self, request: Request) -> Response:
         """Answer one request.
@@ -222,6 +265,8 @@ class WebServer:
         self._cert: CertManager | None = None
         self._app: WebApp | None = None
         self._writers: set[asyncio.StreamWriter] = set()
+        self._socket_writers: set[asyncio.StreamWriter] = set()
+        self.sockets = SocketHub()
 
     @property
     def running(self) -> bool:
@@ -246,7 +291,10 @@ class WebServer:
             self._server.close()
             self._closed = self._server
             self._server = None
+        self.sockets.close_all(CLOSE_GOING_AWAY, "server shutting down")
         for writer in list(self._writers):
+            if writer in self._socket_writers:
+                continue
             writer.transport.abort()
         self._writers.clear()
         self.tls = False
@@ -270,9 +318,10 @@ class WebServer:
                 await writer.start_tls(
                     self._cert.current(), ssl_handshake_timeout=TLS_HANDSHAKE_TIMEOUT
                 )
-            response = await self._answer(reader)
-            writer.write(serialize(response))
-            await writer.drain()
+            response = await self._answer(reader, writer)
+            if response is not None:
+                writer.write(serialize(response))
+                await writer.drain()
         except (OSError, asyncio.IncompleteReadError):
             # a handshake failure, a timeout, or a client that went away
             pass
@@ -280,16 +329,62 @@ class WebServer:
             get_logger(LOGGER_NAME).error("web request failed", exc_info=True)
         finally:
             self._writers.discard(writer)
+            self._socket_writers.discard(writer)
             writer.close()
             with contextlib.suppress(OSError):
                 async with asyncio.timeout(CLOSE_TIMEOUT):
                     await writer.wait_closed()
 
-    async def _answer(self, reader: asyncio.StreamReader) -> Response:
+    async def _answer(
+        self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    ) -> Response | None:
+        """Read the request and answer it; None means a socket ran and the connection is done."""
         if self._app is None:
             return message_response(HTTPStatus.SERVICE_UNAVAILABLE)
         try:
-            request = await read_request(reader)
+            head = await read_head(reader)
+            request = parse_head(head)
         except HttpError as exc:
             return message_response(exc.status)
+        if request.method == "GET" and request.path == SOCKET_PATH and is_upgrade(request):
+            return await self._socket(self._app, head, request, reader, writer)
         return await self._app.dispatch(request)
+
+    async def _socket(
+        self,
+        app: WebApp,
+        head: bytes,
+        request: Request,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+    ) -> Response | None:
+        """Upgrade a connection to a socket and serve it, or return the refusal."""
+        refusal = app.check_upgrade(request)
+        if refusal is not None:
+            return refusal
+        try:
+            protocol, status = handshake(head)
+        except ValueError:
+            return message_response(HTTPStatus.BAD_REQUEST)
+        if status != HTTPStatus.SWITCHING_PROTOCOLS:
+            extra = [("Upgrade", "websocket")] if status == HTTPStatus.UPGRADE_REQUIRED else None
+            return message_response(status, extra=extra)
+        for chunk in protocol.data_to_send():
+            writer.write(chunk)
+        await writer.drain()
+        connection = SocketConnection(
+            protocol,
+            reader,
+            writer,
+            self.sockets,
+            request.cookies.get(SESSION_COOKIE),
+            app.sessions.is_valid,
+            app.hello,
+        )
+        self._socket_writers.add(writer)
+        self.sockets.add(connection)
+        try:
+            await connection.run()
+        finally:
+            self.sockets.discard(connection)
+        return None
