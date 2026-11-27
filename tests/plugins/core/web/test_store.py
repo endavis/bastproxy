@@ -103,3 +103,16 @@ def test_view_only_session_ends_on_expiry_and_on_clear() -> None:
     sessions.clear()
     assert sessions.is_view_only(cleared) is False
     assert sessions._view == set()
+
+
+def test_lookup_reads_a_session_once() -> None:
+    clock = Clock()
+    sessions = SessionStore(clock=clock)
+    view, full = sessions.create(100, view_only=True), sessions.create(100)
+    assert sessions.lookup(view) is True
+    assert sessions.lookup(full) is False
+    assert sessions.lookup(None) is None
+    assert sessions.lookup("unknown") is None
+    clock.now = 100
+    assert sessions.lookup(view) is None
+    assert sessions.lookup(full) is None

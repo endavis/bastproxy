@@ -153,6 +153,13 @@ class SessionStore:
         self._prune()
         return sid is not None and sid in self._sessions
 
+    def lookup(self, sid: str | None) -> bool | None:
+        """Read a session once: None when there is no live session, else True when view-only."""
+        self._prune()
+        if sid is None or sid not in self._sessions:
+            return None
+        return sid in self._view
+
     def clear(self) -> int:
         """End every session and return how many there were."""
         self._prune()
