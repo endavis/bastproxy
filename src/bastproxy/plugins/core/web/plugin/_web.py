@@ -188,8 +188,8 @@ class WebPlugin(BasePlugin):
         return self.server.tls or str(self._setting("publicurl")).startswith("https://")
 
     def _path(self, name: str) -> Path:
-        """A path setting, relative to the data directory unless absolute."""
-        return Path(self.api.BASEDATAPATH) / str(self._setting(name))
+        """A path setting, relative to BASTPROXY_HOME unless absolute."""
+        return Path(self.api.BASEHOMEPATH) / str(self._setting(name))
 
     async def _restart(self, generation: int) -> None:
         """Close the listener and start it again from the settings."""

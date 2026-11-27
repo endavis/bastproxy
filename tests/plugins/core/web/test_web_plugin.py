@@ -42,7 +42,8 @@ class _Api:
     """The api object: callable by name, with the data directory attribute."""
 
     def __init__(self, stub: "_Stub", base: Path) -> None:
-        self.BASEDATAPATH = base
+        self.BASEHOMEPATH = base
+        self.BASEDATAPATH = base / "data"
         self._stub = stub
 
     def __call__(self, name: str) -> Any:
@@ -211,7 +212,7 @@ async def test_a_port_in_use_is_logged_not_raised(
     stub: Any, caplog: pytest.LogCaptureFixture
 ) -> None:
     await stub._restart(0)
-    other: Any = _Stub(stub.api.BASEDATAPATH)
+    other: Any = _Stub(stub.api.BASEHOMEPATH)
     other.settings["port"] = stub.port
     with caplog.at_level(logging.ERROR):
         await other._restart(0)
@@ -335,3 +336,18 @@ async def test_a_queued_restart_exits_after_the_generation_bump(stub: Any) -> No
     WebPlugin._phook_close_server(stub)
     await pending
     assert not stub.server.running
+
+
+@pytest.mark.parametrize("name", ["certfile", "keyfile", "clientdir"])
+def test_path_setting_is_relative_to_the_home_directory(stub: Any, name: str) -> None:
+    stub.settings[name] = "certs/value"
+    result = stub._path(name)
+    assert result == Path(stub.api.BASEHOMEPATH) / "certs/value"
+    assert not result.is_relative_to(Path(stub.api.BASEDATAPATH))
+
+
+@pytest.mark.parametrize("name", ["certfile", "keyfile", "clientdir"])
+def test_absolute_path_setting_is_kept(stub: Any, name: str, tmp_path: Path) -> None:
+    absolute = tmp_path / "elsewhere" / "x.pem"
+    stub.settings[name] = str(absolute)
+    assert stub._path(name) == absolute
