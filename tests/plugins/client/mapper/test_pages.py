@@ -1,5 +1,6 @@
 """Tests for the pure mapper page builders (#766)."""
 
+import hashlib
 import xml.etree.ElementTree as ET
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
@@ -8,7 +9,14 @@ from bastproxy.plugins.client.mapper.libs._graph import Exit, MapGraph
 from bastproxy.plugins.client.mapper.libs._pages import (
     AREA_COLUMNS,
     BOX,
+    EMPTY_TERRAIN,
+    FALLBACK_PALETTE,
+    LABEL,
     MARGIN,
+    MARKER_CHARS,
+    NAME_CHARS,
+    NUMBER_CHARS,
+    PANEL_CHARS,
     PITCH,
     _positions,
     draw_area_svg,
@@ -16,6 +24,9 @@ from bastproxy.plugins.client.mapper.libs._pages import (
     href,
     link_cell,
     page_rows,
+    terrain_color,
+    text_color,
+    valid_color,
     xml_text,
 )
 
@@ -299,3 +310,239 @@ def test_escape_rows_escapes_text_and_keeps_numbers_and_hrefs() -> None:
         [[{"text": "a@b", "href": "/x"}, "c@d", 3, None]], lambda s: s.replace("@", "@@")
     )
     assert rows == [[{"text": "a@@b", "href": "/x"}, "c@@d", 3, None]]
+
+
+# ---- labels, terrain colours and the details panel (#868) ----
+
+HOSTILE = "<script>alert('x')</script> & \"q\" @rred"
+
+
+def group_of(root: ET.Element, uid: str) -> ET.Element:
+    for g in root.iter(f"{NS}g"):
+        if (g.find(f"{NS}title").text or "").split()[0] == uid:  # type: ignore[union-attr]
+            return g
+    raise AssertionError(uid)
+
+
+def text_of(group: ET.Element, css: str) -> str | None:
+    for t in group.iter(f"{NS}text"):
+        if t.get("class") == css:
+            return t.text
+    return None
+
+
+def one_room(**extra: Any) -> tuple[list[dict[str, Any]], MapGraph]:
+    rooms = [room("1", 0, 0, **extra)]
+    return rooms, graph_of(rooms, [])
+
+
+def test_the_grid_constants_leave_space_for_the_labels() -> None:
+    assert (PITCH, BOX, LABEL) == (88, 32, 22)
+    assert NAME_CHARS * 6 <= PITCH
+
+
+def test_a_room_shows_its_uid_and_name_and_cuts_long_ones() -> None:
+    rooms, graph = one_room(name="A very long room name indeed")
+    rooms[0]["uid"] = "1234567"
+    g = group_of(parse(draw_area_svg("ar", "Area", rooms, graph)), "1234567")
+    assert text_of(g, "uid") == "1234…"
+    assert len(text_of(g, "uid") or "") == NUMBER_CHARS
+    name = text_of(g, "name") or ""
+    assert name == "A very long r…"
+    assert len(name) == NAME_CHARS
+    short = one_room(name="Hall")
+    g = group_of(parse(draw_area_svg("ar", "A", *short)), "1")
+    assert (text_of(g, "uid"), text_of(g, "name")) == ("1", "Hall")
+
+
+def test_markers_are_drawn_cut_and_non_strings_dropped() -> None:
+    rooms, graph = one_room(markers=["A", 5, None, "BC", "DEFGH"])
+    g = group_of(parse(draw_area_svg("ar", "A", rooms, graph)), "1")
+    markers = text_of(g, "markers") or ""
+    assert markers == "ABCD…"
+    assert len(markers) == MARKER_CHARS
+    extras: list[dict[str, Any]] = [{}, {"markers": []}, {"markers": [3]}]
+    for extra in extras:
+        rooms, graph = one_room(**extra)
+        g = group_of(parse(draw_area_svg("ar", "A", rooms, graph)), "1")
+        assert text_of(g, "markers") is None
+
+
+def test_terrain_color_uses_the_adapter_mapping_then_a_stable_fallback() -> None:
+    assert terrain_color("forest", {"forest": "#0a0"}) == "#0a0"
+    assert terrain_color("forest", {"forest": "#00aa00"}) == "#00aa00"
+    index = hashlib.sha256(b"forest").digest()[0] % len(FALLBACK_PALETTE)
+    assert terrain_color("forest") == FALLBACK_PALETTE[index]
+    assert terrain_color("forest", {"other": "#fff"}) == FALLBACK_PALETTE[index]
+    assert terrain_color("forest", {"forest": "red"}) == FALLBACK_PALETTE[index]
+    assert terrain_color("") == EMPTY_TERRAIN == "#222"
+    assert terrain_color("", {"": "#123"}) == "#123"
+    assert terrain_color("bad\udcff") in FALLBACK_PALETTE  # a lone surrogate does not raise
+
+
+def test_valid_color() -> None:
+    assert all(valid_color(c) for c in ("#fff", "#FfF", "#a1b2c3"))
+    assert not any(valid_color(c) for c in ("fff", "#ffff", "#ggg", "#fff\n", "red", "", 5, None))
+
+
+def test_text_color_follows_the_luminance() -> None:
+    assert text_color("#fff") == "#000"
+    assert text_color("#ffffff") == "#000"
+    assert text_color("#000") == "#fff"
+    assert text_color("#222") == "#fff"
+    assert text_color("#ff0") == "#000"
+    assert text_color("#00f") == "#fff"
+
+
+def test_the_box_is_filled_by_attribute_and_the_css_never_sets_a_rect_fill() -> None:
+    rooms, graph = one_room(terrain="forest")
+    svg = draw_area_svg("ar", "A", rooms, graph, terrain_colors={"forest": "#0a0"})
+    g = group_of(parse(svg), "1")
+    assert g.find(f"{NS}rect").get("fill") == "#0a0"  # type: ignore[union-attr]
+    assert [t.get("fill") for t in g.iter(f"{NS}text") if t.get("class") == "uid"] == ["#000"]
+    style = svg.split("<style>")[1].split("</style>")[0]
+    for rule in style.split("}"):
+        if ".room" in rule and "rect" in rule:
+            assert "fill" not in rule
+
+
+def test_box_links_with_and_without_an_area_path() -> None:
+    rooms, graph = one_room()
+    root = parse(draw_area_svg("ar", "A", rooms, graph, area_path="/m/area", room_path="/m/room"))
+    link = next(root.iter(f"{NS}a")).get("href") or ""
+    assert urlsplit(link).path == "/m/area"
+    assert parse_qs(urlsplit(link).query) == {"uid": ["ar"], "room": ["1"]}
+    root = parse(draw_area_svg("ar", "A", rooms, graph, room_path="/m/room"))
+    link = next(root.iter(f"{NS}a")).get("href") or ""
+    assert (urlsplit(link).path, parse_qs(urlsplit(link).query)) == ("/m/room", {"uid": ["1"]})
+    assert list(parse(draw_area_svg("ar", "A", rooms, graph)).iter(f"{NS}a")) == []
+
+
+def test_the_selected_class_is_added_last_and_only_when_selected() -> None:
+    rooms = [room("1", 0, 0), room("2", 1, 0)]
+    graph = graph_of(rooms, [])
+    root = parse(draw_area_svg("ar", "A", rooms, graph, current="1", selected="1"))
+    assert group_of(root, "1").get("class") == "room current selected"
+    assert group_of(root, "2").get("class") == "room"
+    root = parse(draw_area_svg("ar", "A", rooms, graph, current="1"))
+    assert group_of(root, "1").get("class") == "room current"
+
+
+def panel_of(root: ET.Element) -> ET.Element | None:
+    return next((e for e in root.iter(f"{NS}svg") if e.get("class") == "panel"), None)
+
+
+def panel_lines(panel: ET.Element) -> list[str]:
+    return [t.text or "" for t in panel.iter(f"{NS}text")]
+
+
+def test_the_panel_shows_every_field_of_the_selected_room() -> None:
+    rooms = [
+        room(
+            "1",
+            3,
+            4,
+            2,
+            area="ar",
+            terrain="forest",
+            flags=["noportal", "x"],
+            markers=["Q", "!"],
+            details={"b": 2, "a": "text", "c": {"k": {1}}},
+            name="Cellar",
+        ),
+        room("2", 4, 4, 2, name="Hall"),
+    ]
+    graph = graph_of(
+        rooms,
+        [
+            Exit("1", "e", "2", 3, {"l": 5}),
+            Exit("1", "n", "-1"),
+            Exit("1", "s", "99"),
+        ],
+    )
+    root = parse(
+        draw_area_svg("ar", "A", rooms, graph, selected="1", room_path="/m/room", area_path="/m/a")
+    )
+    panel = panel_of(root)
+    assert panel is not None
+    lines = panel_lines(panel)
+    assert lines[:6] == [
+        "room: 1 Cellar",
+        "area: ar",
+        "terrain: forest",
+        "coords: 3 4 2",
+        "flags: noportal, x",
+        "markers: Q, !",
+    ]
+    assert lines.index("a: text") < lines.index("b: 2") < lines.index('c: {"k": "{1}"}')
+    assert 'e -> 2 Hall (cost 3) requires {"l": 5}' in lines
+    assert "n -> unexplored (cost 1)" in lines
+    assert "s -> 99 (cost 1)" in lines
+    assert lines.index('e -> 2 Hall (cost 3) requires {"l": 5}') < lines.index(
+        "n -> unexplored (cost 1)"
+    )
+    link = panel.find(f"{NS}a")
+    assert link is not None
+    assert (link.find(f"{NS}text").text, urlsplit(link.get("href") or "").path) == (  # type: ignore[union-attr]
+        "room page",
+        "/m/room",
+    )
+    assert parse_qs(urlsplit(link.get("href") or "").query) == {"uid": ["1"]}
+    assert {e.tag for e in panel.iter()} <= {f"{NS}svg", f"{NS}text", f"{NS}a"}
+
+
+def test_the_panel_has_no_room_page_link_without_a_room_path_and_grows_the_root() -> None:
+    rooms, graph = one_room()
+    without = parse(draw_area_svg("ar", "A", rooms, graph))
+    selected = parse(draw_area_svg("ar", "A", rooms, graph, selected="1"))
+    panel = panel_of(selected)
+    assert panel is not None and panel.find(f"{NS}a") is None
+    assert int(selected.get("width") or 0) > int(without.get("width") or 0)
+    assert int(selected.get("height") or 0) >= int(panel.get("height") or 0)
+
+
+def test_a_long_panel_line_is_wrapped_without_losing_text() -> None:
+    long = "w" * 100 + " " + "word " * 30
+    rooms, graph = one_room(details={"note": long})
+    panel = panel_of(parse(draw_area_svg("ar", "A", rooms, graph, selected="1")))
+    assert panel is not None
+    lines = panel_lines(panel)
+    assert all(len(line) <= PANEL_CHARS for line in lines)
+    joined = "".join("".join(line.split()) for line in lines)
+    assert "".join(f"note: {long}".split()) in joined
+
+
+def test_no_panel_for_an_unknown_selected_room() -> None:
+    rooms, graph = one_room()
+    for chosen in ("nope", "", None):
+        assert panel_of(parse(draw_area_svg("ar", "A", rooms, graph, selected=chosen))) is None
+
+
+def test_hostile_text_is_escaped_everywhere() -> None:
+    rooms = [
+        room(
+            "1",
+            0,
+            0,
+            name=HOSTILE,
+            terrain=HOSTILE,
+            area=HOSTILE,
+            markers=[HOSTILE],
+            flags=[HOSTILE],
+            details={HOSTILE: HOSTILE},
+        ),
+        room("2", 1, 0, name=HOSTILE),
+    ]
+    graph = graph_of(rooms, [Exit("1", "e", "2", 1, {"k": HOSTILE})])
+    svg = draw_area_svg(
+        "ar",
+        HOSTILE,
+        rooms,
+        graph,
+        selected="1",
+        room_path="/m/r",
+        area_path="/m/a",
+        terrain_colors={HOSTILE: "#fff"},
+    )
+    parse(svg)
+    assert "<script" not in svg

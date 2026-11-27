@@ -10,7 +10,7 @@
 import asyncio
 import json
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from functools import partial
 from typing import Any
 
@@ -41,6 +41,7 @@ from bastproxy.plugins.client.mapper.libs._pages import (
     escape_rows,
     link_cell,
     page_rows,
+    valid_color,
 )
 from bastproxy.plugins.client.mapper.libs._schema import (
     DB_NAME,
@@ -129,6 +130,8 @@ class MapperPlugin(BasePlugin):
         self.walk = Walk()
         self.requirement_callbacks: dict[str, Callable[[Any, dict[str, Any]], bool]] = {}
         self.movement_callbacks: dict[str, Callable[[list[dict[str, Any]]], list[str]]] = {}
+        self.marker_callbacks: dict[str, Callable[[dict[str, Any]], list[str]]] = {}
+        self.terrain_color_maps: dict[str, dict[str, str]] = {}
         self.last_find: list[str] = []
         self.last_find_next = 0
         self._search_token = 0
@@ -270,6 +273,10 @@ class MapperPlugin(BasePlugin):
         if area is None and not rooms:
             return self._web_error(404, f"area {uid} is not known")
         view = self.graph.freeze()
+        # the marker callback is game code: run it here on the loop, never in the worker thread
+        rooms = [{**room, "markers": self._room_markers(room)} for room in rooms]
+        selected = str(request.query.get("room") or "") or None
+        terrain_colors = self._active(self.terrain_color_maps)
         draw = partial(
             draw_area_svg,
             uid,
@@ -278,6 +285,9 @@ class MapperPlugin(BasePlugin):
             view,
             current=self.current_room,
             room_path=self.web_paths.get("room"),
+            area_path=self.web_paths.get("area"),
+            selected=selected,
+            terrain_colors=terrain_colors,
         )
         svg = await asyncio.to_thread(draw)
         return {"kind": "svg", "svg": svg}
@@ -756,6 +766,80 @@ class MapperPlugin(BasePlugin):
         """Remove the movement callback of an owner."""
         self.movement_callbacks.pop(owner_id, None)
 
+    @AddAPI("room.marker.register", description="register the callback that marks rooms on the map")
+    def _api_room_marker_register(
+        self, owner_id: str, callback: Callable[[dict[str, Any]], list[str]]
+    ) -> None:
+        """Register the room marker callback.
+
+        @Yowner_id@w   = the plugin id
+        @Ycallback@w   = ``callback(room) -> list of str``, room being a copy of the room dict.
+                         The strings are drawn inside the room box on the area page. A callback
+                         that raises or returns bad data gives the room no markers.
+
+        The most recent registration is the active one.
+        """
+        self._register(self.marker_callbacks, "marker", owner_id, callback)
+
+    @AddAPI("room.marker.unregister", description="remove a room marker callback")
+    def _api_room_marker_unregister(self, owner_id: str) -> None:
+        """Remove the room marker callback of an owner."""
+        self.marker_callbacks.pop(owner_id, None)
+
+    @AddAPI("terrain.color.register", description="register the terrain colours of the area map")
+    def _api_terrain_color_register(self, owner_id: str, colors: Any) -> None:
+        """Register the terrain colours.
+
+        @Yowner_id@w   = the plugin id
+        @Ycolors@w     = ``{terrain: "#rgb" or "#rrggbb"}``; a terrain without a colour gets a
+                         stable fallback colour. Invalid colours are dropped with a warning.
+
+        The most recent registration is the active one.
+        """
+        if not isinstance(colors, Mapping):
+            log_to(
+                [self.plugin_id],
+                logging.WARNING,
+                "terrain colours of %s are not a mapping, ignored",
+                owner_id,
+            )
+            return
+        valid = {str(t): c for t, c in colors.items() if valid_color(c)}
+        if len(valid) != len(colors):
+            log_to(
+                [self.plugin_id],
+                logging.WARNING,
+                "terrain colours of %s: %d invalid colours dropped",
+                owner_id,
+                len(colors) - len(valid),
+            )
+        self._register(self.terrain_color_maps, "terrain colour", owner_id, valid)
+
+    @AddAPI("terrain.color.unregister", description="remove a terrain colour map")
+    def _api_terrain_color_unregister(self, owner_id: str) -> None:
+        """Remove the terrain colours of an owner."""
+        self.terrain_color_maps.pop(owner_id, None)
+
+    def _room_markers(self, room: dict[str, Any]) -> list[str]:
+        """Ask the marker callback for a room's markers; a bad callback gives none."""
+        callback = self._active(self.marker_callbacks)
+        if callback is None:
+            return []
+        try:
+            result = callback(dict(room))
+            if isinstance(result, list) and all(isinstance(m, str) for m in result):
+                return list(result)
+            raise TypeError("the marker callback must return a list of str")
+        except Exception:
+            log_to(
+                [self.plugin_id],
+                logging.ERROR,
+                "marker callback failed for room %s, no markers",
+                room.get("uid"),
+                exc_info=True,
+            )
+            return []
+
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self) -> None:
         """A plugin was unloaded, drop its callbacks."""
@@ -763,6 +847,8 @@ class MapperPlugin(BasePlugin):
             owner = event_record["plugin_id"]
             self.requirement_callbacks.pop(owner, None)
             self.movement_callbacks.pop(owner, None)
+            self.marker_callbacks.pop(owner, None)
+            self.terrain_color_maps.pop(owner, None)
 
     @RegisterToEvent(event_name="ev_libs.net.mud_muddisconnect")
     def _eventcb_disconnect(self) -> None:

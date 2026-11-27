@@ -1,6 +1,7 @@
 """Tests for the mapper plugin: APIs, change detection and walking."""
 
 import asyncio
+import logging
 import threading
 from pathlib import Path
 from typing import Any
@@ -838,3 +839,72 @@ def test_mapper_accepts_command_extensions(harness: Harness) -> None:
     plugin.api = harness.plugin.api
     type(plugin)._phook_init_plugin(plugin)
     assert plugin.accepts_command_extensions_f is True
+
+
+def test_marker_callback_gets_a_copy_and_its_list(test_map: Harness) -> None:
+    """The callback sees a copy of the room dict and its list of str is the room's markers."""
+    p = test_map.plugin
+    room = {"uid": "A", "name": "Room A"}
+
+    def mark(given: dict[str, Any]) -> list[str]:
+        given["name"] = "changed"
+        return ["x", "y"]
+
+    assert p._room_markers(room) == []  # no callback
+    p._api_room_marker_register("game", mark)
+    assert p._room_markers(room) == ["x", "y"]
+    assert room["name"] == "Room A"
+
+
+def test_marker_callback_that_raises_or_returns_bad_data_gives_no_markers(
+    test_map: Harness, caplog: pytest.LogCaptureFixture
+) -> None:
+    p = test_map.plugin
+    room = {"uid": "A"}
+    for bad in (lambda r: 1 / 0, lambda r: "no", lambda r: ["a", 1], lambda r: None):
+        p._api_room_marker_register("game", bad)
+        caplog.clear()
+        with caplog.at_level(logging.ERROR):
+            assert p._room_markers(room) == []
+        assert any("marker callback failed" in r.getMessage() for r in caplog.records)
+
+
+def test_terrain_colors_validation_and_replacement(
+    test_map: Harness, caplog: pytest.LogCaptureFixture
+) -> None:
+    p = test_map.plugin
+    with caplog.at_level(logging.WARNING):
+        p._api_terrain_color_register(
+            "game", {"a": "#fff", "b": "red", "c": "#12345g", "d": "#abcdef"}
+        )
+    assert p.terrain_color_maps == {"game": {"a": "#fff", "d": "#abcdef"}}
+    assert sum("invalid colours dropped" in r.getMessage() for r in caplog.records) == 1
+    caplog.clear()
+    with caplog.at_level(logging.WARNING):
+        p._api_terrain_color_register("game", {"a": "#000"})
+        assert caplog.records == []  # the same owner replacing itself is silent
+        p._api_terrain_color_register("other", {"a": "#111"})
+    assert any("replaces the one of game" in r.getMessage() for r in caplog.records)
+    assert p._active(p.terrain_color_maps) == {"a": "#111"}
+    caplog.clear()
+    with caplog.at_level(logging.WARNING):
+        p._api_terrain_color_register("bad", ["#fff"])
+    assert "bad" not in p.terrain_color_maps
+    assert any("not a mapping" in r.getMessage() for r in caplog.records)
+
+
+def test_marker_and_color_callbacks_dropped_on_unregister_and_unload(test_map: Harness) -> None:
+    p = test_map.plugin
+    p._api_room_marker_register("one", lambda r: ["x"])
+    p._api_room_marker_register("two", lambda r: ["y"])
+    p._api_terrain_color_register("one", {"a": "#fff"})
+    p._api_terrain_color_register("two", {"a": "#000"})
+    p._api_room_marker_unregister("two")
+    p._api_terrain_color_unregister("two")
+    assert list(p.marker_callbacks) == ["one"]
+    assert list(p.terrain_color_maps) == ["one"]
+    record = {"plugin_id": "one"}
+    p.api.table["plugins.core.events:event.current.record.get"] = lambda: record
+    p._eventcb_plugin_unloaded()
+    assert p.marker_callbacks == {}
+    assert p.terrain_color_maps == {}

@@ -244,8 +244,65 @@ async def test_area_map_draws_the_rooms_and_marks_the_current_room(web: Web) -> 
     }
     assert groups == {"1": "room unexplored", "2": "room current"}
     anchors = [query_of(a.get("href")) for a in root.iter(f"{SVG_NS}a")]
-    assert sorted(a["uid"][0] for a in anchors) == ["1", "2"]
+    assert {urlsplit(a.get("href") or "").path for a in root.iter(f"{SVG_NS}a")} == {f"{BASE}/area"}
+    assert all(a["uid"] == ["ar"] for a in anchors)
+    assert sorted(a["room"][0] for a in anchors) == ["1", "2"]
     assert "<script" not in svg
+
+
+def text_by_class(root: ET.Element, css: str) -> list[str]:
+    return [t.text or "" for t in root.iter(f"{SVG_NS}text") if t.get("class") == css]
+
+
+def panel_texts(root: ET.Element) -> list[str]:
+    panel = next((e for e in root.iter(f"{SVG_NS}svg") if e.get("class") == "panel"), None)
+    return [] if panel is None else [t.text or "" for t in panel.iter(f"{SVG_NS}text")]
+
+
+async def test_area_map_shows_markers_and_terrain_colours(web: Web) -> None:
+    plugin = web.harness.plugin
+    seed(plugin)
+    plugin._api_room_add({"uid": "1", "terrain": "forest"})
+    plugin._api_room_marker_register("game", lambda r: ["M" + r["uid"]])
+    plugin._api_terrain_color_register("game", {"forest": "#0a0"})
+    _, _, svg = await web.get(f"{BASE}/area?uid=ar")
+    root = ET.fromstring(svg)
+    assert sorted(text_by_class(root, "markers")) == ["M1", "M2"]
+    fills = {
+        (g.find(f"{SVG_NS}title").text or "").split()[0]: g.find(f"{SVG_NS}rect").get("fill")  # type: ignore[union-attr]
+        for g in root.iter(f"{SVG_NS}g")
+    }
+    assert fills["1"] == "#0a0"
+    assert fills["2"] == "#222"
+
+
+async def test_a_raising_marker_callback_still_serves_the_map(web: Web) -> None:
+    plugin = web.harness.plugin
+    seed(plugin)
+    plugin._api_room_marker_register("game", lambda r: 1 / 0)
+    status, _, svg = await web.get(f"{BASE}/area?uid=ar")
+    assert status == 200
+    assert text_by_class(ET.fromstring(svg), "markers") == []
+
+
+async def test_the_room_query_shows_the_panel_of_a_room_of_the_area(web: Web) -> None:
+    seed(web.harness.plugin)
+    _, _, svg = await web.get(f"{BASE}/area?uid=ar&room=2")
+    root = ET.fromstring(svg)
+    lines = panel_texts(root)
+    assert lines[0] == "room: 2 Cellar"
+    assert "room page" in lines
+    selected = [g for g in root.iter(f"{SVG_NS}g") if "selected" in (g.get("class") or "")]
+    assert len(selected) == 1
+    assert "<script" not in svg
+
+
+async def test_a_room_of_another_area_or_none_shows_no_panel(web: Web) -> None:
+    seed(web.harness.plugin)
+    for query in ("room=3", "room=nope", "room=", ""):
+        status, _, svg = await web.get(f"{BASE}/area?uid=ar&{query}")
+        assert status == 200
+        assert panel_texts(ET.fromstring(svg)) == []
 
 
 async def test_an_area_with_only_an_area_row_is_empty_not_404(web: Web) -> None:
