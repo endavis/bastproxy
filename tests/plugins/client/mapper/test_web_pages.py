@@ -159,11 +159,11 @@ def test_four_routes_are_added_under_the_plugin_path(harness: Harness) -> None:
     plugin = harness.plugin
     routes = RouteTable()
     added = register(plugin, routes)
-    assert sorted(added) == ["", "area", "find", "room"]
+    assert sorted(added) == ["", "areamap", "find", "roominfo"]
     assert plugin.web_paths == {
         "": BASE,
-        "area": f"{BASE}/area",
-        "room": f"{BASE}/room",
+        "areamap": f"{BASE}/areamap",
+        "roominfo": f"{BASE}/roominfo",
         "find": f"{BASE}/find",
     }
     assert routes.count() == 4
@@ -177,31 +177,31 @@ def test_only_the_entry_pages_are_listed(harness: Harness) -> None:
         sub: getattr(routes.match(path), "listed", None)
         for sub, path in harness.plugin.web_paths.items()
     }
-    assert listed == {"": True, "area": False, "room": False, "find": True}
+    assert listed == {"": True, "areamap": False, "roominfo": False, "find": True}
 
 
 async def test_the_index_leaves_out_the_pages_that_need_a_uid(web: Web) -> None:
     _, _, body = await web.get("/")
     assert f"href='{BASE}'" in body
     assert f"href='{BASE}/find'" in body
-    assert f"{BASE}/area" not in body
-    assert f"{BASE}/room" not in body
+    assert f"{BASE}/areamap" not in body
+    assert f"{BASE}/roominfo" not in body
 
 
 def test_a_refused_route_does_not_raise_and_is_not_linked(harness: Harness) -> None:
     plugin = harness.plugin
     routes = RouteTable()
-    register(plugin, routes, refuse={"room"})
-    assert "room" not in plugin.web_paths
+    register(plugin, routes, refuse={"roominfo"})
+    assert "roominfo" not in plugin.web_paths
     assert routes.count() == 3
-    assert plugin._web_link("room", "1", uid="1") == "1"
+    assert plugin._web_link("roominfo", "1", uid="1") == "1"
 
 
 # ---- access ----
 
 
 @pytest.mark.parametrize(
-    "path", [BASE, f"{BASE}/area?uid=ar", f"{BASE}/room?uid=1", f"{BASE}/find"]
+    "path", [BASE, f"{BASE}/areamap?uid=ar", f"{BASE}/roominfo?uid=1", f"{BASE}/find"]
 )
 async def test_every_route_needs_a_session_and_get(web: Web, path: str) -> None:
     seed(web.harness.plugin)
@@ -211,7 +211,7 @@ async def test_every_route_needs_a_session_and_get(web: Web, path: str) -> None:
     assert (status, headers["allow"]) == (405, "GET")
     status, headers, _ = await web.get(path)
     assert status == 200
-    expected = "image/svg+xml; charset=utf-8" if "/area" in path else "text/html; charset=utf-8"
+    expected = "image/svg+xml; charset=utf-8" if "/areamap" in path else "text/html; charset=utf-8"
     assert headers["content-type"] == expected
 
 
@@ -225,7 +225,7 @@ async def test_area_list(web: Web) -> None:
     assert table.heads == ["Area", "Name", "Rooms", "Unexplored"]
     first = table.rows[0]
     assert [c[0] for c in first] == ["ar", HOSTILE, "2", "1"]
-    assert urlsplit(first[0][1] or "").path == f"{BASE}/area"
+    assert urlsplit(first[0][1] or "").path == f"{BASE}/areamap"
     assert query_of(first[0][1]) == {"uid": ["ar"]}
     assert [r[0][0] for r in table.rows] == ["ar", "other"]
     _, _, filtered = await web.get(f"{BASE}?f_uid=oth&sort=rooms&dir=desc")
@@ -236,7 +236,7 @@ async def test_area_map_draws_the_rooms_and_marks_the_current_room(web: Web) -> 
     plugin = web.harness.plugin
     seed(plugin)
     plugin.current_room = "2"
-    _, _, svg = await web.get(f"{BASE}/area?uid=ar")
+    _, _, svg = await web.get(f"{BASE}/areamap?uid=ar")
     root = ET.fromstring(svg)
     groups = {
         (g.find(f"{SVG_NS}title").text or "").split()[0]: g.get("class")  # type: ignore[union-attr]
@@ -244,7 +244,8 @@ async def test_area_map_draws_the_rooms_and_marks_the_current_room(web: Web) -> 
     }
     assert groups == {"1": "room unexplored", "2": "room current"}
     anchors = [query_of(a.get("href")) for a in root.iter(f"{SVG_NS}a")]
-    assert {urlsplit(a.get("href") or "").path for a in root.iter(f"{SVG_NS}a")} == {f"{BASE}/area"}
+    hrefs = {urlsplit(a.get("href") or "").path for a in root.iter(f"{SVG_NS}a")}
+    assert hrefs == {f"{BASE}/areamap"}
     assert all(a["uid"] == ["ar"] for a in anchors)
     assert sorted(a["room"][0] for a in anchors) == ["1", "2"]
     assert "<script" not in svg
@@ -265,7 +266,7 @@ async def test_area_map_shows_markers_and_terrain_colours(web: Web) -> None:
     plugin._api_room_add({"uid": "1", "terrain": "forest"})
     plugin._api_room_marker_register("game", lambda r: ["M" + r["uid"]])
     plugin._api_terrain_color_register("game", {"forest": "#0a0"})
-    _, _, svg = await web.get(f"{BASE}/area?uid=ar")
+    _, _, svg = await web.get(f"{BASE}/areamap?uid=ar")
     root = ET.fromstring(svg)
     assert sorted(text_by_class(root, "markers")) == ["M1", "M2"]
     fills = {
@@ -280,14 +281,14 @@ async def test_a_raising_marker_callback_still_serves_the_map(web: Web) -> None:
     plugin = web.harness.plugin
     seed(plugin)
     plugin._api_room_marker_register("game", lambda r: 1 / 0)
-    status, _, svg = await web.get(f"{BASE}/area?uid=ar")
+    status, _, svg = await web.get(f"{BASE}/areamap?uid=ar")
     assert status == 200
     assert text_by_class(ET.fromstring(svg), "markers") == []
 
 
 async def test_the_room_query_shows_the_panel_of_a_room_of_the_area(web: Web) -> None:
     seed(web.harness.plugin)
-    _, _, svg = await web.get(f"{BASE}/area?uid=ar&room=2")
+    _, _, svg = await web.get(f"{BASE}/areamap?uid=ar&room=2")
     root = ET.fromstring(svg)
     lines = panel_texts(root)
     assert lines[0] == "room: 2 Cellar"
@@ -300,21 +301,21 @@ async def test_the_room_query_shows_the_panel_of_a_room_of_the_area(web: Web) ->
 async def test_a_room_of_another_area_or_none_shows_no_panel(web: Web) -> None:
     seed(web.harness.plugin)
     for query in ("room=3", "room=nope", "room=", ""):
-        status, _, svg = await web.get(f"{BASE}/area?uid=ar&{query}")
+        status, _, svg = await web.get(f"{BASE}/areamap?uid=ar&{query}")
         assert status == 200
         assert panel_texts(ET.fromstring(svg)) == []
 
 
 async def test_an_area_with_only_an_area_row_is_empty_not_404(web: Web) -> None:
     web.harness.plugin._api_area_add("bare", "Bare")
-    status, _, svg = await web.get(f"{BASE}/area?uid=bare")
+    status, _, svg = await web.get(f"{BASE}/areamap?uid=bare")
     assert status == 200
     ET.fromstring(svg)
 
 
 async def test_room_page(web: Web) -> None:
     seed(web.harness.plugin)
-    status, _, body = await web.get(f"{BASE}/room?uid=1")
+    status, _, body = await web.get(f"{BASE}/roominfo?uid=1")
     assert status == 200
     assert "&lt;script&gt;alert(&#x27;x&#x27;)&lt;/script&gt;" in body
     assert "<script>alert" not in body
@@ -328,7 +329,7 @@ async def test_room_page(web: Web) -> None:
     assert rows["s"][3][0] == "4"
     assert rows["s"][4][0] == '{"level": 5}'
     assert rows["w"][1] == ("99", None)  # an exit to a room that is not stored has no link
-    _, _, sorted_body = await web.get(f"{BASE}/room?uid=1&sort=dir&dir=desc")
+    _, _, sorted_body = await web.get(f"{BASE}/roominfo?uid=1&sort=dir&dir=desc")
     assert [r[0][0] for r in cells(sorted_body).rows] == ["w", "s", "n", "e"]
 
 
@@ -347,8 +348,8 @@ async def test_find_page_filters_and_pages(web: Web) -> None:
     _, _, filtered = await web.get(f"{BASE}/find?name=hall&f_area=oth&f_uid=12")
     assert [r[0][0] for r in cells(filtered).rows] == ["12"]
     first = cells(body).rows[0]
-    assert urlsplit(first[0][1] or "").path == f"{BASE}/room"
-    assert urlsplit(first[2][1] or "").path == f"{BASE}/area"
+    assert urlsplit(first[0][1] or "").path == f"{BASE}/roominfo"
+    assert urlsplit(first[2][1] or "").path == f"{BASE}/areamap"
     assert query_of(first[2][1]) == {"uid": ["other"]}
     _, _, none = await web.get(f"{BASE}/find?name=%27+OR+1%3D1+--")
     assert cells(none).rows == []
@@ -362,13 +363,13 @@ async def test_find_rejects_a_long_name_and_a_bad_filter(web: Web) -> None:
 
 
 @pytest.mark.parametrize(
-    "path", [f"{BASE}/area", f"{BASE}/room", f"{BASE}/area?uid=", f"{BASE}/room?uid="]
+    "path", [f"{BASE}/areamap", f"{BASE}/roominfo", f"{BASE}/areamap?uid=", f"{BASE}/roominfo?uid="]
 )
 async def test_a_missing_uid_is_400(web: Web, path: str) -> None:
     assert (await web.get(path))[0] == 400
 
 
-@pytest.mark.parametrize("path", [f"{BASE}/area?uid=nope", f"{BASE}/room?uid=nope"])
+@pytest.mark.parametrize("path", [f"{BASE}/areamap?uid=nope", f"{BASE}/roominfo?uid=nope"])
 async def test_an_unknown_uid_is_404(web: Web, path: str) -> None:
     seed(web.harness.plugin)
     status, _, body = await web.get(path)
@@ -377,18 +378,18 @@ async def test_an_unknown_uid_is_404(web: Web, path: str) -> None:
 
 
 async def test_a_hostile_uid_in_the_error_message_is_escaped(web: Web) -> None:
-    status, _, body = await web.get(f"{BASE}/room?uid=%3Cscript%3E")
+    status, _, body = await web.get(f"{BASE}/roominfo?uid=%3Cscript%3E")
     assert status == 404
     assert "<script>" not in body
 
 
 async def test_every_page_escapes_hostile_names(web: Web) -> None:
     seed(web.harness.plugin)
-    for path in [BASE, f"{BASE}/room?uid=1", f"{BASE}/find?name=script"]:
+    for path in [BASE, f"{BASE}/roominfo?uid=1", f"{BASE}/find?name=script"]:
         _, _, body = await web.get(path)
         assert "<script>alert" not in body
         assert "&lt;script&gt;" in body
-    _, _, svg = await web.get(f"{BASE}/area?uid=ar")
+    _, _, svg = await web.get(f"{BASE}/areamap?uid=ar")
     assert "<script>" not in svg
     assert "&lt;script&gt;" in svg
 
@@ -431,7 +432,7 @@ async def test_a_large_area_is_drawn_off_the_loop(
             await asyncio.sleep(0.02)
 
     task = asyncio.create_task(ticker())
-    status, _, svg = await web.get(f"{BASE}/area?uid=big")
+    status, _, svg = await web.get(f"{BASE}/areamap?uid=big")
     done.set()
     await task
     assert status == 200

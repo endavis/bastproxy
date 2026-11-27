@@ -13,6 +13,7 @@ import logging
 from collections.abc import Callable, Mapping
 from functools import partial
 from typing import Any
+from urllib.parse import quote
 
 # Project
 from bastproxy.libs.api import AddAPI
@@ -60,11 +61,11 @@ FIND_LIMIT = 50
 MAX_WEB_NAME = 200
 WEB_ROUTES: dict[str, str] = {
     "": "Areas",
-    "area": "Area map",
-    "room": "Room",
+    "areamap": "Area map",
+    "roominfo": "Room",
     "find": "Find rooms",
 }
-UNLISTED_WEB_ROUTES: frozenset[str] = frozenset({"area", "room"})
+UNLISTED_WEB_ROUTES: frozenset[str] = frozenset({"areamap", "roominfo"})
 
 EVENT_PREFIX = "ev_plugins.client.mapper_"
 EVENTS: dict[str, tuple[str, dict[str, str]]] = {
@@ -137,6 +138,8 @@ class MapperPlugin(BasePlugin):
         self._search_token = 0
         self._unload_token = 0
         self.web_paths: dict[str, str] = {}
+        self.web_providers: set[str] = set()
+        self.published_area: tuple[str, str] | None = None
         self.mismatches: dict[str, dict[str, Any]] = {}
 
     @RegisterPluginHook("uninitialize")
@@ -189,8 +192,8 @@ class MapperPlugin(BasePlugin):
         add = self.api("plugins.core.web:web.route.add")
         handlers: dict[str, tuple[Callable[..., Any], list[dict[str, str]] | None]] = {
             "": (self._web_areas, AREA_COLUMNS),
-            "area": (self._web_area, None),
-            "room": (self._web_room, EXIT_COLUMNS),
+            "areamap": (self._web_area, None),
+            "roominfo": (self._web_room, EXIT_COLUMNS),
             "find": (self._web_find, FIND_COLUMNS),
         }
         self.web_paths = {}
@@ -206,6 +209,85 @@ class MapperPlugin(BasePlugin):
             )
             if path:
                 self.web_paths[subpath] = path
+
+    @RegisterPluginHook("after_load", priority=60)
+    def _phook_add_web_providers(self) -> None:
+        """Offer the current room and area as data providers (#871); a refusal is logged."""
+        add = self.api("plugins.core.web:web.provider.add")
+        self.web_providers = set()
+        for name, snapshot in (("room", self._provider_room), ("area", self._provider_area)):
+            if add(self.plugin_id, name, snapshot):
+                self.web_providers.add(name)
+        self.published_area = self._current_area()
+
+    def _provider_room(self) -> dict[str, Any] | None:
+        """The room the character is in, or None when it is unknown or not stored."""
+        if self.current_room is None:
+            return None
+        room = self._api_room_get(self.current_room)
+        if room is None:
+            return None
+        return {
+            "uid": room["uid"],
+            "name": room["name"],
+            "area": room["area"],
+            "terrain": room["terrain"],
+            "x": room["x"],
+            "y": room["y"],
+            "z": room["z"],
+            "flags": list(room["flags"]),
+            "markers": self._room_markers(room),
+            "exits": [
+                {
+                    "dir": e["dir"],
+                    "touid": e["touid"],
+                    "unexplored": e["touid"] == UNKNOWN_UID,
+                }
+                for e in room["exits"]
+            ],
+        }
+
+    def _current_area(self) -> tuple[str, str] | None:
+        """The uid and name of the area of the current room, or None."""
+        if self.current_room is None:
+            return None
+        room = self.store.get_room(self.current_room)
+        if room is None or not room["area"]:
+            return None
+        area = self.store.get_area(room["area"])
+        return (room["area"], area["name"] if area else "")
+
+    def _provider_area(self) -> dict[str, Any] | None:
+        """The area of the current room with the url of its map page, or None."""
+        current = self._current_area()
+        if current is None:
+            return None
+        uid, name = current
+        path = self.web_paths.get("areamap")
+        return {
+            "uid": uid,
+            "name": name,
+            "url": f"{path}?uid={quote(uid, safe='')}" if path else None,
+        }
+
+    def _provider_changed(self, name: str) -> None:
+        """Tell the web plugin a provider changed, when it was accepted."""
+        if name in self.web_providers:
+            self.api("plugins.core.web:web.provider.changed.raise")(self.plugin_id, name)
+
+    def _current_changed(self, *, room: bool = True) -> None:
+        """The current room's data changed: raise ``room``, and ``area`` when it differs."""
+        if room:
+            self._provider_changed("room")
+        area = self._current_area()
+        if area != self.published_area:
+            self.published_area = area
+            self._provider_changed("area")
+
+    def _room_touched(self, uid: str) -> None:
+        """A stored room was written: tell the providers when it is the current room."""
+        if uid == self.current_room:
+            self._current_changed()
 
     # web pages
     def _web_link(self, subpath: str, text: str, **params: str) -> Any:
@@ -254,7 +336,7 @@ class MapperPlugin(BasePlugin):
         """The areas with their room and unexplored counts."""
         rows = [
             [
-                self._web_link("area", a["uid"], uid=a["uid"]),
+                self._web_link("areamap", a["uid"], uid=a["uid"]),
                 a["name"],
                 a["rooms"],
                 a["unexplored"],
@@ -284,8 +366,8 @@ class MapperPlugin(BasePlugin):
             rooms,
             view,
             current=self.current_room,
-            room_path=self.web_paths.get("room"),
-            area_path=self.web_paths.get("area"),
+            room_path=self.web_paths.get("roominfo"),
+            area_path=self.web_paths.get("areamap"),
             selected=selected,
             terrain_colors=terrain_colors,
         )
@@ -319,7 +401,7 @@ class MapperPlugin(BasePlugin):
             if touid == UNKNOWN_UID:
                 to_cell: Any = "unexplored"
             elif target is not None:
-                to_cell = self._web_link("room", touid, uid=touid)
+                to_cell = self._web_link("roominfo", touid, uid=touid)
             else:
                 to_cell = touid
             requirement = json.dumps(exit_["requirement"]) if exit_["requirement"] else ""
@@ -351,9 +433,9 @@ class MapperPlugin(BasePlugin):
         escape = self.api("plugins.core.colors:colorcode.escape")
         rows = [
             [
-                self._web_link("room", r["uid"], uid=r["uid"]),
+                self._web_link("roominfo", r["uid"], uid=r["uid"]),
                 r["name"],
-                self._web_link("area", r["area"], uid=r["area"]) if r["area"] else "",
+                self._web_link("areamap", r["area"], uid=r["area"]) if r["area"] else "",
                 r["terrain"],
             ]
             for r in found
@@ -417,6 +499,7 @@ class MapperPlugin(BasePlugin):
             log_to([self.plugin_id], logging.WARNING, "_api_area_add: bad area uid")
             return False
         self.store.add_area(uid, name, flags, details or {})
+        self._current_changed(room=False)
         return True
 
     @AddAPI("area.get", description="get an area")
@@ -439,6 +522,10 @@ class MapperPlugin(BasePlugin):
         for room_uid in rooms:
             self.graph.remove_room(room_uid)
             self.mismatches.pop(room_uid, None)
+        if self.current_room in rooms:
+            self._current_changed()
+        else:
+            self._current_changed(room=False)
         return len(rooms)
 
     # rooms
@@ -491,6 +578,7 @@ class MapperPlugin(BasePlugin):
             if str(direction) not in held:
                 self._add_exit(uid, str(direction), str(touid), 1, None, keep_details=True)
         self._raise("room_changed", uid=uid, new=stored is None)
+        self._room_touched(uid)
         if accept or not differences:
             self.mismatches.pop(uid, None)
             return True
@@ -510,6 +598,7 @@ class MapperPlugin(BasePlugin):
         flags = room["flags"] if flag in room["flags"] else [*room["flags"], flag]
         self.store.set_room_flags(uid, flags)
         self.graph.set_room(uid, flags)
+        self._room_touched(uid)
         return True
 
     @AddAPI("room.flag.remove", description="remove a flag from a room")
@@ -521,6 +610,7 @@ class MapperPlugin(BasePlugin):
         flags = [f for f in room["flags"] if f != flag]
         self.store.set_room_flags(uid, flags)
         self.graph.set_room(uid, flags)
+        self._room_touched(uid)
         return True
 
     @AddAPI("room.get", description="get a room with its exits and note")
@@ -539,6 +629,8 @@ class MapperPlugin(BasePlugin):
         removed = self.store.remove_room(uid)
         self.graph.remove_room(uid)
         self.mismatches.pop(uid, None)
+        if removed:
+            self._room_touched(uid)
         return removed
 
     @AddAPI("room.list", description="list rooms by name, area and flag")
@@ -578,6 +670,7 @@ class MapperPlugin(BasePlugin):
         previous = self.current_room
         self.current_room = uid
         self._raise("room_arrived", uid=uid, previous=previous)
+        self._current_changed()
         if self._setting("shownotes") and (note := self.store.get_note(uid)):
             SendDataDirectlyToClient(
                 NetworkData([f"Note: {note}"], owner_id=self.plugin_id),
@@ -624,7 +717,10 @@ class MapperPlugin(BasePlugin):
         An unexplored touid never overwrites a known one. This function returns True
         when the exit was stored.
         """
-        return self._add_exit(fromuid, dir, touid, cost, requirement, keep_details=False)
+        added = self._add_exit(fromuid, dir, touid, cost, requirement, keep_details=False)
+        if added:
+            self._room_touched(str(fromuid))
+        return added
 
     def _add_exit(
         self,
@@ -711,13 +807,18 @@ class MapperPlugin(BasePlugin):
             )
         if result.changed():
             self._raise("map_changed", **result.counts())
+            if self.current_room is not None:
+                self._current_changed()
         return result.counts()
 
     @AddAPI("exit.remove", description="remove an exit")
     def _api_exit_remove(self, fromuid: str, dir: str) -> bool:
         """Remove an exit. This function returns True when it existed."""
         self.graph.remove_exit(fromuid, dir)
-        return self.store.remove_exit(fromuid, dir)
+        removed = self.store.remove_exit(fromuid, dir)
+        if removed:
+            self._room_touched(fromuid)
+        return removed
 
     @AddAPI("exit.list", description="list the exits of a room")
     def _api_exit_list(self, fromuid: str) -> list[dict[str, Any]]:
