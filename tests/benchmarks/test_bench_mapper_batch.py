@@ -57,6 +57,9 @@ def test_bench_map_batch_add(benchmark: Any, tmp_path: Path) -> None:
     db = create_database(OWNER, "map", TABLES, directory=tmp_path)
     plugin.store = MapStore(db)
     plugin.graph = MapGraph()
+    plugin.current_room = None
+    plugin.web_providers = set()
+    plugin.published_area = None
     rooms = _rooms()
     releases: list[str] = []
     db._conn().set_trace_callback(

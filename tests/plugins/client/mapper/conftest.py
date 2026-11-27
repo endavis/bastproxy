@@ -106,6 +106,9 @@ def harness(tmp_path: Path) -> Iterator[Harness]:
     plugin.marker_callbacks = {}
     plugin.terrain_color_maps = {}
     plugin.mismatches = {}
+    plugin.web_providers = set()
+    plugin.published_area = None
+    plugin.web_paths = {}
     db = create_database(OWNER, "map", TABLES, directory=tmp_path)
     plugin.store = MapStore(db)
     plugin.graph = MapGraph()
