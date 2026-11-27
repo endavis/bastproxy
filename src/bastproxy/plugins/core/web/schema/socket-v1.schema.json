@@ -1,0 +1,549 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/endavis/bastproxy/schema/socket-v1.schema.json",
+  "title": "bastproxy client socket messages, protocol v1",
+  "description": "Every JSON text frame on the /ws client socket. The proxy sends the serverMessage types, a client sends the clientMessage types. Documented in docs/web-server.md (Client socket) and ADR-0025.",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/serverMessage"
+    },
+    {
+      "$ref": "#/$defs/clientMessage"
+    }
+  ],
+  "$defs": {
+    "version": {
+      "description": "The protocol version; a message with another v gets a version error.",
+      "type": "integer",
+      "const": 1
+    },
+    "span": {
+      "description": "A run of text with one style, as plugins.core.colors ansicode.to.spans returns it. fg and bg are 256-colour indexes or null.",
+      "type": "object",
+      "required": [
+        "text",
+        "fg",
+        "bg",
+        "bold"
+      ],
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "fg": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            }
+          ]
+        },
+        "bg": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            }
+          ]
+        },
+        "bold": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "reply": {
+      "description": "The reply of a command: one list of spans per output line, and the data the command set (else null).",
+      "type": "object",
+      "required": [
+        "lines",
+        "data"
+      ],
+      "properties": {
+        "lines": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/span"
+            }
+          }
+        },
+        "data": {}
+      },
+      "additionalProperties": false
+    },
+    "callId": {
+      "description": "The id a client picks for a call; the result and a refusal carry it back.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        {
+          "type": "integer"
+        }
+      ]
+    },
+    "callReason": {
+      "description": "Why a call failed (result with ok false): unknown_command, bad_arguments, failed (the command returned a failure), error (it raised), timeout (no answer in 25 seconds).",
+      "enum": [
+        "unknown_command",
+        "bad_arguments",
+        "failed",
+        "error",
+        "timeout"
+      ]
+    },
+    "errorCode": {
+      "description": "The code of an error message. An error never closes the socket.",
+      "enum": [
+        "bad_json",
+        "bad_message",
+        "version",
+        "unknown_type",
+        "internal",
+        "unknown_topic",
+        "snapshot_failed",
+        "topic_removed",
+        "view_only"
+      ]
+    },
+    "closeCode": {
+      "description": "The websocket close codes the proxy uses.",
+      "oneOf": [
+        {
+          "const": 1001,
+          "description": "a shutdown or plugin unload"
+        },
+        {
+          "const": 1003,
+          "description": "a binary frame (only text is accepted)"
+        },
+        {
+          "const": 1007,
+          "description": "a text frame that is not utf-8"
+        },
+        {
+          "const": 1008,
+          "description": "a full send queue or output queue"
+        },
+        {
+          "const": 1009,
+          "description": "a message over 64 KiB"
+        },
+        {
+          "const": 1011,
+          "description": "no traffic for 40 seconds, or a socket that could not be registered"
+        },
+        {
+          "const": 4001,
+          "description": "the session ended (logout or no longer valid)"
+        }
+      ]
+    },
+    "serverMessage": {
+      "description": "A message the proxy sends.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/hello"
+        },
+        {
+          "$ref": "#/$defs/output"
+        },
+        {
+          "$ref": "#/$defs/snapshot"
+        },
+        {
+          "$ref": "#/$defs/update"
+        },
+        {
+          "$ref": "#/$defs/result"
+        },
+        {
+          "$ref": "#/$defs/error"
+        }
+      ]
+    },
+    "clientMessage": {
+      "description": "A message a client sends.",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/input"
+        },
+        {
+          "$ref": "#/$defs/cols"
+        },
+        {
+          "$ref": "#/$defs/subscribe"
+        },
+        {
+          "$ref": "#/$defs/unsubscribe"
+        },
+        {
+          "$ref": "#/$defs/call"
+        }
+      ]
+    },
+    "hello": {
+      "description": "The first message of a socket. The connection id is new for each socket; the session id is never sent.",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "protocol",
+        "proxy",
+        "connection",
+        "topics"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/version"
+        },
+        "type": {
+          "const": "hello"
+        },
+        "protocol": {
+          "type": "integer",
+          "const": 1
+        },
+        "proxy": {
+          "type": "string"
+        },
+        "connection": {
+          "type": "string"
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "output": {
+      "description": "One line of MUD output as spans; record is the line's id.",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "spans",
+        "prompt",
+        "record"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/version"
+        },
+        "type": {
+          "const": "output"
+        },
+        "spans": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/span"
+          }
+        },
+        "prompt": {
+          "type": "boolean"
+        },
+        "record": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "snapshot": {
+      "description": "The whole value of a provider topic, the answer to subscribe.",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "topic",
+        "data"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/version"
+        },
+        "type": {
+          "const": "snapshot"
+        },
+        "topic": {
+          "type": "string"
+        },
+        "data": {}
+      },
+      "additionalProperties": false
+    },
+    "update": {
+      "description": "The whole value of a subscribed topic after a change.",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "topic",
+        "data"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/version"
+        },
+        "type": {
+          "const": "update"
+        },
+        "topic": {
+          "type": "string"
+        },
+        "data": {}
+      },
+      "additionalProperties": false
+    },
+    "result": {
+      "description": "The answer to a call. With ok false it carries a reason.",
+      "oneOf": [
+        {
+          "description": "A call that succeeded.",
+          "type": "object",
+          "required": [
+            "v",
+            "type",
+            "id",
+            "ok",
+            "reply"
+          ],
+          "properties": {
+            "v": {
+              "$ref": "#/$defs/version"
+            },
+            "type": {
+              "const": "result"
+            },
+            "id": {
+              "$ref": "#/$defs/callId"
+            },
+            "ok": {
+              "const": true
+            },
+            "reply": {
+              "$ref": "#/$defs/reply"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "description": "A call that failed.",
+          "type": "object",
+          "required": [
+            "v",
+            "type",
+            "id",
+            "ok",
+            "reply",
+            "reason"
+          ],
+          "properties": {
+            "v": {
+              "$ref": "#/$defs/version"
+            },
+            "type": {
+              "const": "result"
+            },
+            "id": {
+              "$ref": "#/$defs/callId"
+            },
+            "ok": {
+              "const": false
+            },
+            "reply": {
+              "$ref": "#/$defs/reply"
+            },
+            "reason": {
+              "$ref": "#/$defs/callReason"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "error": {
+      "description": "An error; for names the client message type it answers, topic the topic it is about, id the call it refuses.",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "code",
+        "message"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/version"
+        },
+        "type": {
+          "const": "error"
+        },
+        "code": {
+          "$ref": "#/$defs/errorCode"
+        },
+        "message": {
+          "type": "string"
+        },
+        "for": {
+          "type": "string"
+        },
+        "topic": {
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/callId"
+        }
+      },
+      "additionalProperties": false
+    },
+    "input": {
+      "description": "Text for the MUD, one line per line of text.",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "text"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/version"
+        },
+        "type": {
+          "const": "input"
+        },
+        "text": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "cols": {
+      "description": "The window size, like telnet NAWS; rows defaults to 25.",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "cols"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/version"
+        },
+        "type": {
+          "const": "cols"
+        },
+        "cols": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "rows": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        }
+      },
+      "additionalProperties": false
+    },
+    "subscribe": {
+      "description": "Follow a provider topic.",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "topic"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/version"
+        },
+        "type": {
+          "const": "subscribe"
+        },
+        "topic": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "unsubscribe": {
+      "description": "Stop following a topic; no reply.",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "topic"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/version"
+        },
+        "type": {
+          "const": "unsubscribe"
+        },
+        "topic": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "call": {
+      "description": "Run a command; args is a string or a list of strings, and may be left out.",
+      "type": "object",
+      "required": [
+        "v",
+        "type",
+        "id",
+        "command"
+      ],
+      "properties": {
+        "v": {
+          "$ref": "#/$defs/version"
+        },
+        "type": {
+          "const": "call"
+        },
+        "id": {
+          "$ref": "#/$defs/callId"
+        },
+        "command": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 256
+        },
+        "args": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
