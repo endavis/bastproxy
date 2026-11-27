@@ -1,11 +1,15 @@
 """The web plugin's route api, login and logout commands, and status (#424)."""
 
+import json
 import logging
 from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from websockets.asyncio.client import connect
+from websockets.exceptions import ConnectionClosed, InvalidStatus
 
+from bastproxy import __version__
 from bastproxy.plugins.core.web.plugin._web import WebPlugin
 
 from .conftest import get_request, http_get
@@ -210,3 +214,61 @@ async def test_status_with_no_routes(stub: Any) -> None:
     text = status_text(stub)
     assert "Routes        : 0" in text.splitlines()
     assert "Sessions      : 0" in text.splitlines()
+
+
+async def _login_sid(stub: Any) -> str:
+    token = stub.logins.issue()
+    _, headers, _ = await http_get(stub.port, get_request(f"/login/{token}"))
+    return str(headers["set-cookie"].split(";")[0].split("=", 1)[1])
+
+
+async def _open_socket(stub: Any, sid: str, origin: str) -> Any:
+    return await connect(
+        f"ws://127.0.0.1:{stub.port}/ws",
+        origin=origin,  # type: ignore[arg-type]
+        additional_headers={"Cookie": f"bpsession={sid}"},
+        open_timeout=5,
+    )
+
+
+async def test_logout_closes_sockets_and_the_reply_is_unchanged(stub: Any) -> None:
+    await stub._restart(0)
+    stub.settings["publicurl"] = f"http://127.0.0.1:{stub.port}"
+    sid = await _login_sid(stub)
+    conn = await _open_socket(stub, sid, f"http://127.0.0.1:{stub.port}")
+    assert json.loads(await conn.recv())["type"] == "hello"
+    assert "Sockets       : 1" in status_text(stub)
+    result = WebPlugin._command_logout(stub)
+    assert result.message == ["ended 1 web session"]
+    with pytest.raises(ConnectionClosed):
+        await conn.recv()
+    assert (conn.close_code, conn.close_reason) == (4001, "session ended")
+
+
+async def test_status_shows_zero_sockets(stub: Any) -> None:
+    await stub._restart(0)
+    assert "Sockets       : 0" in status_text(stub)
+
+
+async def test_unload_closes_sockets_with_1001(stub: Any) -> None:
+    await stub._restart(0)
+    stub.settings["publicurl"] = f"http://127.0.0.1:{stub.port}"
+    sid = await _login_sid(stub)
+    conn = await _open_socket(stub, sid, f"http://127.0.0.1:{stub.port}")
+    await conn.recv()
+    WebPlugin._phook_close_server(stub)
+    with pytest.raises(ConnectionClosed):
+        await conn.recv()
+    assert conn.close_code == 1001
+
+
+async def test_the_allowed_origin_follows_publicurl(stub: Any) -> None:
+    stub.settings["publicurl"] = "https://Proxy.example.net:443/"
+    await stub._restart(0)
+    sid = await _login_sid(stub)
+    with pytest.raises(InvalidStatus) as info:
+        await _open_socket(stub, sid, f"http://127.0.0.1:{stub.port}")
+    assert info.value.response.status_code == 403
+    conn = await _open_socket(stub, sid, "https://proxy.example.net")
+    assert json.loads(await conn.recv())["proxy"] == __version__
+    await conn.close()

@@ -14,6 +14,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
+from bastproxy import __version__
 from bastproxy.libs.api import AddAPI
 from bastproxy.libs.logger import log_to
 from bastproxy.libs.validators import int_range
@@ -38,6 +39,7 @@ from bastproxy.plugins.core.web.libs._tls import (
     is_loopback,
     validate_bind_address,
 )
+from bastproxy.plugins.core.web.libs._ws import CLOSE_SESSION_ENDED
 
 
 class WebPlugin(BasePlugin):
@@ -165,6 +167,8 @@ class WebPlugin(BasePlugin):
             secure_cookie=self._secure_cookie,
             session_seconds=lambda: int(str(self._setting("sessionhours"))) * 3600,
             client_dir=self._client_dir,
+            allowed_origins=lambda: [self._base_url()],
+            proxy_version=__version__,
         )
 
     def _client_dir(self) -> Path | None:
@@ -463,6 +467,7 @@ class WebPlugin(BasePlugin):
     def _command_logout(self) -> CommandResult:
         """End all sessions."""
         count = self.sessions.clear()
+        self.server.sockets.close_all(CLOSE_SESSION_ENDED, "session ended")
         return CommandResult(True, [f"ended {count} web session{'' if count == 1 else 's'}"])
 
     @AddParser(description="show the state of the web server")
@@ -503,6 +508,7 @@ class WebPlugin(BasePlugin):
             + (f" - {escape(topics)}" if topics else "")
         )
         message.append(f"{'Sessions':<14}: {self.sessions.count()}")
+        message.append(f"{'Sockets':<14}: {self.server.sockets.count()}")
         return CommandResult(True, message)
 
     @staticmethod
