@@ -240,7 +240,7 @@ The `clientdir` setting points at a built web client. Files under it are served 
 - **Off by default.** With `clientdir` empty, or not an existing directory, every `/webclient/` request is 404. With a directory and no session it is 401, before any file is touched.
 - **Refusals are 404.** Every path segment must match `^[A-Za-z0-9_][A-Za-z0-9._-]*$`, so `..`, hidden files, empty segments and backslashes are refused. The file must resolve inside the directory (a symlink that leaves it is refused), be a regular file, and be at most 8 MiB. A larger file is also logged.
 - **Types.** Only these suffixes are served: `.html`, `.js`, `.css`, `.json`, `.svg`, `.png` and `.woff2`. Anything else, such as `.map`, is 404.
-- **Policy.** Files served here carry the client policy described under Response headers; `Cache-Control: no-store` and the other headers stay. The segment `webclient` is reserved, so no plugin route or provider can use it.
+- **Policy.** Files served here carry the client policy described under Response headers; `Cache-Control: no-store` and the other headers stay. The segment `webclient` is reserved, so no plugin route or provider can use it. The same goes for `data`, which prefixes every data provider page.
 
 ## Client socket
 
@@ -259,7 +259,7 @@ The listener also answers a WebSocket upgrade at `/ws`, on the same port, TLS an
 
 ## Data providers
 
-A plugin can register its data once with `web.provider.add`. The data is then served as a page behind the session, as JSON or as a table, at a path built from the plugin id; see [Data providers](claude/web_system.md#data-providers). `#bp.core.web.status` shows a `Providers` line, and the index at `/` lists provider pages with the routes.
+A plugin can register its data once with `web.provider.add`. The data is then served as a page behind the session, as JSON or as a table, at `/data/` followed by a path built from the plugin id (a route and a provider of one name never meet); see [Data providers](claude/web_system.md#data-providers). `#bp.core.web.status` shows a `Providers` line, and the index at `/` lists provider pages with the routes, at their `/data/...` paths.
 
 ## Related
 

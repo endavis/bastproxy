@@ -117,6 +117,11 @@ def test_status_counts_providers_apart_from_routes(stub: Any) -> None:
     assert "Providers     : 1 - test.caller.mobs" in text
 
 
+def test_status_shows_the_path_of_each_provider(stub: Any) -> None:
+    add(stub, event=EVENT)
+    assert "test.caller.mobs (/data/test/caller/mobs)" in status_text(stub)
+
+
 async def _socket(stub: Any) -> Any:
     await stub._restart(0)
     stub.settings["publicurl"] = f"http://127.0.0.1:{stub.port}"
