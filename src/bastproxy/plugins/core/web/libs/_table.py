@@ -9,7 +9,7 @@
 # Standard Library
 import math
 import re
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from http import HTTPStatus
 from typing import Any
@@ -148,3 +148,73 @@ def parse_table_query(query: Mapping[str, str], columns: Sequence[Column]) -> Ta
         if value:
             filters[name] = _parse_filter(by_name[name], value)
     return TableQuery(sort, direction == "desc", filters, page, count)
+
+
+def _cell_text(cell: Any) -> str:
+    if isinstance(cell, Mapping):
+        return str(cell["text"])
+    return "" if cell is None else str(cell)
+
+
+def _number(cell: Any) -> float | None:
+    try:
+        number = float(_cell_text(cell))
+    except ValueError:
+        return None
+    return number if math.isfinite(number) else None
+
+
+def page_rows(
+    rows: Sequence[Sequence[Any]], columns: Sequence[Column], query: TableQuery
+) -> tuple[list[Sequence[Any]], int]:
+    """Filter, sort and page ``rows`` the way a table request asks.
+
+    A text filter matches a case-insensitive part of the cell text (the text of a link cell),
+    an int or float filter matches an equal number. A text sort ignores case, a number sort
+    puts cells without a number last. Returns the page and the number of rows that matched.
+    """
+    index = {column.name: i for i, column in enumerate(columns)}
+    kinds = {column.name: column.type for column in columns}
+    kept: list[Sequence[Any]] = []
+    for row in rows:
+        for name, wanted in query.filters.items():
+            if name not in index:
+                continue
+            cell = row[index[name]]
+            if kinds[name] == "text":
+                if str(wanted).casefold() not in _cell_text(cell).casefold():
+                    break
+            elif _number(cell) != float(wanted):
+                break
+        else:
+            kept.append(row)
+    if query.sort is not None and query.sort in index:
+        position = index[query.sort]
+        if kinds[query.sort] == "text":
+            kept.sort(key=lambda r: _cell_text(r[position]).casefold(), reverse=query.descending)
+        else:
+            numbered = [r for r in kept if _number(r[position]) is not None]
+            blank = [r for r in kept if _number(r[position]) is None]
+            numbered.sort(key=lambda r: _number(r[position]) or 0.0, reverse=query.descending)
+            kept = numbered + blank
+    return kept[query.offset : query.offset + query.count], len(kept)
+
+
+def escape_cells(rows: Sequence[Sequence[Any]], escape: Callable[[str], str]) -> list[list[Any]]:
+    """Return the rows with the text of every cell colour-code escaped.
+
+    The web plugin converts cell text with the colour converter, so provider text must be
+    escaped first. Numbers and ``None`` pass through; a link cell keeps its href.
+    """
+    result: list[list[Any]] = []
+    for row in rows:
+        cells: list[Any] = []
+        for cell in row:
+            if isinstance(cell, Mapping):
+                cells.append({"text": escape(str(cell["text"])), "href": cell["href"]})
+            elif isinstance(cell, str):
+                cells.append(escape(cell))
+            else:
+                cells.append(cell)
+        result.append(cells)
+    return result

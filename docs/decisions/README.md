@@ -173,3 +173,4 @@ The Issue contains the full discussion; the ADR summarizes the outcome.
 | [0022](0022-the-web-plugin-serves-token-links-and-session-gated-plugin-routes-over-a-get-only-standard-library-server.md) | The web plugin serves token links and session-gated plugin routes over a GET-only standard-library server | Accepted |
 | [0023](0023-user-plugin-packages-import-under-their-own-name.md) | User plugin packages import under their own name | Accepted |
 | [0024](0024-plugins-add-commands-under-another-plugins-name-only-when-that-plugin-accepts-them.md) | Plugins add commands under another plugin's name only when that plugin accepts them | Accepted |
+| [0025](0025-the-web-plugin-serves-pages-and-a-client-websocket-from-one-listener-with-shared-sessions-and-data-providers.md) | The web plugin serves pages and a client WebSocket from one listener, with shared sessions and data providers | Proposed |

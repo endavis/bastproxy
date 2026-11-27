@@ -9,7 +9,13 @@ from typing import Any
 import pytest
 
 from bastproxy.plugins.core.web.libs._server import WebServer
-from bastproxy.plugins.core.web.libs._store import LoginTokens, PageStore, RouteTable, SessionStore
+from bastproxy.plugins.core.web.libs._store import (
+    LoginTokens,
+    PageStore,
+    ProviderListeners,
+    RouteTable,
+    SessionStore,
+)
 from bastproxy.plugins.core.web.plugin._web import WebPlugin
 
 from .conftest import MakeCert, get_request, http_get, needs_openssl, to_html
@@ -22,6 +28,10 @@ HELPERS = (
     "_schedule_restart",
     "_build_app",
     "_secure_cookie",
+    "_sync_provider_events",
+    "_provider_event_fired",
+    "_refuse",
+    "_escape",
 )
 
 
@@ -48,6 +58,8 @@ class _Api:
                 return str(args[0]).replace("@", "@@")
             if name == "plugins.core.events:event.current.record.get":
                 return {"plugin_id": stub.unloaded}
+            if name == "plugins.core.events:event.current.name.get":
+                return stub.current_event
             if name == "libs.api:caller.owner.get":
                 return stub.caller
             if name == "libs.plugins.loader:plugin.id.is.valid":
@@ -78,10 +90,12 @@ class _Stub:
         }
         self.caller = "plugins.test.caller"
         self.unloaded = ""
+        self.current_event = ""
         self.added: dict[str, Any] = {}
         self.calls: list[tuple[str, tuple[Any, ...], dict[str, Any]]] = []
         self.pages = PageStore()
         self.routes = RouteTable()
+        self.provider_listeners = ProviderListeners()
         self.logins = LoginTokens()
         self.sessions = SessionStore()
         self.server = WebServer()
