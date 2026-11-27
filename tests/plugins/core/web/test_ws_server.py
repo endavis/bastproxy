@@ -472,3 +472,54 @@ async def test_send_wait_wakes_when_the_socket_closes_while_waiting(
         assert not waiter.done()
         server_side.close(1000, "bye")
         assert await asyncio.wait_for(waiter, OPEN_TIMEOUT) is False
+
+
+@pytest.mark.parametrize("view_only", [True, False])
+async def test_a_socket_takes_its_view_only_flag_from_the_read_before_the_handshake(
+    view_only: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The session is read once before the handshake is written; the socket keeps that state."""
+    now = [0.0]
+    sessions = SessionStore(clock=lambda: now[0])
+    server = WebServer()
+    origin = ""
+    app = WebApp(
+        PageStore(),
+        sessions=sessions,
+        allowed_origins=lambda: [origin + "/"],
+        proxy_version="9.9.9",
+    )
+    port = await server.start("127.0.0.1", 0, app, None)
+    origin = f"http://127.0.0.1:{port}"
+    sid = sessions.create(10, view_only=view_only)
+    opened: list[_ws.SocketConnection] = []
+    seen = asyncio.Event()
+
+    def on_open(connection: _ws.SocketConnection) -> None:
+        opened.append(connection)
+        seen.set()
+
+    server.sockets.add_listener(on_open, lambda _connection: None)
+    original = asyncio.StreamWriter.drain
+    state = {"drains": 0}
+
+    async def drain(self: asyncio.StreamWriter) -> None:
+        if state["drains"] == 0:
+            now[0] = 100.0  # the session's lifetime passes while the handshake drains
+        state["drains"] += 1
+        await original(self)
+
+    monkeypatch.setattr(asyncio.StreamWriter, "drain", drain)
+    try:
+        async with await connect(
+            f"ws://127.0.0.1:{port}/ws",
+            origin=origin,  # type: ignore[arg-type]
+            additional_headers={"Cookie": f"bpsession={sid}"},
+            open_timeout=OPEN_TIMEOUT,
+        ):
+            async with asyncio.timeout(OPEN_TIMEOUT):
+                await seen.wait()
+        assert opened[0].view_only is view_only
+    finally:
+        server.close()
+        await server.wait_closed()

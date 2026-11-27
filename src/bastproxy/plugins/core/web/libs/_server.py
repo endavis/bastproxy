@@ -119,6 +119,10 @@ class WebApp:
             return message_response(HTTPStatus.FORBIDDEN, "the Origin is not allowed")
         return None
 
+    def session_state(self, request: Request) -> bool | None:
+        """Read the request's session once: None without a live session, else True if view-only."""
+        return self.sessions.lookup(request.cookies.get(SESSION_COOKIE))
+
     def hello(self, connection_id: str) -> dict[str, Any]:
         """The first message of a socket; it carries a connection id, never the session id."""
         return envelope(
@@ -364,6 +368,9 @@ class WebServer:
         refusal = app.check_upgrade(request)
         if refusal is not None:
             return refusal
+        view_only = app.session_state(request)
+        if view_only is None:
+            return app._unauthorized()
         try:
             protocol, status = handshake(head)
         except ValueError:
@@ -382,7 +389,7 @@ class WebServer:
             request.cookies.get(SESSION_COOKIE),
             app.sessions.is_valid,
             app.hello,
-            view_only=app.sessions.is_view_only(request.cookies.get(SESSION_COOKIE)),
+            view_only=view_only,
         )
         self._socket_writers.add(writer)
         self.sockets.add(connection)
