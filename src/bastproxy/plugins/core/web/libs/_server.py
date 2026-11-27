@@ -17,12 +17,15 @@ import inspect
 import json
 from collections.abc import Callable
 from http import HTTPStatus
+from pathlib import Path
 from typing import Any
 
 from bastproxy.libs.logger import get_logger
 
 from . import _http
+from ._client import read_client_file
 from ._http import (
+    CLIENT_CSP,
     HttpError,
     Request,
     Response,
@@ -33,7 +36,7 @@ from ._http import (
     text_response,
 )
 from ._render import render_index, render_page, render_table, render_table_page
-from ._store import LoginTokens, PageStore, Route, RouteTable, SessionStore
+from ._store import CLIENT_SEGMENT, LoginTokens, PageStore, Route, RouteTable, SessionStore
 from ._table import FILTER_PREFIX, TABLE_KEYS, parse_table_query
 from ._tls import LOGGER_NAME, CertManager
 
@@ -45,6 +48,7 @@ PAGE_PREFIX = "/p/"
 LOGIN_PREFIX = "/login/"
 SESSION_COOKIE = "bpsession"
 TABLE_SCRIPT_PATH = "/static/table.js"
+CLIENT_PREFIX = f"/{CLIENT_SEGMENT}/"
 HANDLER_ERROR_STATUSES = (HTTPStatus.BAD_REQUEST, HTTPStatus.NOT_FOUND)
 
 
@@ -69,6 +73,7 @@ class WebApp:
         login_command: Callable[[], str] = lambda: "the login command",
         secure_cookie: Callable[[], bool] = lambda: False,
         session_seconds: Callable[[], float] = lambda: 12 * 3600,
+        client_dir: Callable[[], Path | None] = lambda: None,
     ) -> None:
         self.pages = pages
         self.routes = routes if routes is not None else RouteTable()
@@ -78,6 +83,7 @@ class WebApp:
         self._login_command = login_command
         self._secure_cookie = secure_cookie
         self._session_seconds = session_seconds
+        self._client_dir = client_dir
 
     async def dispatch(self, request: Request) -> Response:
         """Answer one request.
@@ -96,6 +102,8 @@ class WebApp:
             return self._login(path[len(LOGIN_PREFIX) :])
         elif path == TABLE_SCRIPT_PATH:
             return Response(HTTPStatus.OK, "text/javascript; charset=utf-8", _table_script())
+        elif path.startswith(CLIENT_PREFIX):
+            return await self._client(request, path[len(CLIENT_PREFIX) :])
         elif path == "/":
             if not self._has_session(request):
                 return self._unauthorized()
@@ -105,6 +113,19 @@ class WebApp:
                 return self._unauthorized()
             return await self._call_handler(route, request)
         return message_response(HTTPStatus.NOT_FOUND)
+
+    async def _client(self, request: Request, rest: str) -> Response:
+        """Serve one file of the configured client bundle; every refusal is a 404."""
+        base = self._client_dir()
+        if base is None or not base.is_dir():
+            return message_response(HTTPStatus.NOT_FOUND)
+        if not self._has_session(request):
+            return self._unauthorized()
+        found = await asyncio.to_thread(read_client_file, base, rest)
+        if found is None:
+            return message_response(HTTPStatus.NOT_FOUND)
+        body, content_type = found
+        return Response(HTTPStatus.OK, content_type, body, csp=CLIENT_CSP)
 
     def _has_session(self, request: Request) -> bool:
         return self.sessions.is_valid(request.cookies.get(SESSION_COOKIE))

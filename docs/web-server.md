@@ -39,6 +39,7 @@ Change them with `#bp.core.web.set <name> <value>`. A change to `enabled`, `port
 | `keyfile` | empty | The private key file (PEM) of the certificate. |
 | `publicurl` | empty | The base URL put in links, for example `https://bastproxy.example.net:9998`. The proxy cannot know the name a client reaches it by. When empty, links use the bind address and port. When it starts with `https://`, the session cookie is marked `Secure`. |
 | `sessionhours` | `12` | How long a login session lasts, in hours (1 to 720). It is read when a session starts. |
+| `clientdir` | empty | The directory of the built web client, served at `/webclient/` (see [Web client bundle](#web-client-bundle)). A relative path is relative to `BASTPROXY_HOME`. Empty turns it off. It is read on each request. |
 
 **Plain HTTP is allowed only on a loopback bind** (`127.0.0.1`, `::1`, `localhost`). If `bindaddress` is anything else and `certfile` or `keyfile` is empty, the server refuses to start and logs an error that names the setting. There is no override. Setting only one of `certfile` and `keyfile` also refuses to start.
 
@@ -69,6 +70,8 @@ Change them with `#bp.core.web.set <name> <value>`. A change to `enabled`, `port
   | `Referrer-Policy` | `no-referrer` |
   | `Cache-Control` | `no-store` |
   | `X-Content-Type-Options` | `nosniff` |
+
+  The one exception is a successful file response under `/webclient/`: its `Content-Security-Policy` is the policy above plus `connect-src 'self'; font-src 'self'`. Errors there carry the policy above.
 
   The page you get from a link contains no script at all. Only table pages of routes load a script (see below).
 - **One static script.** The web plugin serves `/static/table.js`, a vanilla JS file shipped in the package, without a session. It is the only script: pages never carry an inline script, and the policy `script-src 'self'` allows nothing else. Table pages link to it with `<script src="/static/table.js" defer>`. It sorts and filters the rows in the browser when a result fits on one page, writes only through `textContent` and moved nodes, and never uses `innerHTML`, `eval` or `fetch`. Any other `/static/` path returns 404. Plugins cannot add scripts.
@@ -213,6 +216,15 @@ server {
 ```
 
 Set `publicurl` to `https://bastproxy.example.net`.
+
+## Web client bundle
+
+The `clientdir` setting points at a built web client. Files under it are served at `/webclient/`, behind the session; `/webclient/` itself serves `index.html`. (`/client/` is not used: the mapper plugin serves pages under `/client/mapper`.)
+
+- **Off by default.** With `clientdir` empty, or not an existing directory, every `/webclient/` request is 404. With a directory and no session it is 401, before any file is touched.
+- **Refusals are 404.** Every path segment must match `^[A-Za-z0-9_][A-Za-z0-9._-]*$`, so `..`, hidden files, empty segments and backslashes are refused. The file must resolve inside the directory (a symlink that leaves it is refused), be a regular file, and be at most 8 MiB. A larger file is also logged.
+- **Types.** Only these suffixes are served: `.html`, `.js`, `.css`, `.json`, `.svg`, `.png` and `.woff2`. Anything else, such as `.map`, is 404.
+- **Policy.** Files served here carry the client policy described under Response headers; `Cache-Control: no-store` and the other headers stay. The segment `webclient` is reserved, so no plugin route or provider can use it.
 
 ## Data providers
 

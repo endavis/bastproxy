@@ -32,6 +32,8 @@ CSP = (
     "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
     "img-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"
 )
+# the policy for the web client bundle: the page above plus its own fetches and fonts
+CLIENT_CSP = CSP + "; connect-src 'self'; font-src 'self'"
 SECURITY_HEADERS: tuple[tuple[str, str], ...] = (
     ("Content-Security-Policy", CSP),
     ("Referrer-Policy", "no-referrer"),
@@ -71,6 +73,7 @@ class Response:
     content_type: str
     body: bytes
     headers: list[tuple[str, str]] = field(default_factory=list)
+    csp: str = CSP
 
 
 def _parse_cookies(value: str) -> dict[str, str]:
@@ -147,7 +150,8 @@ def serialize(response: Response) -> bytes:
         ("Content-Type", response.content_type),
         ("Content-Length", str(len(response.body))),
         ("Connection", "close"),
-        *SECURITY_HEADERS,
+        ("Content-Security-Policy", response.csp),
+        *SECURITY_HEADERS[1:],
         *response.headers,
     ]
     head = f"HTTP/1.1 {response.status} {phrase}\r\n"

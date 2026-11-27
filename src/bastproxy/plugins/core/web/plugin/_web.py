@@ -107,6 +107,14 @@ class WebPlugin(BasePlugin):
             "how many hours a login session lasts",
             validator=int_range(1, 720, label="hours"),
         )
+        add(
+            self.plugin_id,
+            "clientdir",
+            "",
+            str,
+            "the directory of the built web client, served at /webclient/; "
+            "relative to BASTPROXY_HOME, empty is off",
+        )
 
     @RegisterPluginHook("after_load", priority=80)
     def _phook_start(self) -> None:
@@ -156,7 +164,14 @@ class WebPlugin(BasePlugin):
             ),
             secure_cookie=self._secure_cookie,
             session_seconds=lambda: int(str(self._setting("sessionhours"))) * 3600,
+            client_dir=self._client_dir,
         )
+
+    def _client_dir(self) -> Path | None:
+        """The web client directory, or None when the setting is empty."""
+        if not str(self._setting("clientdir")):
+            return None
+        return self._path("clientdir")
 
     def _secure_cookie(self) -> bool:
         """The session cookie is Secure with TLS, or when the public url is https."""
