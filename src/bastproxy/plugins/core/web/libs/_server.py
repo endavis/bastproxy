@@ -266,6 +266,7 @@ class WebServer:
     def __init__(self) -> None:
         self.tls = False
         self.address = ""
+        self.port = 0
         self._server: asyncio.Server | None = None
         self._closed: asyncio.Server | None = None
         self._cert: CertManager | None = None
@@ -297,6 +298,7 @@ class WebServer:
         self.address = ", ".join(
             f"[{name}]:{bound}" if ":" in name else f"{name}:{bound}" for name in hosts
         )
+        self.port = bound
         return bound
 
     def close(self) -> None:
@@ -313,6 +315,7 @@ class WebServer:
         self._writers.clear()
         self.tls = False
         self.address = ""
+        self.port = 0
 
     async def wait_closed(self) -> None:
         """Wait until the listener closed by ``close`` is fully shut down."""
