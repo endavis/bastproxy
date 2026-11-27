@@ -93,3 +93,24 @@ def test_length_difference() -> None:
 def test_length_difference_counts_wide_characters_as_two_columns() -> None:
     assert length_difference("日本") == -2
     assert length_difference("@R日本@w") == 2
+
+
+def test_html_adjacent_codes_make_separate_spans() -> None:
+    assert to_html("a@rb@rc") == (
+        "a<span style='color:#cd0000'>b</span><span style='color:#cd0000'>c</span>"
+    )
+
+
+def test_html_xterm_8_shows_grey_but_bold_black_does_not() -> None:
+    assert to_html("@R@x8t") == "<span style='color:#7f7f7f'>t</span>"
+    assert to_html("@x8t") == "<span style='color:#7f7f7f'>t</span>"
+
+
+def test_html_bright_and_black_letters() -> None:
+    assert to_html("@Wt") == "<span style='color:#ffffff'>t</span>"
+    assert to_html("@kt") == "<span style='color:#000000'>t</span>"
+
+
+def test_html_codes_without_text_and_sgr_are_dropped() -> None:
+    assert to_html("@r@g") == ""
+    assert to_html("a\x1b[31mb") == "ab"

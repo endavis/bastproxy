@@ -1,6 +1,6 @@
 ---
 title: Colour System
-description: The colour-code syntax, the one tokenizer that defines it, and how conversion, stripping, validation, html and width are built on it
+description: The colour-code syntax, the one tokenizer that defines it, and how conversion, stripping, validation, spans, html and width are built on it
 audience:
   - contributors
   - ai-agents
@@ -48,9 +48,28 @@ Notes:
 | `ansicode.strip` | Removes every terminal escape sequence (SGR, cursor movement, clearing, OSC 8 links, DCS, charset selection) through `wcwidth.strip_sequences`, called only in the tokenizer module, so an `@` before an escape cannot hide it. C0 controls (BEL, TAB, CR) and 8-bit C1 sequences are kept as written. |
 | `colorcode.to.ansicode` | Each code emits its own sequence in place. A code with no visible text after it is dropped. One `ESC [0m` closes the string if any sequence was emitted. A lowercase colour other than `@w` appends the active xterm background (`;48;5;N`), because `0;3x` clears it. `@w` is the general reset: it clears the background, and later codes do not bring it back. |
 | `colorcode.is.valid` | The string is exactly one `COLOR`, `XTERM_FG` or `XTERM_BG` token. |
-| `colorcode.to.html` | Escapes the visible text with `html.escape` and drops raw SGR sequences, so the result is safe inside an html element; foreground and background share one span; `@w`, `@D` and no colour give no foreground; `@w` also clears the background; colours reset on each line. |
+| `colorcode.to.spans` | A list of `{"text", "fg", "bg", "bold"}` dicts, built only on the tokenizer (see below). |
+| `ansicode.to.spans` | `ansicode.to.colorcode` followed by `colorcode.to.spans`, so it is as lossy as the first. Use it on a raw MUD line. |
+| `colorcode.to.html` | Renders the spans of each line: escapes the span text with `html.escape` and drops raw SGR sequences, so the result is safe inside an html element; foreground and background share one span; `@w`, `@D` and no colour give no foreground; `@w` also clears the background; colours reset on each line. |
 | `color.length.difference.get` | `len(text)` minus the display width of the visible text: the offset to add to a display width to get a `str.ljust` or format width. |
 | `ansicode.to.colorcode` | Follows SGR state across one line and writes `@` codes only before visible text (see below). Only SGR sequences are read (the tokenizer's `split_sgr`); every other terminal sequence is dropped from the text before `@` is escaped; the parameter rules are in `src/bastproxy/plugins/core/colors/libs/_sgr.py`. A literal `@` in the text is written as `@@` (the tokenizer's `escape_at`, also used by `colorcode.escape`), so `colorcode.strip` of the result gives back `ansicode.strip` of the input. A colour-matching trigger that matches `@` in MUD text writes `@@` in its regex. Parsing and diffing are cached, because every MUD line can go through it. |
+
+### Spans
+
+`colorcode.to.spans` turns a string into runs of visible text with the colour in force, so a client can get colour as data. `src/bastproxy/plugins/core/colors/libs/_spans.py` applies each token to a `(fg, bg, bold)` state that starts at `None, None, False` on every line; it never reads the text itself.
+
+| Key | Meaning |
+|---|---|
+| `text` | The visible text; not html-escaped. A plain `"\n"` span separates lines. |
+| `fg`, `bg` | A 256-colour index, or `None` for the default. |
+| `bold` | `True` after an uppercase letter code. |
+
+- A lowercase letter (`k r g y b m c w`) sets `fg` 0-7 and clears bold; an uppercase one (`D R G Y B M C W`) sets `fg` 8-15 and sets bold.
+- `@w` resets all three. `@xNNN` sets `fg` and clears bold; `@zNNN` sets `bg`.
+- A span ends at every code, even when the style is unchanged, and an empty span is never made. `SGR` and invalid tokens show nothing and do not split a span.
+- The tokenizer knows no other attribute, so these four keys are all there is.
+
+`colorcode.to.html` renders these spans, so the two cannot drift.
 
 ### `ansicode.to.colorcode` rules
 

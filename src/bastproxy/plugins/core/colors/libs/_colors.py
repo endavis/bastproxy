@@ -115,3 +115,9 @@ ALLCONVERTCOLORS = CONVERTCOLORS.copy()
 for item, ansi_code in CONVERTANSI.items():
     ALLCONVERTCOLORS[ansi_code] = item
     ALLCONVERTCOLORS[f"@{ansi_code}"] = item
+
+# colour letter -> 256-colour index: lowercase 0-7, uppercase (bold) 8-15
+LETTER_INDEX: dict[str, int] = {
+    **{letter: index for index, letter in enumerate("krgybmcw")},
+    **{letter: index + 8 for index, letter in enumerate("DRGYBMCW")},
+}
