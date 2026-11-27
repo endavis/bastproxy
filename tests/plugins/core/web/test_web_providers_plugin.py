@@ -1,5 +1,7 @@
 """The web plugin's provider api, events and status (#840)."""
 
+import asyncio
+import json
 import logging
 from typing import Any
 
@@ -9,6 +11,7 @@ from bastproxy.plugins.core.web.plugin._web import WebPlugin
 
 from .test_web_plugin import status_text
 from .test_web_plugin import stub as stub  # reason: reuse the fixture
+from .test_web_routes_plugin import _login_sid, _open_socket
 
 OWNER = "plugins.test.caller"
 EVENT = "ev_mobs_changed"
@@ -112,3 +115,63 @@ def test_status_counts_providers_apart_from_routes(stub: Any) -> None:
     text = status_text(stub)
     assert "Routes        : 0" in text
     assert "Providers     : 1 - test.caller.mobs" in text
+
+
+async def _socket(stub: Any) -> Any:
+    await stub._restart(0)
+    stub.settings["publicurl"] = f"http://127.0.0.1:{stub.port}"
+    sid = await _login_sid(stub)
+    return await _open_socket(stub, sid, f"http://127.0.0.1:{stub.port}")
+
+
+async def _recv(conn: Any) -> dict[str, Any]:
+    async with asyncio.timeout(5):
+        message: dict[str, Any] = json.loads(await conn.recv())
+    return message
+
+
+async def _send(conn: Any, kind: str, **fields: Any) -> None:
+    await conn.send(json.dumps({"v": 1, "type": kind, **fields}))
+
+
+async def test_hello_lists_the_topics_and_changed_raise_sends_an_update(stub: Any) -> None:
+    add(stub, "alpha")
+    add(stub, "mobs")
+    conn = await _socket(stub)
+    assert (await _recv(conn))["topics"] == ["test.caller.alpha", "test.caller.mobs"]
+    await _send(conn, "subscribe", topic="test.caller.mobs")
+    snapshot = await _recv(conn)
+    assert (snapshot["type"], snapshot["topic"], snapshot["data"]) == (
+        "snapshot",
+        "test.caller.mobs",
+        [["Orc", 5]],
+    )
+    WebPlugin._api_web_provider_changed_raise(stub, OWNER, "mobs")
+    update = await _recv(conn)
+    assert (update["type"], update["topic"]) == ("update", "test.caller.mobs")
+    await conn.close()
+
+
+async def test_unload_and_route_remove_send_topic_removed(stub: Any) -> None:
+    add(stub, "mobs")
+    add(stub, "other")
+    conn = await _socket(stub)
+    await _recv(conn)
+    for topic in ("test.caller.mobs", "test.caller.other"):
+        await _send(conn, "subscribe", topic=topic)
+        await _recv(conn)
+    stub.unloaded = OWNER
+    WebPlugin._eventcb_plugin_unloaded(stub)
+    removed = {(await _recv(conn))["topic"] for _ in range(2)}
+    assert removed == {"test.caller.mobs", "test.caller.other"}
+    add(stub, "again")
+    await _send(conn, "subscribe", topic="test.caller.again")
+    await _recv(conn)
+    assert WebPlugin._api_web_route_remove(stub, OWNER) == 1
+    error = await _recv(conn)
+    assert (error["type"], error["code"], error["topic"]) == (
+        "error",
+        "topic_removed",
+        "test.caller.again",
+    )
+    await conn.close()

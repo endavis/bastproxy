@@ -64,6 +64,7 @@ One listener keeps one port, one TLS setup and one login, and the upgrade check 
 - ADR-0022 is amended: the listener also accepts WebSocket upgrades, `/webclient/` has its own CSP, and providers sit alongside routes.
 - Snapshots run on the loop. A slow snapshot works on a copy with `asyncio.to_thread`, as route handlers do.
 - Output to a web client is held back by its socket. The per-client queue needs a limit, like a telnet client's.
+- Updates are debounced per topic with a trailing timer of 100 ms, so a burst of changes sends one update.
 - The protocol `v` is a contract with another repository. A change that breaks it bumps `v` and is recorded here.
 
 ## Related Issues
@@ -71,6 +72,7 @@ One listener keeps one port, one TLS setup and one login, and the upgrade check 
 - Issue #424: the internal web server (ADR-0022)
 - Issue #840: data providers
 - Issue #842: the client socket endpoint `/ws`
+- Issue #843: subscriptions to data providers over the socket
 - Issue #846: the client bundle served from `clientdir`
 - The core issues filed with this ADR, listed in its PR
 

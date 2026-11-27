@@ -33,6 +33,7 @@ from bastproxy.plugins.core.web.libs._store import (
     RouteTable,
     SessionStore,
 )
+from bastproxy.plugins.core.web.libs._subscribe import Subscriptions
 from bastproxy.plugins.core.web.libs._tls import (
     CertManager,
     cert_details,
@@ -54,6 +55,10 @@ class WebPlugin(BasePlugin):
         self.logins = LoginTokens()
         self.sessions = SessionStore()
         self.server = WebServer()
+        # a lazy lookup: self.routes is replaced when the plugin reloads
+        self.subscriptions = Subscriptions(
+            self.server.sockets, lambda: self.routes, self.provider_listeners
+        )
         self.cert: CertManager | None = None
         self._generation = 0
         self._lock = asyncio.Lock()
@@ -132,6 +137,7 @@ class WebPlugin(BasePlugin):
     def _phook_close_server(self) -> None:
         """Stop the listener before the base hook raises the unloaded events."""
         self._generation += 1
+        self.subscriptions.close()
         self.server.close()
         self.api("libs.asynch:task.add")(self.server.wait_closed(), f"{self.plugin_id}:close")
 
@@ -405,7 +411,7 @@ class WebPlugin(BasePlugin):
     @AddAPI("web.provider.list", description="list the provider topics")
     def _api_web_provider_list(self) -> list[str]:
         """Return the topics of all providers, sorted."""
-        return sorted(r.provider.topic for r in self.routes.providers() if r.provider)
+        return self.routes.topics()
 
     def _sync_provider_events(self, before: set[str]) -> None:
         """Register for the events providers now follow and drop those no one follows.
@@ -431,18 +437,22 @@ class WebPlugin(BasePlugin):
 
         @Yowner@w   = the plugin id
         """
+        return self._remove_routes(owner)
+
+    def _remove_routes(self, owner: str) -> int:
+        """Remove the routes of an owner, follow the events that changed, tell subscribers."""
         before = self.routes.provider_events()
+        topics = [r.provider.topic for r in self.routes.by_owner().get(owner, []) if r.provider]
         removed = self.routes.remove(owner)
         self._sync_provider_events(before)
+        self.subscriptions.removed(topics)
         return removed
 
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self) -> None:
         """A plugin was unloaded: drop its routes."""
         event_record = self.api("plugins.core.events:event.current.record.get")()
-        before = self.routes.provider_events()
-        removed = self.routes.remove(event_record["plugin_id"])
-        self._sync_provider_events(before)
+        removed = self._remove_routes(event_record["plugin_id"])
         if removed:
             log_to(
                 [self.plugin_id, event_record["plugin_id"]],
