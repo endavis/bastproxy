@@ -37,7 +37,7 @@ Change them with `#bp.core.web.set <name> <value>`. A change to `enabled`, `port
 | `bindaddress` | `127.0.0.1` | The addresses to listen on: an IP address or `localhost`, or several separated by commas (`0.0.0.0,::`). Duplicates and empty entries are refused. |
 | `certfile` | empty | The certificate file (PEM). Setting it, with `keyfile`, turns TLS on. A relative path is relative to `BASTPROXY_HOME`. |
 | `keyfile` | empty | The private key file (PEM) of the certificate. |
-| `publicurl` | empty | The base URL put in links, for example `https://bastproxy.example.net:9998`. The proxy cannot know the name a client reaches it by. When empty, links use the bind address and port. When it starts with `https://`, the session cookie is marked `Secure`. |
+| `publicurl` | empty | The base URL put in links, for example `https://bastproxy.example.net`. The proxy cannot know the name a client reaches it by. When empty, links use the bind address and port. When the proxy serves TLS itself and the value names no port, the listening port is added (`https://bastproxy.example.net` becomes `https://bastproxy.example.net:9998`), unless it is the scheme's default port (443 for `https`, 80 for `http`). A value with a port, and any value while the proxy serves plain HTTP (Setup B), is used as written. When it starts with `https://`, the session cookie is marked `Secure`. |
 | `sessionhours` | `12` | How long a login session lasts, in hours (1 to 720). It is read when a session starts. |
 | `clientdir` | empty | The directory of the built web client, served at `/webclient/` (see [Web client bundle](#web-client-bundle)). A relative path is relative to `BASTPROXY_HOME`. Empty turns it off. It is read on each request. |
 
@@ -49,7 +49,7 @@ Change them with `#bp.core.web.set <name> <value>`. A change to `enabled`, `port
 
 | Command | Does |
 | :--- | :--- |
-| `#bp.core.web.status` | Shows whether the server is running, on which address and port, and whether that is plain HTTP or TLS; the `publicurl`; in TLS mode the certificate's name, expiry and the file's modification time, when it was last reloaded, and the last reload error; and the number of pages held, the routes by owner, and the number of sessions. |
+| `#bp.core.web.status` | Shows whether the server is running, on which address and port, and whether that is plain HTTP or TLS; the `publicurl` and the effective URL links are built from; in TLS mode the certificate's name, expiry and the file's modification time, when it was last reloaded, and the last reload error; and the number of pages held, the routes by owner, and the number of sessions. |
 | `#bp.core.web.login` | Replies with a one-time login link, `<base>/login/<token>`. The command is not kept in the command history. When the server is not enabled it says so. |
 | `#bp.core.web.viewlogin` | Like `login`, but the link starts a view-only session: its sockets receive the MUD output but cannot send input. The command is not kept in the command history. |
 | `#bp.core.web.logout` | Ends every session and reports how many there were. |
@@ -116,9 +116,11 @@ Use this when you can give the proxy a certificate for a name that resolves to t
    #bp.core.web.set bindaddress 0.0.0.0
    #bp.core.web.set certfile certs/fullchain.pem
    #bp.core.web.set keyfile certs/key.pem
-   #bp.core.web.set publicurl https://bastproxy.example.net:9998
+   #bp.core.web.set publicurl https://bastproxy.example.net
    #bp.core.web.set enabled true
    ```
+
+   The proxy adds its listening port to `publicurl` here, because it serves TLS itself and the value has no port; write `https://bastproxy.example.net:9998` to state it yourself.
 
    Use the address of one interface instead of `0.0.0.0` to listen on one network only. `0.0.0.0` is IPv4 only and `::` is IPv6 only (asyncio sets `IPV6_V6ONLY`), so to serve both families on one port list both:
 
@@ -172,7 +174,7 @@ The name in `publicurl` has to be a name the certificate covers (its subject nam
 
 ## Setup B: a TLS front end
 
-Use this when something else handles TLS and the proxy stays on loopback. The proxy keeps its default `bindaddress` of `127.0.0.1`, serves plain HTTP, and has no certificate settings. Only `publicurl` is set, to the front end's HTTPS URL. The per-page tokens still protect pages from other devices that can reach the front end.
+Use this when something else handles TLS and the proxy stays on loopback. The proxy keeps its default `bindaddress` of `127.0.0.1`, serves plain HTTP, and has no certificate settings. Only `publicurl` is set, to the front end's HTTPS URL, which is used as written because the proxy serves plain HTTP. The per-page tokens still protect pages from other devices that can reach the front end.
 
 ### Tailscale
 
@@ -244,7 +246,7 @@ The `clientdir` setting points at a built web client. Files under it are served 
 
 The listener also answers a WebSocket upgrade at `/ws`, on the same port, TLS and connection cap (a socket counts as one connection). `GET /ws` without an upgrade is 404.
 
-- **Who may connect.** The `bpsession` cookie must be a live session, else 401. The `Origin` header must be present, appear once and equal the origin of `publicurl` (or of the address the server listens on when it is unset), compared with a lower-case scheme and host and the default port dropped; anything else is 403. Both refusals carry the usual security headers. A missing key is 400 and a missing `Connection: Upgrade` is 426.
+- **Who may connect.** The `bpsession` cookie must be a live session, else 401. The `Origin` header must be present, appear once and equal the origin of the effective base URL, which is `publicurl` with the TLS port rule above (or of the address the server listens on when it is unset), compared with a lower-case scheme and host and the default port dropped; anything else is 403. Both refusals carry the usual security headers. A missing key is 400 and a missing `Connection: Upgrade` is 426.
 - **Messages.** JSON text frames shaped `{"v": 1, "type": ...}`. The proxy sends `{"v":1,"type":"hello","protocol":1,"proxy":"<version>","connection":"<id>","topics":[...]}` first, where `topics` lists every provider topic (sorted; all sessions are equal today, so all of them). The connection id is new for each socket; the session id is never sent. A client message that is not valid JSON, not an object, has no string `type`, has a `v` other than the integer 1, or has a type nobody handles gets `{"v":1,"type":"error","code":...,"message":...}` (codes `bad_json`, `bad_message`, `version`, `unknown_type`, `internal`, with `for` naming the type when known). An error never closes the socket.
 - **Subscriptions.** `{"v":1,"type":"subscribe","topic":"<topic>"}` is answered with `{"v":1,"type":"snapshot","topic":...,"data":...}`, then each change of the provider sends `{"v":1,"type":"update","topic":...,"data":...}`. `data` is the whole value the provider's snapshot returns (v1 sends full snapshots, no diffs; table providers send their raw rows, without paging or colour escaping). Changes are debounced per topic: the first change starts a 100 ms timer and a burst inside it sends one update. `{"v":1,"type":"unsubscribe","topic":...}` stops updates; it has no reply and is safe to repeat. Subscribing again sends a fresh snapshot, and `update` never comes before `snapshot`. Errors carry the `topic` and, when answering a `subscribe`, `for: "subscribe"`: `bad_message` (no string topic), `unknown_topic`, `snapshot_failed` (the snapshot raised; only that topic is affected and an existing subscription stays), and `topic_removed` (the provider was unloaded or removed; the subscription is dropped). A subscription ends with the socket. Updates use the same send queue and its limit as every other message.
 - **A web client is a proxy client.** Each socket is registered with the clients plugin as type `websocket`, logged in at once (view-only for a view-only session). It shows in `#bp.core.clients.show` with Term Type `websocket`, and `#bp.core.proxy.details` lists it with `Type : websocket`. The MUD output reaches it after the same steps as a telnet client (gags, view-only filtering, `clients` and `exclude_clients`): `{"v":1,"type":"output","spans":[...],"prompt":false,"record":"<uuid>"}`, one per line, `spans` as `colorcode.to.spans` returns them, `prompt` true for a prompt line, `record` the line's uuid. Lines that are not text (telnet commands) are not sent.

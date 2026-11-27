@@ -205,3 +205,14 @@ async def test_a_failed_tls_handshake_does_not_stop_the_server(make_cert: MakeCe
     finally:
         server.close()
         await server.wait_closed()
+
+
+async def test_the_server_port_is_set_on_start_and_reset_on_close() -> None:
+    server = WebServer()
+    assert server.port == 0
+    bound = await server.start("127.0.0.1", 0, WebApp(PageStore()), None)
+    assert bound != 0
+    assert server.port == bound
+    server.close()
+    await server.wait_closed()
+    assert server.port == 0

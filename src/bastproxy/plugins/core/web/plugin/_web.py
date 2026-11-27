@@ -13,6 +13,7 @@ import ssl
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from bastproxy import __version__
 from bastproxy.libs.api import AddAPI
@@ -314,12 +315,31 @@ class WebPlugin(BasePlugin):
         """The base url for links: ``publicurl`` or the address the server listens on."""
         public = str(self._setting("publicurl")).rstrip("/")
         if public:
-            return public
+            return self._with_served_port(public)
         host = parse_bind_addresses(str(self._setting("bindaddress")))[0]
         if ":" in host:
             host = f"[{host}]"
         scheme = "https" if self.server.tls else "http"
         return f"{scheme}://{host}:{self._setting('port')}"
+
+    def _with_served_port(self, public: str) -> str:
+        """Add the TLS port to a ``publicurl`` that names none; else return it as written."""
+        if not self.server.tls or not self.server.port:
+            return public
+        parts = urlsplit(public)
+        try:
+            explicit = parts.port
+        except ValueError:
+            return public
+        if explicit is not None or not parts.hostname:
+            return public
+        default = 443 if parts.scheme == "https" else 80
+        if self.server.port == default:
+            return public
+        authority = parts.netloc
+        marker = "://"
+        start = public.index(marker) + len(marker)
+        return f"{public[:start]}{authority}:{self.server.port}{parts.path}"
 
     @AddAPI("web.page.add", description="publish a page and get its link")
     def _api_web_page_add(self, owner: str, title: str, lines: list[str] | str) -> str:
@@ -550,6 +570,7 @@ class WebPlugin(BasePlugin):
         message = [
             f"{'Server':<14}: {escape(state)}",
             f"{'Public url':<14}: {escape(str(self._setting('publicurl')) or '(not set)')}",
+            f"{'Effective url':<14}: {escape(self._base_url())}",
         ]
         if self.cert is not None:
             details = cert_details(self.cert.certfile, self.cert.keyfile)

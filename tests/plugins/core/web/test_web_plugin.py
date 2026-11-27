@@ -27,6 +27,7 @@ HELPERS = (
     "_path",
     "_client_dir",
     "_base_url",
+    "_with_served_port",
     "_restart",
     "_schedule_restart",
     "_build_app",
@@ -476,3 +477,42 @@ async def test_base_url_uses_the_first_address(stub: Any) -> None:
     assert stub._base_url() == "http://[::1]:9998"
     stub.settings["bindaddress"] = "127.0.0.1,::1"
     assert stub._base_url() == "http://127.0.0.1:9998"
+
+
+@pytest.mark.parametrize(
+    ("public", "tls", "port", "expected"),
+    [
+        ("https://bastproxy.example.net", True, 9998, "https://bastproxy.example.net:9998"),
+        ("https://h.example/sub/", True, 9998, "https://h.example:9998/sub"),
+        ("https://h.example:8443", True, 9998, "https://h.example:8443"),
+        ("https://h.example", False, 9998, "https://h.example"),
+        ("https://h.example", True, 443, "https://h.example"),
+        ("http://h.example", True, 80, "http://h.example"),
+        ("https://[2001:db8::1]", True, 9998, "https://[2001:db8::1]:9998"),
+        ("https://[2001:db8::1]:8443/x", True, 9998, "https://[2001:db8::1]:8443/x"),
+    ],
+)
+def test_publicurl_gets_the_tls_port_only_when_it_names_none(
+    stub: Any, public: str, tls: bool, port: int, expected: str
+) -> None:
+    stub.settings["publicurl"] = public
+    stub.server.tls = tls
+    stub.server.port = port
+    assert stub._base_url() == expected
+
+
+def test_the_allowed_origin_is_the_effective_base_url(stub: Any) -> None:
+    stub.settings["publicurl"] = "https://bastproxy.example.net"
+    stub.server.tls = True
+    stub.server.port = 9998
+    app = stub._build_app()
+    assert list(app._allowed_origins()) == ["https://bastproxy.example.net:9998"]
+
+
+def test_status_shows_the_effective_url(stub: Any) -> None:
+    stub.settings["publicurl"] = "https://bastproxy.example.net"
+    stub.server.tls = True
+    stub.server.port = 9998
+    lines = status_text(stub).splitlines()
+    assert f"{'Public url':<14}: https://bastproxy.example.net" in lines
+    assert f"{'Effective url':<14}: https://bastproxy.example.net:9998" in lines
