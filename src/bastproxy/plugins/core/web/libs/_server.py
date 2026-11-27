@@ -15,7 +15,7 @@ import html
 import importlib.resources
 import inspect
 import json
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Sequence
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any
@@ -279,8 +279,13 @@ class WebServer:
         """True while the listener is accepting connections."""
         return self._server is not None and self._server.is_serving()
 
-    async def start(self, host: str, port: int, app: WebApp, cert: CertManager | None) -> int:
-        """Start listening and return the bound port (a port of 0 picks a free one)."""
+    async def start(
+        self, host: str | Sequence[str], port: int, app: WebApp, cert: CertManager | None
+    ) -> int:
+        """Start listening and return the bound port (a port of 0 picks a free one).
+
+        A list of hosts shares one port; with a port of 0 the port comes from the first socket.
+        """
         self._app = app
         self._cert = cert
         self._server = await asyncio.start_server(
@@ -288,7 +293,10 @@ class WebServer:
         )
         self.tls = cert is not None
         bound: int = self._server.sockets[0].getsockname()[1]
-        self.address = f"{host}:{bound}"
+        hosts = [host] if isinstance(host, str) else list(host)
+        self.address = ", ".join(
+            f"[{name}]:{bound}" if ":" in name else f"{name}:{bound}" for name in hosts
+        )
         return bound
 
     def close(self) -> None:

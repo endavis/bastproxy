@@ -10,8 +10,10 @@ import pytest
 from bastproxy.plugins.core.web.libs import _tls
 from bastproxy.plugins.core.web.libs._tls import (
     CertManager,
+    all_loopback,
     cert_details,
     is_loopback,
+    parse_bind_addresses,
     validate_bind_address,
 )
 
@@ -147,3 +149,32 @@ def test_cert_details_unavailable_for_a_missing_file(tmp_path: Path) -> None:
     details = cert_details(tmp_path / "no.pem", tmp_path / "no.key")
     assert details["state"] == "unavailable"
     assert details["mtime"] is None
+
+
+@pytest.mark.parametrize(
+    "value", ["127.0.0.1,::1", " 127.0.0.1 , ::1 ", "localhost,::1", "0.0.0.0,::"]
+)  # reason: the wildcard addresses are the dual-stack example
+def test_valid_bind_address_lists(value: str) -> None:
+    assert validate_bind_address(value) == ""
+
+
+@pytest.mark.parametrize(
+    "value",
+    ["127.0.0.1,", ",127.0.0.1", "127.0.0.1,,::1", "127.0.0.1,bad", "127.0.0.1,127.0.0.1"],
+)
+def test_invalid_bind_address_lists(value: str) -> None:
+    assert validate_bind_address(value) != ""
+
+
+def test_duplicate_is_compared_by_normalized_address() -> None:
+    assert "more than once" in validate_bind_address("::1,0:0:0:0:0:0:0:1")
+    assert "more than once" in validate_bind_address("localhost,LOCALHOST")
+
+
+def test_parse_bind_addresses_strips() -> None:
+    assert parse_bind_addresses(" 127.0.0.1 , ::1") == ["127.0.0.1", "::1"]
+
+
+def test_all_loopback() -> None:
+    assert all_loopback(["127.0.0.1", "::1", "localhost"])
+    assert not all_loopback(["127.0.0.1", "0.0.0.0"])  # reason: a mixed list is not loopback

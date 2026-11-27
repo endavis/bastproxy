@@ -38,8 +38,9 @@ from bastproxy.plugins.core.web.libs._store import (
 from bastproxy.plugins.core.web.libs._subscribe import Subscriptions
 from bastproxy.plugins.core.web.libs._tls import (
     CertManager,
+    all_loopback,
     cert_details,
-    is_loopback,
+    parse_bind_addresses,
     validate_bind_address,
 )
 from bastproxy.plugins.core.web.libs._ws import CLOSE_SESSION_ENDED
@@ -102,7 +103,8 @@ class WebPlugin(BasePlugin):
             "bindaddress",
             "127.0.0.1",
             str,
-            "the address to listen on; anything but a loopback address needs a certificate",
+            "the addresses to listen on, an IP address or localhost, comma-separated for "
+            "several (0.0.0.0,::); anything but loopback addresses needs a certificate",
             validator=validate_bind_address,
         )
         add(
@@ -237,7 +239,7 @@ class WebPlugin(BasePlugin):
             await self.server.wait_closed()
             if generation != self._generation or not self._setting("enabled"):
                 return
-            host = str(self._setting("bindaddress"))
+            hosts = parse_bind_addresses(str(self._setting("bindaddress")))
             port = int(str(self._setting("port")))
             has_cert = bool(self._setting("certfile"))
             has_key = bool(self._setting("keyfile"))
@@ -248,13 +250,13 @@ class WebPlugin(BasePlugin):
                     "web server not started: certfile and keyfile must both be set",
                 )
                 return
-            if not has_cert and not is_loopback(host):
+            if not has_cert and not all_loopback(hosts):
                 log_to(
                     [self.plugin_id],
                     logging.ERROR,
-                    "web server not started: bindaddress %s is not a loopback address, "
+                    "web server not started: bindaddress %s is not all loopback addresses, "
                     "so certfile and keyfile must be set (plain http is only allowed on loopback)",
-                    host,
+                    ", ".join(hosts),
                 )
                 return
             cert: CertManager | None = None
@@ -271,13 +273,13 @@ class WebPlugin(BasePlugin):
                     )
                     return
             try:
-                await self.server.start(host, port, self._build_app(), cert)
+                await self.server.start(hosts, port, self._build_app(), cert)
             except OSError as exc:
                 log_to(
                     [self.plugin_id],
                     logging.ERROR,
                     "web server not started: cannot listen on %s port %s: %s",
-                    host,
+                    ", ".join(hosts),
                     port,
                     exc,
                 )
@@ -300,7 +302,7 @@ class WebPlugin(BasePlugin):
         public = str(self._setting("publicurl")).rstrip("/")
         if public:
             return public
-        host = str(self._setting("bindaddress"))
+        host = parse_bind_addresses(str(self._setting("bindaddress")))[0]
         if ":" in host:
             host = f"[{host}]"
         scheme = "https" if self.server.tls else "http"

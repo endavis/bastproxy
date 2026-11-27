@@ -31,7 +31,7 @@ This ADR records the whole design so the three parts follow one decision.
 - **The server starts in a queued task.** asyncio's accept callback copies the context current when `start_server` is called, so a server started from a command would give every connection that command's record context. Start and restart go through `libs.asynch:task.add`, which creates the task with a fresh context.
 - **Unload order.** An `uninitialize` hook at priority 10 closes the listener, aborts open connections and bumps a generation counter so a queued start exits, before the base hook at 100 raises `ev_plugin_unloaded`.
 - **Page links with tokens, not the password.** `plugins.core.web:web.page.add(owner, title, lines) -> url` stores a page in memory (at most 50, one hour, oldest dropped first) behind `/p/<secrets.token_urlsafe(32)>`. The link is the credential. The proxy password is never used over HTTP. The API returns `""` when the server is disabled so callers can say so. Pages are rendered once when added.
-- **Plain HTTP only on loopback.** A bind address that is not loopback (`localhost` or an IP literal that is loopback) needs `certfile` and `keyfile`; otherwise the server refuses to start and logs why. There is no override.
+- **Plain HTTP only on loopback.** `bindaddress` may be a comma-separated list (issue #861); the rule holds for every entry. A bind address that is not loopback (`localhost` or an IP literal that is loopback) needs `certfile` and `keyfile`; otherwise the server refuses to start and logs why. There is no override.
 - **Certificate reload per connection.** In TLS mode each connection calls `StreamWriter.start_tls` with the context current at that moment, which is rebuilt when either file's modification time changed. A reload that fails keeps the previous context and logs an error. `#bp.core.web.reload` forces a reload.
 - **Certificate details from an in-memory handshake.** The standard library has no public decoder for a PEM certificate. `status` runs a TLS handshake between a server and a client `SSLObject` joined by `ssl.MemoryBIO` pairs and reads the client's `getpeercert()`. A verify code of 10 shows `expired`; any other failure shows the file's modification time and `details unavailable`.
 - **Request limits.** Head at most 8 KiB, 10 s read timeout, 10 s TLS handshake timeout, at most 32 connections, no body read, `Connection: close`. A method other than GET returns 405 with `Allow: GET`.
@@ -74,6 +74,7 @@ Tokens in the URL give a link that works in any browser and expires, without sen
 - Issue #766: core mapper pages (SVG area map, room lookup)
 - Issue #840: data providers sit alongside routes in the same table (ADR-0025)
 - Issue #842: `/ws` is answered on the same listener, with the same sessions (ADR-0025)
+- Issue #861: `bindaddress` takes a comma-separated list, such as `0.0.0.0,::`; the loopback rule applies to every entry, so plain http needs all of them loopback
 - endavis/bastproxy-aardwolf#127: Aardwolf mapper pages
 - endavis/bastproxy-aardwolf#128: statdb tables and charts
 

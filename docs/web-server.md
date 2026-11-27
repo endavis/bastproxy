@@ -34,7 +34,7 @@ Change them with `#bp.core.web.set <name> <value>`. A change to `enabled`, `port
 | :--- | :--- | :--- |
 | `enabled` | `False` | Run the server. |
 | `port` | `9998` | The port to listen on (1 to 65535). |
-| `bindaddress` | `127.0.0.1` | The address to listen on: an IP address or `localhost`. |
+| `bindaddress` | `127.0.0.1` | The addresses to listen on: an IP address or `localhost`, or several separated by commas (`0.0.0.0,::`). Duplicates and empty entries are refused. |
 | `certfile` | empty | The certificate file (PEM). Setting it, with `keyfile`, turns TLS on. A relative path is relative to `BASTPROXY_HOME`. |
 | `keyfile` | empty | The private key file (PEM) of the certificate. |
 | `publicurl` | empty | The base URL put in links, for example `https://bastproxy.example.net:9998`. The proxy cannot know the name a client reaches it by. When empty, links use the bind address and port. When it starts with `https://`, the session cookie is marked `Secure`. |
@@ -43,7 +43,7 @@ Change them with `#bp.core.web.set <name> <value>`. A change to `enabled`, `port
 
 **Upgrade note:** `certfile`, `keyfile` and `clientdir` were once resolved under `BASTPROXY_HOME/data/` by mistake. If you put files or symlinks there as a workaround, change the settings to paths relative to `BASTPROXY_HOME` (or absolute).
 
-**Plain HTTP is allowed only on a loopback bind** (`127.0.0.1`, `::1`, `localhost`). If `bindaddress` is anything else and `certfile` or `keyfile` is empty, the server refuses to start and logs an error that names the setting. There is no override. Setting only one of `certfile` and `keyfile` also refuses to start.
+**Plain HTTP is allowed only when every address is a loopback address** (`127.0.0.1`, `::1`, `localhost`). If `bindaddress` has any other address and `certfile` or `keyfile` is empty, the server refuses to start and logs an error that names the setting. There is no override. Setting only one of `certfile` and `keyfile` also refuses to start.
 
 ## Commands
 
@@ -120,7 +120,13 @@ Use this when you can give the proxy a certificate for a name that resolves to t
    #bp.core.web.set enabled true
    ```
 
-   Use the address of one interface instead of `0.0.0.0` to listen on one network only. Open the port in the firewall, and forward it on the router when the client is on the internet.
+   Use the address of one interface instead of `0.0.0.0` to listen on one network only. `0.0.0.0` is IPv4 only and `::` is IPv6 only (asyncio sets `IPV6_V6ONLY`), so to serve both families on one port list both:
+
+   ```
+   #bp.core.web.set bindaddress 0.0.0.0,::
+   ```
+
+   The list needs the certificate, as above. The log line and `status` name every address. Open the port in the firewall, and forward it on the router when the client is on the internet.
 4. Run `#bp.core.web.status`. It should say `running, TLS`, and show the certificate name and expiry.
 5. Run `#bp.debug.records.detail <uid> --web` and open the link.
 
