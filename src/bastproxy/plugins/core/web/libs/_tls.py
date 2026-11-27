@@ -37,16 +37,34 @@ def is_loopback(addr: str) -> bool:
         return False
 
 
+def parse_bind_addresses(value: str) -> list[str]:
+    """Split a comma-separated bind address setting into stripped entries."""
+    return [part.strip() for part in value.split(",")]
+
+
+def all_loopback(addrs: list[str]) -> bool:
+    """Return True when every address is a loopback address."""
+    return all(is_loopback(addr) for addr in addrs)
+
+
 def validate_bind_address(value: Any) -> str:
-    """Setting validator: an IP literal or ``localhost``; returns "" when valid."""
+    """Setting validator: IP literals or ``localhost``, comma-separated; "" when valid."""
     if not isinstance(value, str) or not value:
         return "the bind address cannot be empty"
-    if value.lower() == "localhost":
-        return ""
-    try:
-        ipaddress.ip_address(value)
-    except ValueError:
-        return "the bind address must be an IP address or localhost"
+    seen: set[str] = set()
+    for entry in parse_bind_addresses(value):
+        if not entry:
+            return "the bind address list cannot have an empty entry"
+        if entry.lower() == "localhost":
+            key = "localhost"
+        else:
+            try:
+                key = str(ipaddress.ip_address(entry))
+            except ValueError:
+                return "the bind address must be an IP address or localhost"
+        if key in seen:
+            return f"the bind address {entry} is listed more than once"
+        seen.add(key)
     return ""
 
 

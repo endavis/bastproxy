@@ -353,3 +353,89 @@ def test_absolute_path_setting_is_kept(stub: Any, name: str, tmp_path: Path) -> 
     absolute = tmp_path / "elsewhere" / "x.pem"
     stub.settings[name] = str(absolute)
     assert stub._path(name) == absolute
+
+
+def _ipv6_loopback_available() -> bool:
+    import socket
+
+    if not socket.has_ipv6:
+        return False
+    try:
+        with socket.socket(socket.AF_INET6, socket.SOCK_STREAM) as probe:
+            probe.bind(("::1", 0))
+    except OSError:
+        return False
+    return True
+
+
+def _free_port() -> int:
+    import socket
+
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+        probe.bind(("127.0.0.1", 0))
+        return int(probe.getsockname()[1])
+
+
+needs_ipv6 = pytest.mark.skipif(
+    not _ipv6_loopback_available(), reason="IPv6 loopback is not available"
+)
+
+
+@needs_ipv6
+async def test_a_list_listens_on_both_families_on_one_port(
+    stub: Any, caplog: pytest.LogCaptureFixture
+) -> None:
+    stub.settings["bindaddress"] = "127.0.0.1,::1"
+    # with a port of 0 asyncio picks a separate port per address, so use one fixed free port
+    stub.settings["port"] = _free_port()
+    with caplog.at_level(logging.INFO):
+        await stub._restart(0)
+    assert stub.server.running
+    port = stub.port
+    assert stub.server.address == f"127.0.0.1:{port}, [::1]:{port}"
+    url = WebPlugin._api_web_page_add(stub, "plugins.x", "t", "text")
+    token = url.rsplit("/", 1)[1]
+    for host in ("127.0.0.1", "::1"):
+        status, _, _ = await http_get(port, get_request(f"/p/{token}"), host=host)
+        assert status == 200
+    assert any(
+        f"127.0.0.1:{port}, [::1]:{port}" in r.getMessage() and "listening" in r.getMessage()
+        for r in caplog.records
+    )
+    assert f"on 127.0.0.1:{port}, [::1]:{port}" in status_text(stub)
+
+
+async def test_a_single_address_is_unchanged(stub: Any) -> None:
+    await stub._restart(0)
+    assert stub.server.address == f"127.0.0.1:{stub.port}"
+    assert "," not in stub.server.address
+
+
+@needs_ipv6
+async def test_a_single_ipv6_address_is_bracketed(stub: Any) -> None:
+    stub.settings["bindaddress"] = "::1"
+    await stub._restart(0)
+    assert stub.server.address == f"[::1]:{stub.port}"
+
+
+async def test_plain_http_with_a_mixed_list_is_refused(
+    stub: Any, caplog: pytest.LogCaptureFixture
+) -> None:
+    stub.settings["bindaddress"] = (
+        "127.0.0.1,0.0.0.0"  # reason: the rule under test refuses a non-loopback entry
+    )
+    with caplog.at_level(logging.ERROR):
+        await stub._restart(0)
+    assert not stub.server.running
+    errors = [r.getMessage() for r in caplog.records if r.levelno == logging.ERROR]
+    assert errors
+    assert "127.0.0.1, 0.0.0.0" in errors[0]
+    assert "certfile" in errors[0]
+
+
+async def test_base_url_uses_the_first_address(stub: Any) -> None:
+    stub.settings["port"] = 9998
+    stub.settings["bindaddress"] = "::1, 127.0.0.1"
+    assert stub._base_url() == "http://[::1]:9998"
+    stub.settings["bindaddress"] = "127.0.0.1,::1"
+    assert stub._base_url() == "http://127.0.0.1:9998"
