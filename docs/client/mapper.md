@@ -67,7 +67,7 @@ When the web server is enabled (see the [web server](../web-server.md) page) and
 | Page | What it shows |
 | :--- | :--- |
 | `/client/mapper` | The areas with their room and unexplored counts. Click an area to see its map. Sort and filter the columns. |
-| `/client/mapper/area?uid=<area>` | A map of the area, one picture per z level. Rooms are boxes (hover for the uid and name, click for the room page); lines are exits. Blue stubs leave the area, arrows go up or down, dashed orange stubs are unexplored exits. The current room is highlighted, a dashed border marks a noportal room and a dark red fill a norecall room. |
+| `/client/mapper/area?uid=<area>` | A map of the area, one picture per z level. Rooms sit at their stored coordinates; when those put rooms in the same spot or are missing, the map is laid out from the exits instead. Rooms are boxes (hover for the uid and name, click for the room page); lines are exits. Blue stubs leave the area, arrows go up or down, dashed orange stubs are unexplored exits. The current room is highlighted, a dashed border marks a noportal room and a dark red fill a norecall room. |
 | `/client/mapper/room?uid=<uid>` | A room's name, area, terrain, coordinates, flags and note, and a table of its exits with links to the rooms they lead to. |
 | `/client/mapper/find?name=<text>` | Rooms whose name has the text, with links to the room and its area. Leave `name` empty to list every room. |
 

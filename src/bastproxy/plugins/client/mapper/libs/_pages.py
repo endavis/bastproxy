@@ -16,7 +16,10 @@ links in a table; the href is a same-origin absolute path.
 
 import html
 import math
+import re
+from collections import deque
 from collections.abc import Callable, Mapping, Sequence
+from itertools import count
 from typing import Any
 from urllib.parse import urlencode
 
@@ -196,6 +199,145 @@ def _int(value: Any) -> int:
         return 0
 
 
+# the directions that place a neighbour, in the order the layout tries them: x, y, z steps
+_STEPS: dict[str, tuple[int, int, int]] = {
+    **{name: (dx, dy, 0) for name, (dx, dy) in VECTORS.items()},
+    _UP: (0, 0, 1),
+    _DOWN: (0, 0, -1),
+}
+_DIR_ORDER = {name: index for index, name in enumerate(_STEPS)}
+_OPPOSITE = {
+    name: next(o for o, v in _STEPS.items() if v == tuple(-c for c in step))
+    for name, step in _STEPS.items()
+}
+_UID_PARTS = re.compile(r"(\d+)")
+
+
+def _uid_key(uid: str) -> tuple[tuple[int, int, str], ...]:
+    """Sort key for a uid: digit runs compare as numbers, so ``2`` comes before ``10``."""
+    return tuple(
+        (0, int(part), "") if part.isdigit() else (1, 0, part)
+        for part in _UID_PARTS.split(uid)
+        if part
+    )
+
+
+def _stored_positions(rooms: Sequence[Mapping[str, Any]]) -> dict[str, tuple[int, int, int]] | None:
+    """Return the stored ``(x, y, z)`` of every room, or None when they do not spread the rooms.
+
+    The stored coordinates are usable when, on every z level, every room has an int x and y
+    and no two rooms share an ``(x, y)``.
+    """
+    result: dict[str, tuple[int, int, int]] = {}
+    seen: set[tuple[int, int, int]] = set()
+    for room in rooms:
+        x, y = room.get("x"), room.get("y")
+        if (
+            not isinstance(x, int)
+            or not isinstance(y, int)
+            or isinstance(x, bool)
+            or isinstance(y, bool)
+        ):
+            return None
+        cell = (x, y, _int(room.get("z")))
+        if cell in seen:
+            return None
+        seen.add(cell)
+        result[str(room["uid"])] = cell
+    return result
+
+
+def _free_cell(
+    target: tuple[int, int, int], taken: set[tuple[int, int, int]]
+) -> tuple[int, int, int]:
+    """Return ``target`` when free, else the nearest free cell on its level.
+
+    Nearest is by squared distance, then smaller dy, then smaller dx.
+    """
+    if target not in taken:
+        return target
+    tx, ty, tz = target
+    for radius in count(1):
+        offsets = sorted(
+            (
+                (dx, dy)
+                for dx in range(-radius, radius + 1)
+                for dy in range(-radius, radius + 1)
+                if dx * dx + dy * dy <= radius * radius
+            ),
+            key=lambda d: (d[0] * d[0] + d[1] * d[1], d[1], d[0]),
+        )
+        for dx, dy in offsets:
+            if (tx + dx, ty + dy, tz) not in taken:
+                return tx + dx, ty + dy, tz
+    raise AssertionError("unreachable")  # pragma: no cover
+
+
+def _exit_layout(
+    rooms: Sequence[Mapping[str, Any]], graph: MapGraph, current: str | None
+) -> dict[str, tuple[int, int, int]]:
+    """Lay the rooms out from their in-area exits, breadth first.
+
+    Neighbours are one step away in the exit's direction (a reverse edge places the source at
+    the target minus the vector). A taken cell sends the room to the nearest free cell. Each
+    part the exits do not connect starts at its lowest uid, two columns right of the parts
+    before it.
+    """
+    uids = {str(r["uid"]) for r in rooms}
+    edges: dict[str, list[tuple[int, str, tuple[int, int, int]]]] = {u: [] for u in uids}
+    for uid in uids:
+        for exit_ in graph.exits_from(uid):
+            step = _STEPS.get(exit_.dir)
+            if step is None or exit_.touid not in uids or exit_.touid == uid:
+                continue
+            back = tuple(-c for c in step)
+            edges[uid].append((_DIR_ORDER[exit_.dir], exit_.touid, step))
+            edges[exit_.touid].append(
+                (_DIR_ORDER[_OPPOSITE[exit_.dir]], uid, (back[0], back[1], back[2]))
+            )
+    placed: dict[str, tuple[int, int, int]] = {}
+    taken: set[tuple[int, int, int]] = set()
+    pending = sorted(uids, key=_uid_key)
+    starts = [current] if current in uids and current is not None else []
+    while len(placed) < len(uids):
+        if starts:
+            start = starts.pop()
+            origin = (0, 0, 0)
+        else:
+            start = next(u for u in pending if u not in placed)
+            origin = (max((c[0] for c in placed.values()), default=-2) + 2, 0, 0)
+        cell = _free_cell(origin, taken)
+        placed[start] = cell
+        taken.add(cell)
+        queue = deque([start])
+        while queue:
+            uid = queue.popleft()
+            ux, uy, uz = placed[uid]
+            for _order, other, (dx, dy, dz) in sorted(
+                edges[uid], key=lambda e: (e[0], _uid_key(e[1]))
+            ):
+                if other in placed:
+                    continue
+                cell = _free_cell((ux + dx, uy + dy, uz + dz), taken)
+                placed[other] = cell
+                taken.add(cell)
+                queue.append(other)
+    return placed
+
+
+def _positions(
+    rooms: Sequence[Mapping[str, Any]], graph: MapGraph, current: str | None
+) -> dict[str, tuple[int, int, int]]:
+    """Return ``{uid: (x, y, z)}`` for drawing: stored coordinates when they spread the rooms.
+
+    Otherwise the whole area, z included, is laid out from its exits (``_exit_layout``).
+    """
+    stored = _stored_positions(rooms)
+    if stored is not None:
+        return stored
+    return _exit_layout(rooms, graph, current)
+
+
 def _stub(cx: int, cy: int, vector: tuple[int, int], css: str) -> str:
     """A short line leaving a room box in the direction of ``vector``."""
     dx, dy = vector
@@ -212,18 +354,18 @@ def _level(
     graph: MapGraph,
     current: str | None,
     room_path: str | None,
+    pos: Mapping[str, tuple[int, int, int]],
 ) -> tuple[str, int, int]:
     """Draw one z level as a nested svg body: the svg text without its position, width, height."""
-    xs = [_int(r["x"]) for r in rooms]
-    ys = [_int(r["y"]) for r in rooms]
+    xs = [pos[str(r["uid"])][0] for r in rooms]
+    ys = [pos[str(r["uid"])][1] for r in rooms]
     minx, miny = min(xs), min(ys)
     width = (max(xs) - minx) * PITCH + 2 * MARGIN
     height = (max(ys) - miny) * PITCH + 2 * MARGIN + LABEL
 
     def centre(room: Mapping[str, Any]) -> tuple[int, int]:
-        return MARGIN + (_int(room["x"]) - minx) * PITCH, LABEL + MARGIN + (
-            _int(room["y"]) - miny
-        ) * PITCH
+        x, y, _z = pos[str(room["uid"])]
+        return MARGIN + (x - minx) * PITCH, LABEL + MARGIN + (y - miny) * PITCH
 
     lines: list[str] = []
     marks: list[str] = []
@@ -262,8 +404,9 @@ def _level(
                         f"<circle class='leaves' cx='{cx + BOX // 2}' cy='{cy - BOX // 2}' r='3'/>"
                     )
                 continue
-            if _int(target["z"]) != z:
-                mark = "▲" if _int(target["z"]) > z else "▼"
+            target_z = pos[exit_.touid][2]
+            if target_z != z:
+                mark = "▲" if target_z > z else "▼"
                 marks.append(
                     f"<text class='updown' x='{cx - BOX // 2}' y='{cy - BOX // 2 - 2}'>"
                     f"{mark}</text>"
@@ -320,21 +463,25 @@ def draw_area_svg(
         current: the uid of the room the character is in, marked when it is drawn.
         room_path: the path of the room page; with it every room box links to its room.
 
-    Rooms are boxes on a grid from their x and y (y grows downwards). A line joins two rooms
+    Rooms are boxes on a grid from their x and y (y grows downwards). When the stored
+    coordinates do not spread the rooms (a room without an int x or y, or two rooms in one
+    cell of a level), the whole area is laid out from its exits instead, see ``_positions``.
+    A line joins two rooms
     of a level. An exit that leaves the area is a short ``leaves`` stub (a dot when it has no
     compass direction), an exit to another level is an up or down arrow, and an unexplored
     exit is a dashed stub. The room classes are ``current``, ``unexplored``, ``noportal`` and
     ``norecall``. All MUD text (names, uids) is escaped, and the svg has no script.
     """
     by_uid = {str(r["uid"]): r for r in rooms}
+    pos = _positions(rooms, graph, current)
     levels: dict[int, list[Mapping[str, Any]]] = {}
     for room in rooms:
-        levels.setdefault(_int(room["z"]), []).append(room)
+        levels.setdefault(pos[str(room["uid"])][2], []).append(room)
     parts: list[str] = []
     offset = 0
     total_width = 2 * MARGIN
     for z in sorted(levels):
-        body, width, height = _level(z, levels[z], by_uid, graph, current, room_path)
+        body, width, height = _level(z, levels[z], by_uid, graph, current, room_path, pos)
         parts.append(
             f"<svg class='level' data-z='{z}' x='0' y='{offset}' width='{width}' "
             f"height='{height}' viewBox='0 0 {width} {height}'>{body}</svg>"
