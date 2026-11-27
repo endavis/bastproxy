@@ -82,25 +82,38 @@ class LoginTokens:
         self.cap = cap
         self._clock = clock
         self._tokens: OrderedDict[str, float] = OrderedDict()
+        self._view: set[str] = set()
 
     def _prune(self) -> None:
         now = self._clock()
         for token in [t for t, expires in self._tokens.items() if expires <= now]:
             del self._tokens[token]
+            self._view.discard(token)
 
-    def issue(self) -> str:
-        """Create a token."""
+    def issue(self, *, view_only: bool = False) -> str:
+        """Create a token; a view-only token starts a view-only session."""
         self._prune()
         token = secrets.token_urlsafe(32)
         self._tokens[token] = self._clock() + self.ttl
+        if view_only:
+            self._view.add(token)
         while len(self._tokens) > self.cap:
-            self._tokens.popitem(last=False)
+            dropped, _ = self._tokens.popitem(last=False)
+            self._view.discard(dropped)
         return token
+
+    def take(self, token: str) -> bool | None:
+        """Use a token: None for an unknown, used or expired one, else True when view-only."""
+        self._prune()
+        if self._tokens.pop(token, None) is None:
+            return None
+        view = token in self._view
+        self._view.discard(token)
+        return view
 
     def consume(self, token: str) -> bool:
         """Use a token: True once for a live token, False for an unknown, used or expired one."""
-        self._prune()
-        return self._tokens.pop(token, None) is not None
+        return self.take(token) is not None
 
 
 class SessionStore:
@@ -110,20 +123,30 @@ class SessionStore:
         self.cap = cap
         self._clock = clock
         self._sessions: OrderedDict[str, float] = OrderedDict()
+        self._view: set[str] = set()
 
     def _prune(self) -> None:
         now = self._clock()
         for sid in [s for s, expires in self._sessions.items() if expires <= now]:
             del self._sessions[sid]
+            self._view.discard(sid)
 
-    def create(self, lifetime_s: float) -> str:
+    def create(self, lifetime_s: float, *, view_only: bool = False) -> str:
         """Start a session that lasts ``lifetime_s`` seconds and return its id."""
         self._prune()
         sid = secrets.token_urlsafe(32)
         self._sessions[sid] = self._clock() + lifetime_s
+        if view_only:
+            self._view.add(sid)
         while len(self._sessions) > self.cap:
-            self._sessions.popitem(last=False)
+            dropped, _ = self._sessions.popitem(last=False)
+            self._view.discard(dropped)
         return sid
+
+    def is_view_only(self, sid: str | None) -> bool:
+        """True when the id belongs to a live view-only session."""
+        self._prune()
+        return sid is not None and sid in self._sessions and sid in self._view
 
     def is_valid(self, sid: str | None) -> bool:
         """True when the id belongs to a live session."""
@@ -135,6 +158,7 @@ class SessionStore:
         self._prune()
         count = len(self._sessions)
         self._sessions.clear()
+        self._view.clear()
         return count
 
     def count(self) -> int:

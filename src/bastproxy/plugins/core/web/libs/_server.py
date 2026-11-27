@@ -180,10 +180,11 @@ class WebApp:
 
     def _login(self, token: str) -> Response:
         """Turn a login token into a session and a cookie, then go to the index."""
-        if not self.logins.consume(token):
+        view = self.logins.take(token)
+        if view is None:
             return message_response(HTTPStatus.NOT_FOUND)
         lifetime = int(self._session_seconds())
-        sid = self.sessions.create(lifetime)
+        sid = self.sessions.create(lifetime, view_only=view)
         cookie = f"{SESSION_COOKIE}={sid}; HttpOnly; SameSite=Strict; Path=/; Max-Age={lifetime}"
         if self._secure_cookie():
             cookie += "; Secure"
@@ -381,6 +382,7 @@ class WebServer:
             request.cookies.get(SESSION_COOKIE),
             app.sessions.is_valid,
             app.hello,
+            view_only=app.sessions.is_view_only(request.cookies.get(SESSION_COOKIE)),
         )
         self._socket_writers.add(writer)
         self.sockets.add(connection)

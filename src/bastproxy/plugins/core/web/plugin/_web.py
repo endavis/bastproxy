@@ -24,6 +24,7 @@ from bastproxy.libs.validators import int_range
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
+from bastproxy.plugins.core.web.libs._proxyclient import SocketClients
 from bastproxy.plugins.core.web.libs._render import render_page
 from bastproxy.plugins.core.web.libs._server import WebApp, WebServer
 from bastproxy.plugins.core.web.libs._store import (
@@ -43,6 +44,18 @@ from bastproxy.plugins.core.web.libs._tls import (
 from bastproxy.plugins.core.web.libs._ws import CLOSE_SESSION_ENDED
 
 
+def _login_reply(plugin: Any, *, view_only: bool) -> tuple[bool, list[str]]:
+    """The reply of a login command: a one-time link, full or view-only."""
+    if not plugin._setting("enabled"):
+        return True, ["the web server is not enabled (set enabled true)"]
+    escape = plugin.api("plugins.core.colors:colorcode.escape")
+    token = plugin.logins.issue(view_only=view_only)
+    kind = "view-only login" if view_only else "login"
+    log_to([plugin.plugin_id], logging.DEBUG, "%s token %s issued", kind, token[:6])
+    label = "View-only login link" if view_only else "Login link"
+    return True, [f"{label}: {escape(f'{plugin._base_url()}/login/{token}')}"]
+
+
 class WebPlugin(BasePlugin):
     """a plugin that serves web pages for plugins."""
 
@@ -59,6 +72,7 @@ class WebPlugin(BasePlugin):
         self.subscriptions = Subscriptions(
             self.server.sockets, lambda: self.routes, self.provider_listeners
         )
+        self.socket_clients = SocketClients(self.server.sockets)
         self.cert: CertManager | None = None
         self._generation = 0
         self._lock = asyncio.Lock()
@@ -140,6 +154,11 @@ class WebPlugin(BasePlugin):
         self.subscriptions.close()
         self.server.close()
         self.api("libs.asynch:task.add")(self.server.wait_closed(), f"{self.plugin_id}:close")
+
+    @RegisterPluginHook("uninitialize", priority=11)
+    def _phook_close_socket_clients(self) -> None:
+        """Drop the socket clients and their handlers."""
+        self.socket_clients.close()
 
     @RegisterToEvent(event_name="ev_{plugin_id}_var_enabled_modified")
     @RegisterToEvent(event_name="ev_{plugin_id}_var_port_modified")
@@ -466,12 +485,15 @@ class WebPlugin(BasePlugin):
     @AddParser(description="get a one-time link that logs a browser in")
     def _command_login(self) -> CommandResult:
         """Give a login link; it works once and expires after 5 minutes."""
-        if not self._setting("enabled"):
-            return CommandResult(True, ["the web server is not enabled (set enabled true)"])
-        escape = self.api("plugins.core.colors:colorcode.escape")
-        token = self.logins.issue()
-        log_to([self.plugin_id], logging.DEBUG, "login token %s issued", token[:6])
-        return CommandResult(True, [f"Login link: {escape(f'{self._base_url()}/login/{token}')}"])
+        success, message = _login_reply(self, view_only=False)
+        return CommandResult(success, message)
+
+    @AddCommand(show_in_history=False)
+    @AddParser(description="get a one-time link that logs a browser in view-only")
+    def _command_viewlogin(self) -> CommandResult:
+        """Give a view-only login link; it works once and expires after 5 minutes."""
+        success, message = _login_reply(self, view_only=True)
+        return CommandResult(success, message)
 
     @AddParser(description="end every web session")
     def _command_logout(self) -> CommandResult:

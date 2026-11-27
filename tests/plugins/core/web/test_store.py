@@ -1,6 +1,6 @@
 """The page store (#424)."""
 
-from bastproxy.plugins.core.web.libs._store import PageStore
+from bastproxy.plugins.core.web.libs._store import LoginTokens, PageStore, SessionStore
 
 
 class Clock:
@@ -50,3 +50,56 @@ def test_expiry_drops_old_pages() -> None:
     clock.now = 161
     assert store.get(new) is None
     assert store.count() == 0
+
+
+def test_view_only_login_token_is_taken_once() -> None:
+    logins = LoginTokens()
+    view, full = logins.issue(view_only=True), logins.issue()
+    assert logins.take(view) is True
+    assert logins.take(view) is None
+    assert logins.take(full) is False
+    assert logins.take("unknown") is None
+
+
+def test_consume_keeps_its_meaning_for_view_only_tokens() -> None:
+    logins = LoginTokens()
+    token = logins.issue(view_only=True)
+    assert logins.consume(token)
+    assert not logins.consume(token)
+
+
+def test_view_only_flags_are_dropped_with_expired_and_evicted_tokens() -> None:
+    clock = Clock()
+    logins = LoginTokens(cap=2, clock=clock)
+    first = logins.issue(view_only=True)
+    logins.issue(view_only=True)
+    logins.issue()
+    assert logins.take(first) is None
+    clock.now = 1000
+    logins.issue()
+    assert logins._view == set()
+
+
+def test_is_view_only_is_true_only_for_live_view_sessions() -> None:
+    clock = Clock()
+    sessions = SessionStore(cap=2, clock=clock)
+    view, full = sessions.create(100, view_only=True), sessions.create(100)
+    assert sessions.is_view_only(view) is True
+    assert sessions.is_view_only(full) is False
+    assert sessions.is_view_only(None) is False
+    assert sessions.is_view_only("unknown") is False
+    sessions.create(100)  # evicts the oldest, the view session
+    assert sessions.is_view_only(view) is False
+    assert sessions._view == set()
+
+
+def test_view_only_session_ends_on_expiry_and_on_clear() -> None:
+    clock = Clock()
+    sessions = SessionStore(clock=clock)
+    expiring = sessions.create(100, view_only=True)
+    clock.now = 100
+    assert sessions.is_view_only(expiring) is False
+    cleared = sessions.create(100, view_only=True)
+    sessions.clear()
+    assert sessions.is_view_only(cleared) is False
+    assert sessions._view == set()

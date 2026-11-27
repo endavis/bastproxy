@@ -365,3 +365,110 @@ async def test_a_socket_over_tls(tmp_path: Any, make_cert: MakeCert) -> None:
     finally:
         server.close()
         await server.wait_closed()
+
+
+async def test_listeners_hear_the_open_after_hello_and_the_close(env: Env) -> None:
+    hub = env.server.sockets
+    seen: list[str] = []
+
+    def opened(conn: _ws.SocketConnection) -> None:
+        seen.append("open")
+
+    def closed(conn: _ws.SocketConnection) -> None:
+        seen.append("close")
+
+    hub.add_listener(opened, closed)
+    async with await env.open() as conn:
+        assert (await recv_json(conn))["type"] == "hello"
+        assert seen == ["open"]
+    await wait_for(lambda: len(seen) == 2)
+    assert seen == ["open", "close"]
+
+
+async def test_hello_is_queued_before_the_open_listener_runs(env: Env) -> None:
+    sizes: list[int] = []
+    env.server.sockets.add_listener(
+        lambda conn: sizes.append(conn._queue.qsize()), lambda conn: None
+    )
+    async with await env.open() as conn:
+        await recv_json(conn)
+    assert sizes == [1]  # hello is queued and the send loop has not started
+
+
+async def test_a_raising_listener_does_not_harm_the_socket(env: Env) -> None:
+    def boom(conn: _ws.SocketConnection) -> None:
+        raise RuntimeError
+
+    env.server.sockets.add_listener(boom, boom)
+    async with await env.open() as conn:
+        assert (await recv_json(conn))["type"] == "hello"
+        env.server.sockets.register("ping", lambda c, m: c.send({"v": 1, "type": "pong"}))
+        await conn.send(json.dumps({"v": 1, "type": "ping"}))
+        assert (await recv_json(conn))["type"] == "pong"
+
+
+@pytest.mark.parametrize("view_only", [False, True])
+async def test_the_socket_knows_whether_its_session_is_view_only(env: Env, view_only: bool) -> None:
+    sid = env.sessions.create(3600, view_only=view_only)
+    async with await env.open(sid=sid) as conn:
+        await recv_json(conn)
+        (server_side,) = list(env.server.sockets._connections)
+        assert server_side.view_only is view_only
+
+
+def _gate_drain(server_side: _ws.SocketConnection) -> asyncio.Event:
+    """Make the send loop stop after its first message until the returned event is set."""
+    gate = asyncio.Event()
+    real = server_side.writer.drain
+
+    async def drain() -> None:
+        await gate.wait()
+        await real()
+
+    server_side.writer.drain = drain  # type: ignore[method-assign]
+    return gate
+
+
+async def test_send_wait_waits_for_the_queue_to_drain(
+    env: Env, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(_ws, "OUTPUT_SHARE", 3)
+    async with await env.open() as conn:
+        await recv_json(conn)
+        (server_side,) = list(env.server.sockets._connections)
+        gate = _gate_drain(server_side)
+        for _ in range(5):
+            assert server_side.send({"v": 1, "type": "fill"})
+        waiter = asyncio.create_task(server_side.send_wait({"v": 1, "type": "late"}))
+        await asyncio.sleep(0.05)
+        assert not waiter.done()
+        gate.set()
+        assert await asyncio.wait_for(waiter, OPEN_TIMEOUT) is True
+        types = [(await recv_json(conn))["type"] for _ in range(6)]
+        assert types == ["fill"] * 5 + ["late"]
+
+
+async def test_send_wait_returns_false_for_a_closed_socket(env: Env) -> None:
+    async with await env.open() as conn:
+        await recv_json(conn)
+        (server_side,) = list(env.server.sockets._connections)
+        server_side.close(1000, "bye")
+        assert await server_side.send_wait({"v": 1, "type": "x"}) is False
+        await closed_with(conn)
+
+
+async def test_send_wait_wakes_when_the_socket_closes_while_waiting(
+    env: Env, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(_ws, "OUTPUT_SHARE", 2)
+    async with await env.open() as conn:
+        await recv_json(conn)
+        (server_side,) = list(env.server.sockets._connections)
+        _gate_drain(server_side)
+        for _ in range(5):
+            server_side.send({"v": 1, "type": "fill"})
+        waiter = asyncio.create_task(server_side.send_wait({"v": 1, "type": "late"}))
+        await asyncio.sleep(0.05)
+        assert not waiter.done()
+        server_side.close(1000, "bye")
+        assert await asyncio.wait_for(waiter, OPEN_TIMEOUT) is False

@@ -366,6 +366,7 @@ class ClientPlugin(BasePlugin):
                 (
                     *header(f"Client {client.addr}:{client.port}"),
                     template % ("State", "View only" if client.view_only else "Active"),
+                    template % ("Type", getattr(client, "conn_type", "-")),
                     template % ("Term Type", client.term_type),
                     template % ("Connected", client.connected_length),
                     template % ("Idle", client.idle),
