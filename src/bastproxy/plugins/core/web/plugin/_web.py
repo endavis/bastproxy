@@ -82,6 +82,7 @@ class WebPlugin(BasePlugin):
         )
         self.cert: CertManager | None = None
         self._generation = 0
+        self._restart_sequence = 0
         self._lock = asyncio.Lock()
         self.attributes_to_save_on_reload = ["pages", "routes", "sessions", "logins"]
 
@@ -194,9 +195,15 @@ class WebPlugin(BasePlugin):
         return self.api("plugins.core.settings:setting.get")(self.plugin_id, name)
 
     def _schedule_restart(self) -> None:
-        """Queue a restart; the queued task gets a fresh context, not this caller's."""
+        """Queue a restart; the queued task gets a fresh context, not this caller's.
+
+        Each request takes the next sequence number, so a queued restart that a
+        newer one has overtaken returns without touching the listener.
+        """
+        self._restart_sequence += 1
         self.api("libs.asynch:task.add")(
-            self._restart(self._generation), f"{self.plugin_id}:restart"
+            self._restart(self._generation, self._restart_sequence),
+            f"{self.plugin_id}:restart",
         )
 
     def _build_app(self) -> WebApp:
@@ -231,9 +238,15 @@ class WebPlugin(BasePlugin):
         """A path setting, relative to BASTPROXY_HOME unless absolute."""
         return Path(self.api.BASEHOMEPATH) / str(self._setting(name))
 
-    async def _restart(self, generation: int) -> None:
-        """Close the listener and start it again from the settings."""
+    async def _restart(self, generation: int, sequence: int | None = None) -> None:
+        """Close the listener and start it again from the settings.
+
+        A ``sequence`` older than the latest request is skipped: the newer
+        restart reads the same settings and does the work once.
+        """
         async with self._lock:
+            if sequence is not None and sequence != self._restart_sequence:
+                return
             self.server.close()
             self.cert = None
             await self.server.wait_closed()
