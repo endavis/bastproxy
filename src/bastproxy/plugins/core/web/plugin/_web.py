@@ -25,7 +25,13 @@ from bastproxy.plugins.core.commands import AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 from bastproxy.plugins.core.web.libs._render import render_page
 from bastproxy.plugins.core.web.libs._server import WebApp, WebServer
-from bastproxy.plugins.core.web.libs._store import LoginTokens, PageStore, RouteTable, SessionStore
+from bastproxy.plugins.core.web.libs._store import (
+    LoginTokens,
+    PageStore,
+    ProviderListeners,
+    RouteTable,
+    SessionStore,
+)
 from bastproxy.plugins.core.web.libs._tls import (
     CertManager,
     cert_details,
@@ -42,6 +48,7 @@ class WebPlugin(BasePlugin):
         """Initialize the instance."""
         self.pages = PageStore()
         self.routes = RouteTable()
+        self.provider_listeners = ProviderListeners()
         self.logins = LoginTokens()
         self.sessions = SessionStore()
         self.server = WebServer()
@@ -105,6 +112,11 @@ class WebPlugin(BasePlugin):
     def _phook_start(self) -> None:
         """Start the server once the settings are initialised."""
         self._schedule_restart()
+
+    @RegisterPluginHook("after_load", priority=85)
+    def _phook_sync_provider_events(self) -> None:
+        """Follow the events of the providers a reload carried over."""
+        self._sync_provider_events(set())
 
     @RegisterPluginHook("uninitialize", priority=10)
     def _phook_close_server(self) -> None:
@@ -276,6 +288,15 @@ class WebPlugin(BasePlugin):
         /aardwolf/mapper/<subpath>. Returns the path, or None (and logs an error) when the
         route is refused.
         """
+        return self._refuse(
+            "route",
+            subpath,
+            owner,
+            lambda: self.routes.add(owner, subpath, handler, title, columns, listed=listed),
+        )
+
+    def _refuse(self, what: str, name: str, owner: str, add: Callable[[], str]) -> str | None:
+        """Run ``add`` for the calling plugin; log and return None when it is refused."""
         caller = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
         error = ""
         if owner != caller:
@@ -284,32 +305,125 @@ class WebPlugin(BasePlugin):
             error = f"{owner} is not a plugin id"
         else:
             try:
-                return self.routes.add(owner, subpath, handler, title, columns, listed=listed)
+                return add()
             except ValueError as exc:
                 error = str(exc)
         log_to(
             [self.plugin_id, owner],
             logging.ERROR,
-            "web route %r refused for %s: %s",
-            subpath,
+            "web %s %r refused for %s: %s",
+            what,
+            name,
             owner,
             error,
         )
         return None
 
+    def _escape(self, text: str) -> str:
+        """Escape colour codes in provider text."""
+        return str(self.api("plugins.core.colors:colorcode.escape")(text))
+
+    @AddAPI("web.provider.add", description="register a data provider served as a page")
+    def _api_web_provider_add(
+        self,
+        owner: str,
+        name: str,
+        snapshot: Callable[[], Any],
+        columns: list[dict[str, str]] | None = None,
+        kind: str = "json",
+        event: str | None = None,
+    ) -> str | None:
+        """Register a data provider; its data is served at ``/<plugin path>/<name>``.
+
+        @Yowner@w      = the plugin id; it must be the calling plugin
+        @Yname@w       = lower case letters, digits, _ and -, separated by /; not empty
+        @Ysnapshot@w   = a sync or async function returning the whole data: any json value
+                         for ``json``, a list of rows (one cell per column) for ``table``
+        @Ycolumns@w    = for ``table``, a list of dicts with name, label and type
+        @Ykind@w       = ``json`` or ``table``
+        @Yevent@w      = an event name; when it is raised, listeners are told the data changed
+
+        The topic is the path without the leading slash and with . for /. Returns the
+        topic, or None (and logs an error) when the provider is refused.
+        """
+        before = self.routes.provider_events()
+        topic = self._refuse(
+            "provider",
+            name,
+            owner,
+            lambda: self.routes.add_provider(
+                owner, name, snapshot, columns, kind, event, self._escape
+            ),
+        )
+        self._sync_provider_events(before)
+        return topic
+
+    @AddAPI(
+        "web.provider.changed.raise", description="tell the listeners a provider's data changed"
+    )
+    def _api_web_provider_changed_raise(self, owner: str, name: str) -> bool:
+        """Tell the listeners that the data of a provider changed.
+
+        @Yowner@w   = the plugin id; it must be the calling plugin
+        @Yname@w    = the name the provider was added with
+
+        Returns False (and logs an error) for another plugin's provider or an unknown one.
+        """
+        caller = self.api("libs.api:caller.owner.get")(ignore_owner_list=[self.plugin_id])
+        route = self.routes.provider(owner, name)
+        if owner != caller or route is None or route.provider is None:
+            log_to(
+                [self.plugin_id, caller],
+                logging.ERROR,
+                "web provider %r changed refused for %s: not a provider of the calling plugin",
+                name,
+                owner,
+            )
+            return False
+        self.provider_listeners.notify(route.provider.topic)
+        return True
+
+    @AddAPI("web.provider.list", description="list the provider topics")
+    def _api_web_provider_list(self) -> list[str]:
+        """Return the topics of all providers, sorted."""
+        return sorted(r.provider.topic for r in self.routes.providers() if r.provider)
+
+    def _sync_provider_events(self, before: set[str]) -> None:
+        """Register for the events providers now follow and drop those no one follows.
+
+        ``before`` is the set of followed events before the change.
+        """
+        after = self.routes.provider_events()
+        events = "plugins.core.events:"
+        for name in sorted(after - before):
+            self.api(f"{events}event.register")(name, self._provider_event_fired)
+        for name in sorted(before - after):
+            self.api(f"{events}event.unregister")(name, self._provider_event_fired)
+
+    def _provider_event_fired(self) -> None:
+        """A followed event was raised: tell the listeners about the topics that follow it."""
+        name = self.api("plugins.core.events:event.current.name.get")()
+        for topic in self.routes.topics_for_event(name):
+            self.provider_listeners.notify(topic)
+
     @AddAPI("web.route.remove", description="remove the routes of a plugin")
     def _api_web_route_remove(self, owner: str) -> int:
-        """Remove every route of a plugin and return how many there were.
+        """Remove every route and data provider of a plugin and return how many there were.
 
         @Yowner@w   = the plugin id
         """
-        return self.routes.remove(owner)
+        before = self.routes.provider_events()
+        removed = self.routes.remove(owner)
+        self._sync_provider_events(before)
+        return removed
 
     @RegisterToEvent(event_name="ev_plugin_unloaded")
     def _eventcb_plugin_unloaded(self) -> None:
         """A plugin was unloaded: drop its routes."""
         event_record = self.api("plugins.core.events:event.current.record.get")()
+        before = self.routes.provider_events()
         removed = self.routes.remove(event_record["plugin_id"])
+        self._sync_provider_events(before)
         if removed:
             log_to(
                 [self.plugin_id, event_record["plugin_id"]],
@@ -361,9 +475,17 @@ class WebPlugin(BasePlugin):
                 message.append(f"{'Last error':<14}: {escape(self.cert.last_error)}")
         message.append(f"{'Pages held':<14}: {self.pages.count()}")
         by_owner = self.routes.by_owner()
-        routes = ", ".join(f"{owner} ({len(items)})" for owner, items in by_owner.items())
+        plain = {
+            owner: [r for r in items if r.provider is None] for owner, items in by_owner.items()
+        }
+        routes = ", ".join(f"{owner} ({len(items)})" for owner, items in plain.items() if items)
         message.append(
             f"{'Routes':<14}: {self.routes.count()}" + (f" - {escape(routes)}" if routes else "")
+        )
+        topics = ", ".join(r.provider.topic for r in self.routes.providers() if r.provider)
+        message.append(
+            f"{'Providers':<14}: {self.routes.provider_count()}"
+            + (f" - {escape(topics)}" if topics else "")
         )
         message.append(f"{'Sessions':<14}: {self.sessions.count()}")
         return CommandResult(True, message)

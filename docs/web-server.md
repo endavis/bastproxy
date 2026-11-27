@@ -214,7 +214,12 @@ server {
 
 Set `publicurl` to `https://bastproxy.example.net`.
 
+## Data providers
+
+A plugin can register its data once with `web.provider.add`. The data is then served as a page behind the session, as JSON or as a table, at a path built from the plugin id; see [Data providers](claude/web_system.md#data-providers). `#bp.core.web.status` shows a `Providers` line, and the index at `/` lists provider pages with the routes.
+
 ## Related
 
 - [Web system](claude/web_system.md) for plugin authors.
+- [ADR-0025](decisions/0025-the-web-plugin-serves-pages-and-a-client-websocket-from-one-listener-with-shared-sessions-and-data-providers.md) for data providers.
 - [ADR-0022](decisions/0022-the-web-plugin-serves-token-links-and-session-gated-plugin-routes-over-a-get-only-standard-library-server.md).

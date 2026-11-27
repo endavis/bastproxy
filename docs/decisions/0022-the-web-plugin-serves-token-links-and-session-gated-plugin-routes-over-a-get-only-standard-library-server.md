@@ -66,11 +66,13 @@ Tokens in the URL give a link that works in any browser and expires, without sen
 - Pages and sessions are in memory; a restart drops them. A reload of the web plugin carries the pages over.
 - A handler that does slow work must use `asyncio.to_thread` on a snapshot; API calls are not thread-safe, so colour conversion and page rendering stay on the loop.
 - Parts 2 and 3 add to this plugin without changing the part 1 behaviour: the dispatch order is method check, `/p/<token>`, then (later) static, login, `/`, routes, and 404.
+- [ADR-0025](0025-the-web-plugin-serves-pages-and-a-client-websocket-from-one-listener-with-shared-sessions-and-data-providers.md) amends this: data providers sit alongside routes in the same table (issue #840), and the listener later also accepts WebSocket upgrades.
 
 ## Related Issues
 
 - Issue #424: add an internal web server that plugins extend with pages
 - Issue #766: core mapper pages (SVG area map, room lookup)
+- Issue #840: data providers sit alongside routes in the same table (ADR-0025)
 - endavis/bastproxy-aardwolf#127: Aardwolf mapper pages
 - endavis/bastproxy-aardwolf#128: statdb tables and charts
 
@@ -79,5 +81,6 @@ Tokens in the URL give a link that works in any browser and expires, without sen
 - [Web server](../web-server.md)
 - [Web system](../claude/web_system.md)
 - [Colour system](../claude/colors_system.md)
+- [ADR-0025](0025-the-web-plugin-serves-pages-and-a-client-websocket-from-one-listener-with-shared-sessions-and-data-providers.md): extends this design with data providers and a client WebSocket
 - [ADR-0004](0004-api-names-are-resource-first-and-cmdq-is-renamed-mudcmds.md)
 - [ADR-0008](0008-the-colors-tokenizer-is-the-single-definition-of-the-colour-code-syntax.md)

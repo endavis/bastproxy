@@ -7,6 +7,7 @@
 """The in-memory stores: pages, login tokens, sessions and routes."""
 
 # Standard Library
+import inspect
 import re
 import secrets
 import time
@@ -15,7 +16,11 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from ._table import Column, make_columns
+from bastproxy.libs.logger import get_logger
+
+from ._http import Request
+from ._table import Column, escape_cells, make_columns, page_rows
+from ._tls import LOGGER_NAME
 
 # keep module identity across a reload of the plugin (the store is carried over)
 CANRELOAD = False
@@ -142,6 +147,19 @@ SUBPATH_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9_-]*)*$")
 RESERVED_SEGMENTS = frozenset({"p", "login", "static"})
 
 
+PROVIDER_KINDS = ("json", "table")
+
+
+@dataclass(frozen=True)
+class Provider:
+    """A data provider: a route whose data other consumers can follow by topic."""
+
+    name: str
+    topic: str
+    kind: str
+    event: str | None = None
+
+
 @dataclass(frozen=True)
 class Route:
     """One page a plugin serves under its own prefix."""
@@ -153,6 +171,63 @@ class Route:
     title: str
     columns: tuple[Column, ...] | None = None
     listed: bool = True
+    provider: Provider | None = None
+
+
+class ProviderListeners:
+    """The internal interface that is told when a provider's data changed.
+
+    A listener is a function taking the topic. Nothing here is saved on a reload.
+    """
+
+    def __init__(self) -> None:
+        self._listeners: list[Callable[[str], None]] = []
+
+    def add(self, listener: Callable[[str], None]) -> None:
+        """Add a listener; adding the same one again does nothing."""
+        if listener not in self._listeners:
+            self._listeners.append(listener)
+
+    def remove(self, listener: Callable[[str], None]) -> None:
+        """Remove a listener; an unknown one is ignored."""
+        if listener in self._listeners:
+            self._listeners.remove(listener)
+
+    def notify(self, topic: str) -> None:
+        """Tell every listener that the topic changed; a raising listener is logged and skipped."""
+        for listener in list(self._listeners):
+            try:
+                listener(topic)
+            except Exception:
+                get_logger(LOGGER_NAME).error(
+                    "a provider listener failed for %s", topic, exc_info=True
+                )
+
+
+def _provider_handler(
+    snapshot: Callable[[], Any],
+    kind: str,
+    topic: str,
+    columns: tuple[Column, ...] | None,
+    escape: Callable[[str], str],
+) -> Callable[[Request], Any]:
+    """Build the route handler that serves a provider's snapshot."""
+
+    async def handler(request: Request) -> dict[str, Any]:
+        data = snapshot()
+        if inspect.isawaitable(data):
+            data = await data
+        if kind == "table" and columns is not None and request.table is not None:
+            page, total = page_rows(data, columns, request.table)
+            return {
+                "kind": "table",
+                "title": topic,
+                "rows": escape_cells(page, escape),
+                "total": total,
+            }
+        return {"kind": "json", "data": data}
+
+    return handler
 
 
 class RouteTable:
@@ -185,6 +260,19 @@ class RouteTable:
                 owner already serves the path, or the columns are invalid.
 
         """
+        declared = make_columns(columns) if columns is not None else None
+        path = self._claim(owner, subpath, provider=False)
+        self._routes[path] = Route(owner, path, subpath, handler, title, declared, listed)
+        return path
+
+    def _claim(self, owner: str, subpath: str, *, provider: bool) -> str:
+        """Validate a subpath for an owner and return the url path it would be served at.
+
+        Raises:
+            ValueError: The subpath is invalid, the first segment is reserved, another
+                owner or the other kind of entry already serves the path.
+
+        """
         if subpath and not SUBPATH_RE.fullmatch(subpath):
             msg = f"invalid subpath {subpath!r}: use lower case letters, digits, _ and -"
             raise ValueError(msg)
@@ -192,14 +280,80 @@ class RouteTable:
         if not prefix or prefix.split("/", 1)[0] in RESERVED_SEGMENTS:
             msg = f"the prefix {prefix!r} starts with a reserved segment"
             raise ValueError(msg)
-        declared = make_columns(columns) if columns is not None else None
         path = f"/{prefix}/{subpath}" if subpath else f"/{prefix}"
         existing = self._routes.get(path)
         if existing is not None and existing.owner != owner:
             msg = f"{path} is already served by {existing.owner}"
             raise ValueError(msg)
-        self._routes[path] = Route(owner, path, subpath, handler, title, declared, listed)
+        if existing is not None and (existing.provider is not None) != provider:
+            kind = "a data provider" if existing.provider is not None else "a route"
+            msg = f"{path} is already {kind}"
+            raise ValueError(msg)
         return path
+
+    def add_provider(
+        self,
+        owner: str,
+        name: str,
+        snapshot: Callable[[], Any],
+        columns: Sequence[Mapping[str, Any]] | None,
+        kind: str,
+        event: str | None,
+        escape: Callable[[str], str],
+    ) -> str:
+        """Add a data provider served at ``/<prefix>/<name>`` and return its topic.
+
+        The topic is the path without the leading slash, with ``.`` for ``/``. A ``json``
+        provider serves what ``snapshot`` returns; a ``table`` provider serves the rows
+        ``snapshot`` returns (lists of cells, one per column), filtered, sorted and paged.
+
+        Raises:
+            ValueError: The name is empty or invalid, the kind is unknown, columns are
+                missing for a table or given for json, or the path is taken.
+
+        """
+        if not name:
+            msg = "a provider needs a name"
+            raise ValueError(msg)
+        if kind not in PROVIDER_KINDS:
+            msg = f"unknown provider kind {kind!r}: use one of {PROVIDER_KINDS}"
+            raise ValueError(msg)
+        if kind == "table" and not columns:
+            msg = "a table provider needs columns"
+            raise ValueError(msg)
+        if kind == "json" and columns is not None:
+            msg = "a json provider takes no columns"
+            raise ValueError(msg)
+        declared = make_columns(columns) if columns is not None else None
+        path = self._claim(owner, name, provider=True)
+        topic = path[1:].replace("/", ".")
+        handler = _provider_handler(snapshot, kind, topic, declared, escape)
+        self._routes[path] = Route(
+            owner, path, name, handler, topic, declared, True, Provider(name, topic, kind, event)
+        )
+        return topic
+
+    def providers(self) -> list[Route]:
+        """Every provider route, sorted by topic."""
+        found = [r for r in self._routes.values() if r.provider is not None]
+        return sorted(found, key=lambda r: r.path)
+
+    def provider(self, owner: str, name: str) -> Route | None:
+        """Return the provider route an owner registered under a name."""
+        for route in self.providers():
+            if route.owner == owner and route.provider is not None and route.provider.name == name:
+                return route
+        return None
+
+    def provider_events(self) -> set[str]:
+        """The events providers asked to follow."""
+        return {r.provider.event for r in self.providers() if r.provider and r.provider.event}
+
+    def topics_for_event(self, event: str) -> list[str]:
+        """The topics of the providers that follow an event."""
+        return [
+            r.provider.topic for r in self.providers() if r.provider and r.provider.event == event
+        ]
 
     def remove(self, owner: str) -> int:
         """Remove every route of an owner and return how many there were."""
@@ -220,5 +374,9 @@ class RouteTable:
         return grouped
 
     def count(self) -> int:
-        """Return the number of routes."""
-        return len(self._routes)
+        """Return the number of plain routes, not counting data providers."""
+        return sum(1 for r in self._routes.values() if r.provider is None)
+
+    def provider_count(self) -> int:
+        """Return the number of data providers."""
+        return sum(1 for r in self._routes.values() if r.provider is not None)

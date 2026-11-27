@@ -153,8 +153,39 @@ def _mobs(self, request) -> dict:
 - **The page.** Header cells are sort links that keep the filters and toggle `dir`; a GET form has one `f_<column>` box per column plus hidden `sort`, `dir` and `count`; previous and next links keep the state. `data-pages` is on the `<table>` and `data-type` on each `<th>`.
 - **The script.** A table page loads `/static/table.js`, which the core web plugin serves; plugins cannot ship scripts. When `data-pages` is 1 the script sorts the rows in the browser and adds a filter row; with more pages it does nothing and the links and form do the work. No other page loads it.
 
+## Data providers
+
+A data provider is a route that also has a topic, so a plugin registers its data once and the web plugin serves it. It is stored in the same table as routes: the path rules, the owner check, the 401 and 404 handling, the handler timeout and the removal on unload are the same. See [ADR-0025](../decisions/0025-the-web-plugin-serves-pages-and-a-client-websocket-from-one-listener-with-shared-sessions-and-data-providers.md).
+
+```python
+self.api("plugins.core.web:web.provider.add")(
+    self.plugin_id, "mobsleft", self._mobs_snapshot,
+    columns=[{"name": "mob", "label": "Mob"}, {"name": "left", "label": "Left", "type": "int"}],
+    kind="table", event="ev_aardwolf_cp_mobs_changed",
+)
+```
+
+`web.provider.add(owner, name, snapshot, columns=None, kind="json", event=None) -> str | None`
+
+| Argument | Meaning |
+| :--- | :--- |
+| `owner` | Your plugin id. It must be the plugin that makes the call. |
+| `name` | A non-empty subpath, with the same rules as a route subpath. |
+| `snapshot` | A sync or async function with no arguments that returns all the data as plain data. |
+| `columns` | For `table` only, a list of dicts with `name`, `label` and `type`. A `json` provider refuses columns. |
+| `kind` | `json` (the default) or `table`. |
+| `event` | Optional. An event name that means the data changed. |
+
+- **Topic and page.** The topic is the path without the leading `/`, with `.` for `/`. `plugins.aardwolf.cp` with `mobsleft` is the topic `aardwolf.cp.mobsleft`, served at `/aardwolf/cp/mobsleft`. `add` returns the topic.
+- **json.** The page is the snapshot as JSON. **table.** The snapshot is every row (one cell per column, a cell may be a `{"text", "href"}` link); the web plugin filters, sorts and pages it for the request and escapes the cell text, so the snapshot returns plain MUD text. A bad table query is a 400, as for a table route.
+- **Refusals.** The call logs an error and returns `None` for an owner that is not the caller, a bad name, kind or columns, a path another plugin serves, or a path that a route already serves. A provider and a route never share a path. The same owner adding the same name again replaces the provider.
+- **Changed.** `web.provider.changed.raise(owner, name) -> bool` tells the listeners the data changed. It returns `False` and logs an error for a provider that is not the caller's or is unknown. The `event` argument does the same whenever that event is raised; the web plugin registers one handler per followed event and unregisters it when no provider follows it.
+- **List.** `web.provider.list() -> list[str]` returns the sorted topics. The index at `/` lists provider pages with the routes, and `#bp.core.web.status` shows a `Providers` line next to `Routes` (which counts plain routes only).
+- **Removal.** `web.route.remove(owner)` and the unload of the plugin remove its providers and their event registrations. A reload of the web plugin keeps the providers, and re-registers their events.
+- **Listener interface.** Inside the web plugin, `ProviderListeners` (`add(listener)`, `remove(listener)`, `notify(topic)`) is held as `provider_listeners`. A listener is a function taking the topic. A listener that raises is logged and skipped. Nothing outside the web plugin calls it yet; a later change attaches the client socket here. It is not saved on reload.
+
 ## Lifecycle
 
 - The web plugin starts its listener in a queued task (`libs.asynch:task.add`), so connections do not inherit the context of the command or event that started it.
 - When the plugin unloads, it closes the listener and aborts the open connections before the base unload hook raises `ev_plugin_unloaded`.
-- When the web plugin is reloaded, the stored pages, routes, sessions and login tokens carry over (`attributes_to_save_on_reload`), so links and sessions keep working. The classes of these stores live in a module with `CANRELOAD = False`, so their identity survives the reload.
+- When the web plugin is reloaded, the stored pages, routes (and data providers), sessions and login tokens carry over (`attributes_to_save_on_reload`), so links and sessions keep working. The classes of these stores live in a module with `CANRELOAD = False`, so their identity survives the reload.
