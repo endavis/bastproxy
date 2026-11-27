@@ -71,7 +71,6 @@ One typed line goes through at most 10 expansions, counted across chains and re-
 | `#bp.client.aliases.remove <name or id>` | Remove an alias. |
 | `#bp.client.aliases.list [match]` | List aliases as `[id] name : expansion`, optionally only names containing `match`. |
 
-Typing only `#bp.client.aliases` runs `list` (the plugin's default command, #778).
 | `#bp.client.aliases.enable [name or id] [-g GROUP]` | Enable an alias, or a group. Give exactly one of the two. |
 | `#bp.client.aliases.disable [name or id] [-g GROUP]` | Disable an alias, or a group. Give exactly one of the two. |
 | `#bp.client.aliases.toggle [name or id] [-g GROUP]` | Flip an alias, or a group, between enabled and disabled. Give exactly one of the two. |

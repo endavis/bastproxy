@@ -654,7 +654,6 @@ class CommandsPlugin(BasePlugin):
         if host_id:
             # an extension is listed in a section named after its owner (#834)
             command_kwargs["group"] = owner_id
-            command_kwargs["default"] = False
             parser.epilog = f"Added by {owner_id.replace('plugins.', '')}"
 
         try:
@@ -1004,7 +1003,7 @@ class CommandsPlugin(BasePlugin):
           lines:  the output lines of the command, with colour codes
           data:   what the command passed to ``command.reply.data.set``, or None
 
-        There is no fuzzy matching and no default command. The output is returned, never
+        There is no fuzzy matching. The output is returned, never
         sent to a client, and ``commands_args_modify`` is not raised.
         """
         reply: dict[str, Any] = {
@@ -1178,27 +1177,6 @@ class CommandsPlugin(BasePlugin):
             command.stats = CommandStats(**saved_stats.pop(command_name))
             if not saved_stats:
                 self.saved_command_stats.pop(plugin_id, None)
-
-        if getattr(command, "default", False):
-            other = next(
-                (
-                    name
-                    for name, item in plugin_command_data.items()
-                    if name != command_name and getattr(item, "default", False)
-                ),
-                None,
-            )
-            if other is not None:
-                log_to(
-                    [plugin_id, self.plugin_id],
-                    logging.ERROR,
-                    "commands - plugin %s already has default command %s, "
-                    "command %s is registered without default (#778)",
-                    plugin_id,
-                    other,
-                    command_name,
-                )
-                command.default = False
 
         plugin_command_data[command_name] = command
 
@@ -1471,19 +1449,9 @@ class CommandsPlugin(BasePlugin):
         get_logger(self.plugin_id).debug("temp_command=%r", temp_command)
 
         if temp_command == "":
-            if split.args.strip() == "help":
-                # "help" alone asks for the plugin's help, not the default command (#778)
-                output = self.error_command_not_found_in_plugin(split.plugin, "")
-                return CommandLookup(None, "", False, command_str, output)
-            default = next((item for item in command_data.values() if item.default), None)
-            if default is not None:
-                return CommandLookup(
-                    default,
-                    split.args,
-                    default.show_in_history,
-                    f"found {default.full_cmd} (default)",
-                    [],
-                )
+            # a bare plugin shows its help, whatever arguments follow (#733, #862)
+            output = self.error_command_not_found_in_plugin(split.plugin, "")
+            return CommandLookup(None, "", False, command_str, output)
 
         new_command = self.api("plugins.core.fuzzy:string.match.best")(
             temp_command, tuple(command_list), scorer="token_set_ratio"

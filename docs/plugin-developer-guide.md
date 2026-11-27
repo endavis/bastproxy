@@ -146,7 +146,6 @@ The `pluginm` plugin has the commands:
 #bp.core.pluginm.reload <plugin>
 ```
 
-Typing only `#bp.core.pluginm` runs its default command, `list`, which lists the plugins (#778).
 
 `<plugin>` is the plugin id without the `plugins.` prefix, for example `core.help`. `load` takes
 any number of plugins, and a package name such as `aardwolf` loads every `plugins.aardwolf.*`

@@ -21,7 +21,6 @@ The `plugins.client.substitutes` plugin stores named substitutions. Each has a p
 | `#bp.client.substitutes.remove NAME` | Remove one. |
 | `#bp.client.substitutes.list [MATCH]` | List them, optionally only names containing `MATCH`. Regex ones are tagged `(regex)`. |
 
-Typing only `#bp.client.substitutes` runs `list` (the plugin's default command, #778).
 | `#bp.client.substitutes.clear` | Remove every substitution and report how many. |
 
 Examples:

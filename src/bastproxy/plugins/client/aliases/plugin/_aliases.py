@@ -387,7 +387,7 @@ class AliasesPlugin(BasePlugin):
             return CommandResult(True, [f"alias {name} removed"])
         return CommandResult(False, [f"alias {args['name']} does not exist"])
 
-    @AddCommand(default=True, literal_args=True)
+    @AddCommand(literal_args=True)
     @AddParser(description="list aliases")
     @AddArgument(
         "match",

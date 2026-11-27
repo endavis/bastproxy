@@ -19,7 +19,7 @@ from bastproxy.libs.logger import get_logger
 # Project
 from bastproxy.libs.plugins.plugininfo import PluginInfo
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
-from bastproxy.plugins.core.commands import AddArgument, AddCommand, AddParser, CommandResult
+from bastproxy.plugins.core.commands import AddArgument, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
 
 
@@ -251,7 +251,6 @@ class PluginManager(BasePlugin):
 
         return msg or ["There are no plugins that are not loaded"]
 
-    @AddCommand(default=True)
     @AddParser(description="list plugins")
     @AddArgument(
         "-n",

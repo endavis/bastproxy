@@ -117,7 +117,6 @@ def test_registers_under_the_host() -> None:
     assert command.plugin_id == HOST
     assert command.owner_id == OWNER
     assert command.group == OWNER
-    assert command.default is False
     assert command.arg_parser.prog == f"#bp.{HOST}.portal"
     assert command.arg_parser.epilog == "Added by aardwolf.mapper"
     assert f"{HOST}.portal" in fake.commands_list

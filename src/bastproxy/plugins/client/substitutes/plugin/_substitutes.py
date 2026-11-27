@@ -395,7 +395,7 @@ class SubstitutesPlugin(BasePlugin):
             return CommandResult(True, [f"substitution {name} removed"])
         return CommandResult(False, [f"substitution {name} does not exist"])
 
-    @AddCommand(default=True, literal_args=True)
+    @AddCommand(literal_args=True)
     @AddParser(description="list substitutions")
     @AddArgument(
         "match",

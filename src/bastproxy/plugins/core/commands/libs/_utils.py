@@ -61,6 +61,11 @@ class AddCommand:
     """a class to decorate a function with command data."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
+        if "default" in kwargs:
+            raise TypeError(
+                "AddCommand() got an unexpected keyword argument 'default'; "
+                "default commands were removed (#862)"
+            )
         self.name = None
         if "name" in kwargs:
             self.name = kwargs["name"]
