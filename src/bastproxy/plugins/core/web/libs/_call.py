@@ -80,7 +80,7 @@ class Calls:
         if arguments is None:
             self._bad(connection, "args must be a string or a list of strings")
             return
-        if getattr(connection, "view_only", False):
+        if connection.view_only:
             connection.send(
                 error_message("view_only", "this session cannot run commands", "call", id=call_id)
             )

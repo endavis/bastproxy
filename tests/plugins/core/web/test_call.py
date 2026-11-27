@@ -1,20 +1,23 @@
 """Command calls on the client socket: result shape, errors, view-only and timeout (#845)."""
 
 import asyncio
+import json
 from typing import Any
 
 import pytest
+from websockets.asyncio.client import connect
 
 from bastproxy.plugins.core.web.libs._call import CALL_TIMEOUT, Calls
 from bastproxy.plugins.core.web.libs._http import HANDLER_TIMEOUT
+from bastproxy.plugins.core.web.libs._server import WebApp, WebServer
+from bastproxy.plugins.core.web.libs._store import PageStore, SessionStore
 from bastproxy.plugins.core.web.libs._ws import SocketHub
 
 
 class FakeConnection:
     def __init__(self, view_only: bool = False) -> None:
         self.sent: list[dict[str, Any]] = []
-        if view_only:
-            self.view_only = True
+        self.view_only = view_only
 
     def send(self, message: dict[str, Any]) -> bool:
         self.sent.append(message)
@@ -152,3 +155,55 @@ def test_the_call_timeout_is_below_the_handler_timeout() -> None:
 def test_close_unregisters(env: Env) -> None:
     env.calls.close()
     assert "call" not in env.hub.handlers
+
+
+@pytest.mark.parametrize("view_only", [True, False])
+async def test_a_call_on_a_real_session_socket(view_only: bool) -> None:
+    """A socket opened on a real session: a view-only one is refused, a normal one runs."""
+    sessions = SessionStore()
+    server = WebServer()
+    origin = ""
+    app = WebApp(
+        PageStore(),
+        sessions=sessions,
+        allowed_origins=lambda: [origin + "/"],
+        proxy_version="9.9.9",
+    )
+    port = await server.start("127.0.0.1", 0, app, None)
+    origin = f"http://127.0.0.1:{port}"
+    runs: list[tuple[str, str]] = []
+
+    def runner(command: str, arguments: str) -> Any:
+        runs.append((command, arguments))
+        return {"ok": True, "reason": "", "lines": ["hi"], "data": None}
+
+    calls = Calls(server.sockets, runner, lambda text: [{"text": text}])
+    sid = sessions.create(3600, view_only=view_only)
+    try:
+        async with await connect(
+            f"ws://127.0.0.1:{port}/ws",
+            origin=origin,  # type: ignore[arg-type]
+            additional_headers={"Cookie": f"bpsession={sid}"},
+            open_timeout=5,
+        ) as conn:
+            async with asyncio.timeout(5):
+                assert json.loads(await conn.recv())["type"] == "hello"
+                await conn.send(
+                    json.dumps({"v": 1, "type": "call", "id": "7", "command": "demo.cmd"})
+                )
+                reply = json.loads(await conn.recv())
+        if view_only:
+            assert (reply["type"], reply["code"], reply["for"], reply["id"]) == (
+                "error",
+                "view_only",
+                "call",
+                "7",
+            )
+            assert runs == []
+        else:
+            assert (reply["type"], reply["id"], reply["ok"]) == ("result", "7", True)
+            assert runs == [("demo.cmd", "")]
+    finally:
+        calls.close()
+        server.close()
+        await server.wait_closed()
