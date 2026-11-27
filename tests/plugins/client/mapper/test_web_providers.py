@@ -145,7 +145,7 @@ def test_area_snapshot_and_url_without_room(providers: Providers) -> None:
     assert providers.snapshot("area") == {
         "uid": "ar",
         "name": "Area One",
-        "url": "/client/mapper/areamap?uid=ar",
+        "url": "/client/mapper/area?uid=ar",
     }
 
 
@@ -161,7 +161,7 @@ def test_the_url_quotes_the_area_uid(providers: Providers) -> None:
     plugin = providers.harness.plugin
     plugin._api_room_add({"uid": "9", "name": "Odd", "area": "a b&c"})
     plugin._api_room_current_set("9")
-    assert providers.snapshot("area")["url"] == "/client/mapper/areamap?uid=a%20b%26c"
+    assert providers.snapshot("area")["url"] == "/client/mapper/area?uid=a%20b%26c"
 
 
 def test_a_move_in_the_same_area_raises_room_only(providers: Providers) -> None:

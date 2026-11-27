@@ -61,11 +61,11 @@ FIND_LIMIT = 50
 MAX_WEB_NAME = 200
 WEB_ROUTES: dict[str, str] = {
     "": "Areas",
-    "areamap": "Area map",
-    "roominfo": "Room",
+    "area": "Area map",
+    "room": "Room",
     "find": "Find rooms",
 }
-UNLISTED_WEB_ROUTES: frozenset[str] = frozenset({"areamap", "roominfo"})
+UNLISTED_WEB_ROUTES: frozenset[str] = frozenset({"area", "room"})
 
 EVENT_PREFIX = "ev_plugins.client.mapper_"
 EVENTS: dict[str, tuple[str, dict[str, str]]] = {
@@ -192,8 +192,8 @@ class MapperPlugin(BasePlugin):
         add = self.api("plugins.core.web:web.route.add")
         handlers: dict[str, tuple[Callable[..., Any], list[dict[str, str]] | None]] = {
             "": (self._web_areas, AREA_COLUMNS),
-            "areamap": (self._web_area, None),
-            "roominfo": (self._web_room, EXIT_COLUMNS),
+            "area": (self._web_area, None),
+            "room": (self._web_room, EXIT_COLUMNS),
             "find": (self._web_find, FIND_COLUMNS),
         }
         self.web_paths = {}
@@ -263,7 +263,7 @@ class MapperPlugin(BasePlugin):
         if current is None:
             return None
         uid, name = current
-        path = self.web_paths.get("areamap")
+        path = self.web_paths.get("area")
         return {
             "uid": uid,
             "name": name,
@@ -336,7 +336,7 @@ class MapperPlugin(BasePlugin):
         """The areas with their room and unexplored counts."""
         rows = [
             [
-                self._web_link("areamap", a["uid"], uid=a["uid"]),
+                self._web_link("area", a["uid"], uid=a["uid"]),
                 a["name"],
                 a["rooms"],
                 a["unexplored"],
@@ -366,8 +366,8 @@ class MapperPlugin(BasePlugin):
             rooms,
             view,
             current=self.current_room,
-            room_path=self.web_paths.get("roominfo"),
-            area_path=self.web_paths.get("areamap"),
+            room_path=self.web_paths.get("room"),
+            area_path=self.web_paths.get("area"),
             selected=selected,
             terrain_colors=terrain_colors,
         )
@@ -401,7 +401,7 @@ class MapperPlugin(BasePlugin):
             if touid == UNKNOWN_UID:
                 to_cell: Any = "unexplored"
             elif target is not None:
-                to_cell = self._web_link("roominfo", touid, uid=touid)
+                to_cell = self._web_link("room", touid, uid=touid)
             else:
                 to_cell = touid
             requirement = json.dumps(exit_["requirement"]) if exit_["requirement"] else ""
@@ -433,9 +433,9 @@ class MapperPlugin(BasePlugin):
         escape = self.api("plugins.core.colors:colorcode.escape")
         rows = [
             [
-                self._web_link("roominfo", r["uid"], uid=r["uid"]),
+                self._web_link("room", r["uid"], uid=r["uid"]),
                 r["name"],
-                self._web_link("areamap", r["area"], uid=r["area"]) if r["area"] else "",
+                self._web_link("area", r["area"], uid=r["area"]) if r["area"] else "",
                 r["terrain"],
             ]
             for r in found

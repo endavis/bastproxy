@@ -67,22 +67,22 @@ When the web server is enabled (see the [web server](../web-server.md) page) and
 | Page | What it shows |
 | :--- | :--- |
 | `/client/mapper` | The areas with their room and unexplored counts. Click an area to see its map. Sort and filter the columns. |
-| `/client/mapper/areamap?uid=<area>` (optionally `&room=<uid>`) | A map of the area, one picture per z level. Rooms sit at their stored coordinates; when those put rooms in the same spot or are missing, the map is laid out from the exits instead. Rooms are boxes showing the room number and any markers a game adapter adds inside, and the name under the box (cut with an ellipsis when long); the fill is the terrain colour (the adapter's colours, else a stable colour per terrain name, dark grey for no terrain). Hover for the uid and name. Click a box to select it: the page reloads with `room=<uid>`, the box gets a green border and a details panel appears at the right with the room, area, terrain, coordinates, flags, markers, details and exits, and a link to the room page. A `room` of another area shows no panel. Lines are exits. Blue stubs leave the area, arrows go up or down, dashed orange stubs are unexplored exits. The current room is highlighted, a dashed border marks a noportal room and a red border a norecall room. |
-| `/client/mapper/roominfo?uid=<uid>` | A room's name, area, terrain, coordinates, flags and note, and a table of its exits with links to the rooms they lead to. |
+| `/client/mapper/area?uid=<area>` (optionally `&room=<uid>`) | A map of the area, one picture per z level. Rooms sit at their stored coordinates; when those put rooms in the same spot or are missing, the map is laid out from the exits instead. Rooms are boxes showing the room number and any markers a game adapter adds inside, and the name under the box (cut with an ellipsis when long); the fill is the terrain colour (the adapter's colours, else a stable colour per terrain name, dark grey for no terrain). Hover for the uid and name. Click a box to select it: the page reloads with `room=<uid>`, the box gets a green border and a details panel appears at the right with the room, area, terrain, coordinates, flags, markers, details and exits, and a link to the room page. A `room` of another area shows no panel. Lines are exits. Blue stubs leave the area, arrows go up or down, dashed orange stubs are unexplored exits. The current room is highlighted, a dashed border marks a noportal room and a red border a norecall room. |
+| `/client/mapper/room?uid=<uid>` | A room's name, area, terrain, coordinates, flags and note, and a table of its exits with links to the rooms they lead to. |
 | `/client/mapper/find?name=<text>` | Rooms whose name has the text, with links to the room and its area. Leave `name` empty to list every room. |
 
 An unknown area or room gives a 404 page and a missing `uid` a 400 page.
 
-The area map and room pages were called `/client/mapper/area` and `/client/mapper/room` before #871; those URLs no longer exist, because data providers and pages share one path table.
+#871 renamed the area map and room pages to `areamap` and `roominfo` so the providers could take the names `area` and `room`. #877 serves providers under `/data/`, which restores the page URLs `/client/mapper/area` and `/client/mapper/room`; `areamap` and `roominfo` no longer exist.
 
 ## Data providers
 
-The mapper offers two JSON data providers through the web plugin, so a web client can follow the character without reading the map. They are served at `/client/mapper/room` and `/client/mapper/area` (topics `client.mapper.room` and `client.mapper.area`), need the web session like the pages, and send an update to listeners when they change.
+The mapper offers two JSON data providers through the web plugin, so a web client can follow the character without reading the map. They are served at `/data/client/mapper/room` and `/data/client/mapper/area` (topics `client.mapper.room` and `client.mapper.area`), need the web session like the pages, and send an update to listeners when they change.
 
 | Provider | Fields |
 | :--- | :--- |
 | `room` | The current room: `uid`, `name`, `area`, `terrain`, `x`, `y`, `z`, `flags`, `markers` (from the game adapter's marker callback) and `exits`, a list of `{dir, touid, unexplored}`. It is `null` when the current room is not known or not stored. |
-| `area` | The area of the current room: `uid`, `name` and `url`, the area map page without a room (`/client/mapper/areamap?uid=<area>`). It is `null` when there is no current room or the room has no area. |
+| `area` | The area of the current room: `uid`, `name` and `url`, the area map page without a room (`/client/mapper/area?uid=<area>`). It is `null` when there is no current room or the room has no area. |
 
 `room` is updated on every room change: arriving in a room (also the same one again), and writing the current room, its flags or its exits, or removing it. `area` is updated only when the area of the current room changes, or the current area is renamed or removed, so a client does not refetch the map on every step. Writes to other rooms update nothing.
 

@@ -176,7 +176,8 @@ class SessionStore:
 
 SUBPATH_RE = re.compile(r"^[a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9_-]*)*$")
 CLIENT_SEGMENT = "webclient"
-RESERVED_SEGMENTS = frozenset({"p", "login", "static", "ws", CLIENT_SEGMENT})
+DATA_SEGMENT = "data"
+RESERVED_SEGMENTS = frozenset({"p", "login", "static", "ws", CLIENT_SEGMENT, DATA_SEGMENT})
 
 
 PROVIDER_KINDS = ("json", "table")
@@ -309,7 +310,8 @@ class RouteTable:
 
         Raises:
             ValueError: The subpath is invalid, the first segment is reserved, another
-                owner or the other kind of entry already serves the path.
+                owner already serves the path. A provider is served under ``/data``, so a route
+        and a provider of one name never meet.
 
         """
         if subpath and not SUBPATH_RE.fullmatch(subpath):
@@ -320,13 +322,11 @@ class RouteTable:
             msg = f"the prefix {prefix!r} starts with a reserved segment"
             raise ValueError(msg)
         path = f"/{prefix}/{subpath}" if subpath else f"/{prefix}"
+        if provider:
+            path = f"/{DATA_SEGMENT}{path}"
         existing = self._routes.get(path)
         if existing is not None and existing.owner != owner:
             msg = f"{path} is already served by {existing.owner}"
-            raise ValueError(msg)
-        if existing is not None and (existing.provider is not None) != provider:
-            kind = "a data provider" if existing.provider is not None else "a route"
-            msg = f"{path} is already {kind}"
             raise ValueError(msg)
         return path
 
@@ -340,9 +340,9 @@ class RouteTable:
         event: str | None,
         escape: Callable[[str], str],
     ) -> str:
-        """Add a data provider served at ``/<prefix>/<name>`` and return its topic.
+        """Add a data provider served at ``/data/<prefix>/<name>`` and return its topic.
 
-        The topic is the path without the leading slash, with ``.`` for ``/``. A ``json``
+        The topic is the path without the leading ``/data/``, with ``.`` for ``/``. A ``json``
         provider serves what ``snapshot`` returns; a ``table`` provider serves the rows
         ``snapshot`` returns (lists of cells, one per column), filtered, sorted and paged.
 
@@ -365,7 +365,7 @@ class RouteTable:
             raise ValueError(msg)
         declared = make_columns(columns) if columns is not None else None
         path = self._claim(owner, name, provider=True)
-        topic = path[1:].replace("/", ".")
+        topic = path.removeprefix(f"/{DATA_SEGMENT}/").replace("/", ".")
         handler = _provider_handler(snapshot, kind, topic, declared, escape)
         provider = Provider(name, topic, kind, event, snapshot)
         self._routes[path] = Route(owner, path, name, handler, topic, declared, True, provider)
@@ -382,7 +382,7 @@ class RouteTable:
 
     def provider_for_topic(self, topic: str) -> Route | None:
         """Return the provider route of a topic, or None (a plain route is not a provider)."""
-        route = self._routes.get("/" + topic.replace(".", "/"))
+        route = self._routes.get(f"/{DATA_SEGMENT}/" + topic.replace(".", "/"))
         if route is not None and route.provider is not None and route.provider.topic == topic:
             return route
         return None
@@ -416,9 +416,9 @@ class RouteTable:
         return self._routes.get(path)
 
     def by_owner(self) -> dict[str, list[Route]]:
-        """The routes grouped by owner, each list sorted by path."""
+        """The routes grouped by owner, each list pages first, then providers, by path."""
         grouped: dict[str, list[Route]] = {}
-        for route in sorted(self._routes.values(), key=lambda r: r.path):
+        for route in sorted(self._routes.values(), key=lambda r: (r.provider is not None, r.path)):
             grouped.setdefault(route.owner, []).append(route)
         return grouped
 

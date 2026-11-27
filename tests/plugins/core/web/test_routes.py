@@ -107,7 +107,9 @@ def test_a_bad_subpath_is_refused(subpath: str) -> None:
         RouteTable().add("plugins.aardwolf.mapper", subpath, noop, "t")
 
 
-@pytest.mark.parametrize("owner", ["plugins.p.x", "plugins.login.x", "plugins.static", "p.x"])
+@pytest.mark.parametrize(
+    "owner", ["plugins.p.x", "plugins.login.x", "plugins.static", "p.x", "plugins.data.x"]
+)
 def test_a_reserved_first_segment_is_refused(owner: str) -> None:
     with pytest.raises(ValueError, match="reserved"):
         RouteTable().add(owner, "a", noop, "t")

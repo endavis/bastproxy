@@ -71,8 +71,9 @@ Tokens in the URL give a link that works in any browser and expires, without sen
 ## Related Issues
 
 - Issue #424: add an internal web server that plugins extend with pages
-- Issue #766: core mapper pages (SVG area map, room lookup); #871 renamed them `area` -> `areamap` and `room` -> `roominfo` so the mapper can offer `room` and `area` data providers
+- Issue #766: core mapper pages (SVG area map, room lookup); #871 renamed them `area` -> `areamap` and `room` -> `roominfo`; #877 restored the names
 - Issue #840: data providers sit alongside routes in the same table (ADR-0025)
+- Issue #877: providers are keyed under `/data/`, a reserved first segment, so they never share a path with a route (ADR-0025)
 - Issue #842: `/ws` is answered on the same listener, with the same sessions (ADR-0025)
 - Issue #861: `bindaddress` takes a comma-separated list, such as `0.0.0.0,::`; the loopback rule applies to every entry, so plain http needs all of them loopback
 - endavis/bastproxy-aardwolf#127: Aardwolf mapper pages

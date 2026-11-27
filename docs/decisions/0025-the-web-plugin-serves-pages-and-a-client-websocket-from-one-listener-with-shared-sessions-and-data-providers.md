@@ -28,7 +28,7 @@ Open-source web MUD clients (MUDPortal, oiMUD, Mudslinger and others) all parse 
 - **WebSocket handling by the `websockets` library, sans-I/O.** The web plugin reads the upgrade request itself and checks the session and the Origin. It then drives `websockets.server.ServerProtocol` (`receive_data`, `data_to_send`, `events_received`) over the stream it already owns. The library does the RFC 6455 work: masking, fragments, control frames, UTF-8 checks, close codes and the `max_size` limit. Adding the dependency is the repo admin's decision and goes through the add-dependency skill.
 - **One session store.** The `bpsession` cookie from `#bp.core.web.login` admits both pages and the socket. The upgrade also requires an `Origin` matching `publicurl`, or the listener's own origin when `publicurl` is unset. This blocks cross-site WebSocket hijacking, which `SameSite=Strict` alone does not cover. `#bp.core.web.logout` ends sessions and closes their sockets. The proxy password is still never sent over HTTP.
 - **Data providers: a plugin registers once and both transports serve it.** `web.provider.add(owner, name, snapshot, columns=None, kind="json", event=None)`:
-  - The name comes from the owner, the way route paths do. `plugins.aardwolf.cp` with `mobsleft` is the topic `aardwolf.cp.mobsleft` and the page `/aardwolf/cp/mobsleft`.
+  - The name comes from the owner, the way route paths do. `plugins.aardwolf.cp` with `mobsleft` is the topic `aardwolf.cp.mobsleft` and the page `/data/aardwolf/cp/mobsleft`. Providers are served under `/data` (a reserved segment) so a provider and a route of one name never collide; the topic does not include `data` (#877).
   - `snapshot()` returns plain data (rows, or a JSON-safe dict), because plugins do not import plugins.
   - `event` names the event that means the data changed. A plugin can instead call `web.provider.changed.raise(owner, name)`.
   - HTTP renders the snapshot with the existing kinds (`table`, `json`). A route handler stays possible for pages that are not providers.
@@ -84,6 +84,7 @@ One listener keeps one port, one TLS setup and one login, and the upgrade check 
 - Issue #841: colour as spans
 - Issue #842: the client socket endpoint `/ws`
 - Issue #843: subscriptions to data providers over the socket
+- Issue #877: provider pages are served under `/data/`, so a provider and a page can share a name
 - Issue #844: a socket is a proxy client (output as spans, input to the MUD, view-only login)
 - Issue #845: command calls with structured replies over the socket
 - Issue #846: the client bundle served from `clientdir`

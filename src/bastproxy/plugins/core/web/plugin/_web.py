@@ -431,7 +431,7 @@ class WebPlugin(BasePlugin):
         kind: str = "json",
         event: str | None = None,
     ) -> str | None:
-        """Register a data provider; its data is served at ``/<plugin path>/<name>``.
+        """Register a data provider; its data is served at ``/data/<plugin path>/<name>``.
 
         @Yowner@w      = the plugin id; it must be the calling plugin
         @Yname@w       = lower case letters, digits, _ and -, separated by /; not empty
@@ -441,7 +441,7 @@ class WebPlugin(BasePlugin):
         @Ykind@w       = ``json`` or ``table``
         @Yevent@w      = an event name; when it is raised, listeners are told the data changed
 
-        The topic is the path without the leading slash and with . for /. Returns the
+        The topic is the path without the leading /data/ and with . for /. Returns the
         topic, or None (and logs an error) when the provider is refused.
         """
         before = self.routes.provider_events()
@@ -589,7 +589,9 @@ class WebPlugin(BasePlugin):
         message.append(
             f"{'Routes':<14}: {self.routes.count()}" + (f" - {escape(routes)}" if routes else "")
         )
-        topics = ", ".join(r.provider.topic for r in self.routes.providers() if r.provider)
+        topics = ", ".join(
+            f"{r.provider.topic} ({r.path})" for r in self.routes.providers() if r.provider
+        )
         message.append(
             f"{'Providers':<14}: {self.routes.provider_count()}"
             + (f" - {escape(topics)}" if topics else "")
