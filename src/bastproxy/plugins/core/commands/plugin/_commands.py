@@ -6,9 +6,11 @@
 # By: Bast
 
 # Standard Library
+import contextvars
 import copy
 import dataclasses
 import functools
+import json
 import logging
 import types
 from collections.abc import Callable, Mapping
@@ -44,6 +46,25 @@ from bastproxy.plugins.core.commands.libs._command import (
 from bastproxy.plugins.core.events import RegisterToEvent
 
 COMMAND_ARGS_MODIFY_EVENT = "ev_plugins.core.commands_args_modify"
+
+# the reasons `command.run.structured` gives for a call that did not succeed
+CALL_REASONS = ("unknown_command", "bad_arguments", "failed", "error")
+_BAD_ARGUMENT_REASONS = ("could not parse args", ARGUMENTS_TOO_LONG_REASON)
+
+
+class _ReplyData:
+    """The box a `command.run.structured` hands to the command so it can return structured data."""
+
+    __slots__ = ("value",)
+
+    def __init__(self) -> None:
+        self.value: Any = None
+
+
+# set only by `command.run.structured`; outside a call there is no box and the set api is a no-op
+_reply_data: contextvars.ContextVar[_ReplyData | None] = contextvars.ContextVar(
+    "command_reply_data", default=None
+)
 
 
 def modify_command_args(
@@ -965,6 +986,97 @@ class CommandsPlugin(BasePlugin):
             stack_info=True,
         )
         return None, []
+
+    @AddAPI(
+        "command.run.structured", description="run a command by name and return a structured reply"
+    )
+    def _api_command_call(self, command: str, argument_string: str = "") -> dict[str, Any]:
+        """Run one command by its exact name and return a structured reply.
+
+        @Ycommand@w          = the command, as ``core.web.status`` (``#bp.`` and ``plugins.``
+                               prefixes are accepted)
+        @Yargument_string@w = the string of arguments for the command
+
+        returns a dictionary
+          ok:     True if the command succeeded
+          reason: "" when ok, else one of ``unknown_command``, ``bad_arguments``,
+                  ``failed`` or ``error``
+          lines:  the output lines of the command, with colour codes
+          data:   what the command passed to ``command.reply.data.set``, or None
+
+        There is no fuzzy matching and no default command. The output is returned, never
+        sent to a client, and ``commands_args_modify`` is not raised.
+        """
+        reply: dict[str, Any] = {
+            "ok": False,
+            "reason": "unknown_command",
+            "lines": [],
+            "data": None,
+        }
+        found = self._call_lookup(command)
+        if found is None:
+            return reply
+        box = _ReplyData()
+        token = _reply_data.set(box)
+        try:
+            result = found.run(argument_string, False)
+        except Exception:
+            log_to(
+                [self.plugin_id],
+                logging.ERROR,
+                "command.run.structured of %s raised",
+                found.full_cmd,
+                exc_info=True,
+            )
+            reply["reason"] = "error"
+            return reply
+        finally:
+            _reply_data.reset(token)
+        reply["lines"] = list(result.message)
+        reply["data"] = box.value
+        if result.success:
+            reply["ok"] = True
+            reply["reason"] = ""
+        elif result.reason in _BAD_ARGUMENT_REASONS:
+            reply["reason"] = "bad_arguments"
+        elif result.reason == "function returned False":
+            reply["reason"] = "failed"
+        else:
+            reply["reason"] = "error"
+        return reply
+
+    def _call_lookup(self, command: str) -> CommandClass | None:
+        """Find a command by its exact name for `command.run.structured`, or None."""
+        if not isinstance(command, str) or not command or any(c.isspace() for c in command):
+            return None
+        split = self.find_command_split_command_string(command)
+        if not split.found or len(split.parts) != 3 or not split.parts[2]:
+            return None
+        if split.plugin != f"plugins.{split.parts[0]}.{split.parts[1]}":
+            return None
+        return self.get_command_data_from_plugin(split.plugin, split.parts[2])
+
+    @AddAPI(
+        "command.reply.data.set",
+        description="give the running command call structured data for its reply",
+    )
+    def _api_command_reply_data_set(self, value: Any) -> bool:
+        """Set the structured data of the reply to the running `command.run.structured`.
+
+        @Yvalue@w = the data; it must be json serialisable
+
+        Outside a `command.run.structured`, or if the value is not
+        json serialisable, nothing is set and this returns False.
+        """
+        box = _reply_data.get()
+        if box is None:
+            return False
+        try:
+            json.dumps(value)
+        except (TypeError, ValueError):
+            return False
+        box.value = value
+        return True
 
     def add_command_to_history(self, command: str) -> None:
         """Add to the command history.

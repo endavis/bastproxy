@@ -74,6 +74,7 @@ One listener keeps one port, one TLS setup and one login, and the upgrade check 
 - Issue #842: the client socket endpoint `/ws`
 - Issue #843: subscriptions to data providers over the socket
 - Issue #844: a socket is a proxy client (output as spans, input to the MUD, view-only login)
+- Issue #845: command calls with structured replies over the socket
 - Issue #846: the client bundle served from `clientdir`
 - The core issues filed with this ADR, listed in its PR
 

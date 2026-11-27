@@ -24,6 +24,7 @@ from bastproxy.libs.validators import int_range
 from bastproxy.plugins._baseplugin import BasePlugin, RegisterPluginHook
 from bastproxy.plugins.core.commands import AddCommand, AddParser, CommandResult
 from bastproxy.plugins.core.events import RegisterToEvent
+from bastproxy.plugins.core.web.libs._call import Calls
 from bastproxy.plugins.core.web.libs._proxyclient import SocketClients
 from bastproxy.plugins.core.web.libs._render import render_page
 from bastproxy.plugins.core.web.libs._server import WebApp, WebServer
@@ -73,6 +74,11 @@ class WebPlugin(BasePlugin):
             self.server.sockets, lambda: self.routes, self.provider_listeners
         )
         self.socket_clients = SocketClients(self.server.sockets)
+        self.command_calls = Calls(
+            self.server.sockets,
+            lambda command, arguments: self._run_call(command, arguments),
+            lambda text: self._spans(text),
+        )
         self.cert: CertManager | None = None
         self._generation = 0
         self._lock = asyncio.Lock()
@@ -142,6 +148,18 @@ class WebPlugin(BasePlugin):
         """Start the server once the settings are initialised."""
         self._schedule_restart()
 
+    def _run_call(self, command: str, arguments: str) -> dict[str, Any]:
+        """Run a command for a client socket call."""
+        reply: dict[str, Any] = self.api("plugins.core.commands:command.run.structured")(
+            command, arguments
+        )
+        return reply
+
+    def _spans(self, text: str) -> list[dict[str, Any]]:
+        """Split colour coded text into spans for a client socket."""
+        spans: list[dict[str, Any]] = self.api("plugins.core.colors:colorcode.to.spans")(text)
+        return spans
+
     @RegisterPluginHook("after_load", priority=85)
     def _phook_sync_provider_events(self) -> None:
         """Follow the events of the providers a reload carried over."""
@@ -152,6 +170,7 @@ class WebPlugin(BasePlugin):
         """Stop the listener before the base hook raises the unloaded events."""
         self._generation += 1
         self.subscriptions.close()
+        self.command_calls.close()
         self.server.close()
         self.api("libs.asynch:task.add")(self.server.wait_closed(), f"{self.plugin_id}:close")
 

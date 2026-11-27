@@ -331,6 +331,8 @@ For `+` prefixes use stdlib argparse: `@AddParser` stores its kwargs and the com
 - `plugins.core.commands:command.format` - Get formatted command string
 - `plugins.core.commands:command.line.run` - `(line, *, show_in_history=False)`: run a line as if the user typed it; `#bp` commands run, other text goes to the MUD, the command separator splits it (#564); a line run while an input line is handled is sent in that line's place (#714)
 - `plugins.core.commands:command.run` - Run a command programmatically; returns `(success, messages)`
+- `plugins.core.commands:command.run.structured` - `(command, argument_string="")`: run one command by its exact name (`core.web.status`; `#bp.` and `plugins.` prefixes accepted) and return `{"ok", "reason", "lines", "data"}`. No fuzzy matching and no default command; nothing is sent to a client and `commands_args_modify` is not raised. `reason` is `""` when ok, else `unknown_command`, `bad_arguments`, `failed` or `error`. Used by the web client socket `call` message (#845)
+- `plugins.core.commands:command.reply.data.set` - `(value) -> bool`: while a `command.run.structured` runs, give the reply structured json data (`data`); outside a call it does nothing and returns False
 - `plugins.core.commands:output.line.length.get` - Get the line length for formatting: the current client's width (`plugins.core.proxy:line.length.get`) minus the output indent
 
 ### Command Discovery
