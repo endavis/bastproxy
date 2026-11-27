@@ -1,4 +1,4 @@
-"""Tests for #778: the client plugins mark one command as their default."""
+"""Tests for #862: no client plugin marks a command as its default."""
 
 # Standard Library
 from collections.abc import Callable
@@ -25,25 +25,24 @@ CASES: list[tuple[type, str, str]] = [
 ]
 
 
-def _is_default(func: Callable[..., Any]) -> bool:
+def _kwargs(func: Callable[..., Any]) -> dict[str, Any]:
     data = getattr(func, "command_data", None)
-    return bool(data is not None and data.command["kwargs"].get("default") is True)
+    return dict(data.command["kwargs"]) if data is not None else {}
 
 
 @pytest.mark.parametrize(("cls", "attr", "name"), CASES)
-def test_default_command_is_marked(cls: type, attr: str, name: str) -> None:
+def test_command_has_no_default(cls: type, attr: str, name: str) -> None:
     func = getattr(cls, attr)
-    assert _is_default(func)
+    kwargs = _kwargs(func)
+    assert "default" not in kwargs
+    if cls is not PluginManager:
+        assert kwargs.get("literal_args") is True
     assert func.command_data.command.get("name", name).strip() == name
 
 
 @pytest.mark.parametrize(("cls", "attr", "name"), CASES)
-def test_no_other_command_is_default(cls: type, attr: str, name: str) -> None:
-    others = [
-        member
-        for member_name in dir(cls)
-        if member_name.startswith("_command_") and member_name != attr
-        for member in [getattr(cls, member_name)]
-        if _is_default(member)
-    ]
-    assert others == []
+def test_no_command_in_plugin_has_default(cls: type, attr: str, name: str) -> None:
+    for member_name in dir(cls):
+        if member_name.startswith("_command_"):
+            member = getattr(cls, member_name)
+            assert "default" not in _kwargs(member)

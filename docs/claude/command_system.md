@@ -57,7 +57,7 @@ Represents a single command:
 ```python
 class CommandClass:
     def __init__(self, plugin_id, name, function, arg_parser,
-                 format=True, group=None, preamble=True, show_in_history=True, shelp="", default=False, literal_args=False, owner_id=None):
+                 format=True, group=None, preamble=True, show_in_history=True, shelp="", literal_args=False, owner_id=None):
         self.plugin_id = plugin_id          # The plugin the command sits under (the host)
         self.owner_id = owner_id or plugin_id  # The plugin whose function runs (#834)
         self.name = name                    # Command name
@@ -65,7 +65,6 @@ class CommandClass:
         self.arg_parser = arg_parser        # argp.ArgumentParser, built by the commands plugin
         self.group = group or ""            # the plugin sets the plugin id when no group is given
         self.show_in_history = show_in_history   # read by find_command: False = not recorded in the history
-        self.default = default              # read by find_command: True = runs on a bare #bp.<plugin> (#778)
         self.literal_args = literal_args    # True = the argument string is not offered to ev_plugins.core.commands_args_modify (#776)
         self.format = format                # read when a client types the command: False = output not framed
         self.preamble = preamble            # read by format_return_message: False = no Begin/End Command lines
@@ -165,7 +164,7 @@ The system:
    of the prefix (`#BP.core.proxy.info` runs, #782), and keeps the line from the MUD
 2. Splits the line into package, plugin and command name
 3. Matches the package and the plugin (fuzzy, loaded plugins only), then the command. With no command typed, the
-   plugin's default command runs (#778), or the plugin's help shows when it has none. Otherwise: an exact name, else the
+   plugin's help shows, whatever arguments follow (#733, #862). Otherwise: an exact name, else the
    only name that starts with the text, else the best `token_set_ratio` score above 80 if it is unique
 3a. Raises `ev_plugins.core.commands_args_modify` (args `plugin_id`, `command`, `args`, `client_id`) so a callback can rewrite the argument string. The variables plugin expands `%{name}` there (#776). It is skipped for a command with `literal_args`, for an empty argument string and for a `mask_log` line. Only the string passed to the command changes; the history keeps the typed line.
 4. Parses arguments with `shlex` and argparse; an unknown argument or an abbreviated option is an error, reported with the command's help.
@@ -244,17 +243,11 @@ Marks a method as a command:
     group="MyGroup",            # Command group for organization
     shelp="Short help text",    # One-line help
     autoadd=True,               # False: do not register at load (add with command.add.by.func, force=True)
-    default=True,               # run on a bare #bp.<plugin>; one per plugin
     literal_args=True,          # keep the argument string as typed: no args-modify event (#776)
 )
 ```
 
-A plugin has at most one default command (#778). Typing only the plugin, `#bp.client.aliases`, runs it with
-the arguments as typed (`#bp.client.aliases orc` runs `list orc`). A second command that asks to be the default
-is still registered, without the flag, and an ERROR line names the plugin and both commands. A plugin with no
-default shows its help, as before. `#bp.<plugin> help` also shows the plugin's help, not the default command.
-The client plugins `aliases`, `actions`, `substitutes` and `variables` and `core.pluginm` default to `list`,
-and `loop` to `run`.
+There are no default commands: typing only the plugin shows its help (#862).
 
 `show_in_history` decides whether the line is recorded in the history. `format=False` sends the output unframed
 and `preamble=False` drops the `Begin Command` and `End Command` lines (with the start and finish times), when the
@@ -331,7 +324,7 @@ For `+` prefixes use stdlib argparse: `@AddParser` stores its kwargs and the com
 - `plugins.core.commands:command.format` - Get formatted command string
 - `plugins.core.commands:command.line.run` - `(line, *, show_in_history=False)`: run a line as if the user typed it; `#bp` commands run, other text goes to the MUD, the command separator splits it (#564); a line run while an input line is handled is sent in that line's place (#714)
 - `plugins.core.commands:command.run` - Run a command programmatically; returns `(success, messages)`
-- `plugins.core.commands:command.run.structured` - `(command, argument_string="")`: run one command by its exact name (`core.web.status`; `#bp.` and `plugins.` prefixes accepted) and return `{"ok", "reason", "lines", "data"}`. No fuzzy matching and no default command; nothing is sent to a client and `commands_args_modify` is not raised. `reason` is `""` when ok, else `unknown_command`, `bad_arguments`, `failed` or `error`. Used by the web client socket `call` message (#845)
+- `plugins.core.commands:command.run.structured` - `(command, argument_string="")`: run one command by its exact name (`core.web.status`; `#bp.` and `plugins.` prefixes accepted) and return `{"ok", "reason", "lines", "data"}`. No fuzzy matching; nothing is sent to a client and `commands_args_modify` is not raised. `reason` is `""` when ok, else `unknown_command`, `bad_arguments`, `failed` or `error`. Used by the web client socket `call` message (#845)
 - `plugins.core.commands:command.reply.data.set` - `(value) -> bool`: while a `command.run.structured` runs, give the reply structured json data (`data`); outside a call it does nothing and returns False
 - `plugins.core.commands:output.line.length.get` - Get the line length for formatting: the current client's width (`plugins.core.proxy:line.length.get`) minus the output indent
 
@@ -618,7 +611,7 @@ changed decorator values. Decided in #792.
 - **Host and owner.** `CommandClass.plugin_id` is the host and drives `full_cmd`, `prog`, storage and lookup. `CommandClass.owner_id` is the plugin taken from `func.__self__.plugin_id`; it defaults to `plugin_id` and drives the log targets, the tracking actor, the `CmdArgsRecord` owner and the command's `api` owner. The function runs as the owner's bound method.
 - **Clashes.** A name the host already has under a different owner is refused with a WARNING naming both. The same owner adding the same name replaces it.
 - **Reload and unload.** The commands plugin keeps `command_extensions` (host, name, owner, function), saved across its own reload. A host reload re-adds them, and the host's own command wins a clash. An owner unload removes its commands from every host and keeps their counts and error stats for a re-add.
-- **Help.** The group is forced to the owner id, so `#bp.<host>` lists the command in a section named after the owner. The parser epilog reads `Added by <owner>` and `detail` shows an `Owner` row. An extension is never the host's default command.
+- **Help.** The group is forced to the owner id, so `#bp.<host>` lists the command in a section named after the owner. The parser epilog reads `Added by <owner>` and `detail` shows an `Owner` row.
 
 ### Programmatic Execution
 

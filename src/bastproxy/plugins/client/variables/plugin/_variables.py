@@ -173,7 +173,7 @@ class VariablesPlugin(BasePlugin):
             return CommandResult(True, [f"variable {name} removed"])
         return CommandResult(False, [f"variable {name} does not exist"])
 
-    @AddCommand(default=True, literal_args=True)
+    @AddCommand(literal_args=True)
     @AddParser(description="list variables")
     @AddArgument(
         "match",

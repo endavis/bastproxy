@@ -73,7 +73,6 @@ class CommandClass:
         preamble: bool = True,
         show_in_history: bool = True,
         shelp: str = "",
-        default: bool = False,
         literal_args: bool = False,
         owner_id: str | None = None,
     ) -> None:
@@ -87,7 +86,6 @@ class CommandClass:
         self.group = group or ""
         self.preamble = preamble
         self.show_in_history = show_in_history
-        self.default = default  # run on a bare #bp.<plugin> (#778)
         # keep the argument string as typed: no args-modify event (#776)
         self.literal_args = literal_args
         self.full_cmd = self.api("plugins.core.commands:command.format")(self.plugin_id, name)

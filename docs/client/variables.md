@@ -51,7 +51,6 @@ The arguments of a `#bp` command are expanded before the command parses them, so
 | `#bp.client.variables.remove <name>` | Remove a variable. |
 | `#bp.client.variables.list [match]` | List variables, optionally only names containing `match`. |
 
-Typing only `#bp.client.variables` runs `list` (the plugin's default command, #778).
 
 ## API
 

@@ -96,7 +96,6 @@ A match that takes longer than the triggers time limit counts as no match and is
 | `#bp.client.actions.remove <name or id>` | Remove an action and its trigger. |
 | `#bp.client.actions.list [match]` | List actions as `[id] name : regex -> command`, with a `send <target>` tag when the target is not `execute`. |
 
-Typing only `#bp.client.actions` runs `list` (the plugin's default command, #778).
 | `#bp.client.actions.enable [name or id] [-g GROUP]` | Enable an action, or a group. Give exactly one of the two. |
 | `#bp.client.actions.disable [name or id] [-g GROUP]` | Disable an action, or a group. Give exactly one of the two. |
 | `#bp.client.actions.toggle [name or id] [-g GROUP]` | Flip an action, or a group, between enabled and disabled. Give exactly one of the two. |
