@@ -111,6 +111,7 @@ class _Stub:
         self.command_calls = Calls(self.server.sockets, lambda *_a: {}, lambda text: [])
         self.cert: Any = None
         self._generation = 0
+        self._restart_sequence = 0
         self._lock = asyncio.Lock()
         self.api = _Api(self, base)
 
@@ -320,6 +321,42 @@ async def test_schedule_restart_runs_in_a_queued_task(stub: Any) -> None:
     assert len(task_calls) == 1
     await asyncio.sleep(0.1)
     assert stub.server.running
+
+
+async def test_restarts_queued_together_start_the_listener_once(stub: Any) -> None:
+    starts: list[str] = []
+    real_start = stub.server.start
+
+    async def counting_start(*args: Any, **kwargs: Any) -> None:
+        starts.append(str(stub.settings["bindaddress"]))
+        await real_start(*args, **kwargs)
+
+    stub.server.start = counting_start
+    for _ in range(6):
+        stub._schedule_restart()
+    stub.settings["bindaddress"] = "127.0.0.2"
+    await asyncio.sleep(0.2)
+    assert starts == ["127.0.0.2"]
+    assert stub.server.running
+    assert stub.server.address.startswith("127.0.0.2:")
+
+
+async def test_a_restart_scheduled_after_one_finished_still_restarts(stub: Any) -> None:
+    stub._schedule_restart()
+    await asyncio.sleep(0.1)
+    first = stub.server.address
+    stub.settings["enabled"] = False
+    stub._schedule_restart()
+    await asyncio.sleep(0.1)
+    assert first
+    assert not stub.server.running
+
+
+async def test_unload_stops_a_pending_scheduled_restart(stub: Any) -> None:
+    stub._schedule_restart()
+    WebPlugin._phook_close_server(stub)
+    await asyncio.sleep(0.1)
+    assert not stub.server.running
 
 
 async def test_unload_closes_the_listener(stub: Any) -> None:
