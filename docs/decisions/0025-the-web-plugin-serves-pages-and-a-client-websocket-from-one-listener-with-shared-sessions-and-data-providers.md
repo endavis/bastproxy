@@ -12,7 +12,7 @@ tags:
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -33,16 +33,26 @@ Open-source web MUD clients (MUDPortal, oiMUD, Mudslinger and others) all parse 
   - `event` names the event that means the data changed. A plugin can instead call `web.provider.changed.raise(owner, name)`.
   - HTTP renders the snapshot with the existing kinds (`table`, `json`). A route handler stays possible for pages that are not providers.
   - The owner check, the reserved names and the removal on `ev_plugin_unloaded` are shared with routes.
-- **Colour as spans.** `colorcode.to.spans(text)` builds on `colorcode.to.tokens` (ADR-0008) and returns `[{"text", "fg", "bg", "bold"}]`. `colorcode.to.html` becomes spans to escaped HTML. Pages and the client then cannot disagree about colour, and escaping stays in one place. The browser never parses ANSI or `@` codes.
+- **Colour as spans.** `colorcode.to.spans(text)` builds on `colorcode.to.tokens` (ADR-0008) and returns `[{"text", "fg", "bg", "bold"}]`, with `fg` and `bg` a 256-colour index or null and a `"\n"` span between lines. `ansicode.to.spans(text)` does the same for ANSI text, such as MUD output. `colorcode.to.html` becomes spans to escaped HTML. Pages and the client then cannot disagree about colour, and escaping stays in one place. The browser never parses ANSI or `@` codes.
 - **The socket protocol is JSON text frames with a version.** Every message is `{"v": 1, "type": ...}`.
-  - Server to client: `hello` (protocol version, proxy version, a connection id; the session id stays HttpOnly and is never sent), `output` (one line as spans, with `prompt` and one `record` string, the line's id), `snapshot` and `update` (topic, data), `result` (call id, status, reply), `error`.
+  - Server to client: `hello` (protocol version, proxy version, a connection id and the provider topics; the session id stays HttpOnly and is never sent), `output` (one line as spans, with `prompt` and one `record` string, the line's id), `snapshot` and `update` (topic, data), `result` (call id, status, reply), `error`.
   - Client to server: `input` (text for the to-MUD pipeline, one line per text line), `cols` (the window width and height, like telnet NAWS), `subscribe` and `unsubscribe` (topic), `call` (id, command, arguments).
-  - An unknown `type` gets an `error`, never a disconnect. A client that needs a newer `v` closes with a message.
-- **Socket limits and close codes.** A message is at most 64 KiB (close 1009), the send queue holds 256 messages (close 1008), and binary frames are refused (close 1003). The output queue of a socket holds 5000 lines and one more closes it with 1008 (reason `output queue full`). The proxy pings every 20 seconds and closes with 1011 after 40 seconds of silence. A logout, or a session that is no longer valid, closes with 4001. A shutdown or unload closes with 1001. Sockets count against the connection cap.
+  - An unknown `type` gets an `error`, never a disconnect. A message with another `v` gets an `error` with code `version`. A client that needs a newer `v` closes with a message.
+- **Socket limits and close codes.** A message is at most 64 KiB (close 1009), the send queue holds 256 messages (close 1008), binary frames are refused (close 1003), and a text frame that is not UTF-8 closes with 1007. The output queue of a socket holds 5000 lines and one more closes it with 1008 (reason `output queue full`). The proxy pings every 20 seconds and closes with 1011 after 40 seconds of silence. A logout, or a session that is no longer valid, closes with 4001. A shutdown or unload closes with 1001. Sockets count against the connection cap.
 - **A web client is a proxy client.** Each socket is registered through `plugins.core.clients` like a telnet client. It receives the MUD output stream after the same per-client steps, and its `input` goes through the same to-MUD pipeline. View-only is honoured: `#bp.core.web.viewlogin` gives a link that starts a view-only session, every socket of that session is view-only, and its `input` is answered with `error` code `view_only`. It appears in the clients list with its type, `websocket`.
-- **Command calls with structured replies.** `call` runs a `#bp` command, or an API a plugin exposes for the client, and returns its reply as data in `result`. The socket does not need to parse command text.
+- **Command calls with structured replies.** `call` runs a `#bp` command through `command.run.structured` and returns its reply as data in `result`. A command adds data to its reply with `command.reply.data.set`. A view-only session's `call` is answered with `error` code `view_only`. The socket does not need to parse command text.
 - **The client bundle is served by the proxy.** A `clientdir` setting points at the built client. Files under it are served at `/webclient/`, behind the session. Only successful file responses there carry the ADR-0022 policy plus `connect-src 'self'` and `font-src 'self'`. Every other page keeps the ADR-0022 CSP, where `default-src 'none'` already blocks connections. Plugins still cannot ship scripts.
 - **Pages stay scriptless.** Live data goes to the client. Existing pages keep server rendering and `table.js` only.
+
+## Changes during implementation
+
+Accepted in issue #869, after all its parts merged. The text above was corrected to match the code:
+
+- Issue #845: `call` runs `#bp` commands only, through `command.run.structured`. The proposal also allowed APIs a plugin exposes; none was built. A view-only session's `call` is refused, like its `input`.
+- Issue #841: `ansicode.to.spans` was added for MUD output, beside `colorcode.to.spans`.
+- Issue #843: `hello` also lists the provider topics.
+- Issue #842: a text frame that is not UTF-8 closes with 1007, and a message with another `v` gets an `error`.
+- Issue #870: spans are exactly `{text, fg, bg, bold}`, `output` carries one `record`, and the output queue closes with 1008. These were corrected with the schema.
 
 ## Rationale
 
@@ -60,7 +70,7 @@ One listener keeps one port, one TLS setup and one login, and the upgrade check 
 
 ## Consequences
 
-- `websockets` becomes a runtime dependency, once the repo admin approves it.
+- `websockets` is a runtime dependency.
 - ADR-0022 is amended: the listener also accepts WebSocket upgrades, `/webclient/` has its own CSP, and providers sit alongside routes.
 - Snapshots run on the loop. A slow snapshot works on a copy with `asyncio.to_thread`, as route handlers do.
 - Output to a web client is held back by its socket. The per-client output queue holds 5000 lines; one more closes the socket with 1008. Output uses at most half of the 256-message send queue, so replies to the client still fit.
@@ -71,17 +81,19 @@ One listener keeps one port, one TLS setup and one login, and the upgrade check 
 
 - Issue #424: the internal web server (ADR-0022)
 - Issue #840: data providers
+- Issue #841: colour as spans
 - Issue #842: the client socket endpoint `/ws`
 - Issue #843: subscriptions to data providers over the socket
 - Issue #844: a socket is a proxy client (output as spans, input to the MUD, view-only login)
 - Issue #845: command calls with structured replies over the socket
 - Issue #846: the client bundle served from `clientdir`
 - Issue #870: a JSON Schema of the socket messages, checked by tests
+- Issue #869: the ADR accepted and matched to the merged code
 - The core issues filed with this ADR, listed in its PR
 
 ## Related Documentation
 
-- [Web server](../web-server.md)
+- [Web server](../web-server.md): [Client socket](../web-server.md#client-socket), [Web client bundle](../web-server.md#web-client-bundle) and [Data providers](../web-server.md#data-providers)
 - [Socket message schema](../../src/bastproxy/plugins/core/web/schema/socket-v1.schema.json)
 - [Web system](../claude/web_system.md)
 - [Colour system](../claude/colors_system.md)
