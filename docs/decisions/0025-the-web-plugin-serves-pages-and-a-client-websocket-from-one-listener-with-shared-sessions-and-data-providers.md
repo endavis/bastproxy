@@ -85,6 +85,7 @@ One listener keeps one port, one TLS setup and one login, and the upgrade check 
 - Issue #842: the client socket endpoint `/ws`
 - Issue #843: subscriptions to data providers over the socket
 - Issue #877: provider pages are served under `/data/`, so a provider and a page can share a name
+- Issue #879: `/data/` lists the data providers and `/` lists only pages
 - Issue #844: a socket is a proxy client (output as spans, input to the MUD, view-only login)
 - Issue #845: command calls with structured replies over the socket
 - Issue #846: the client bundle served from `clientdir`

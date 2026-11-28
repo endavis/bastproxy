@@ -202,10 +202,12 @@ async def test_only_table_pages_load_the_script_and_no_page_has_an_inline_script
     _, _, table_page = await get(env, "/test/web/mobs", sid)
     _, _, plain = await get(env, "/test/web/doc", sid)
     _, _, index = await get(env, "/", sid)
+    _, _, data_index = await get(env, "/data/", sid)
     assert tag in table_page
     assert tag not in plain
     assert tag not in index
-    for page in (table_page, plain, index):
+    assert tag not in data_index
+    for page in (table_page, plain, index, data_index):
         assert not INLINE_SCRIPT.search(page)
     assert "<script" not in plain
 

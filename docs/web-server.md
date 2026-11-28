@@ -259,7 +259,7 @@ The listener also answers a WebSocket upgrade at `/ws`, on the same port, TLS an
 
 ## Data providers
 
-A plugin can register its data once with `web.provider.add`. The data is then served as a page behind the session, as JSON or as a table, at `/data/` followed by a path built from the plugin id (a route and a provider of one name never meet); see [Data providers](claude/web_system.md#data-providers). `#bp.core.web.status` shows a `Providers` line, and the index at `/` lists provider pages with the routes, at their `/data/...` paths.
+A plugin can register its data once with `web.provider.add`. The data is then served as a page behind the session, as JSON or as a table, at `/data/` followed by a path built from the plugin id (a route and a provider of one name never meet); see [Data providers](claude/web_system.md#data-providers). `#bp.core.web.status` shows a `Providers` line, and the index at `/data/` lists the providers by owner (topic, kind and link). The index at `/` lists only pages and links to `/data/`. Both need a session; `/data` without the slash is a 404.
 
 ## Related
 
