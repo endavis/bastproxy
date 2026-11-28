@@ -1,6 +1,8 @@
 """Page rendering (#424)."""
 
+import re
 from html.parser import HTMLParser
+from typing import Any
 
 import pytest
 
@@ -148,3 +150,51 @@ def test_every_rendered_page_declares_english() -> None:
         message_response(404, "gone").body.decode("utf-8"),
     ]
     assert [_html_lang(d) for d in documents] == ["en"] * 5
+
+
+# ---- long column names (#884) ----
+
+
+def _long_table(columns: list[Any]) -> str:
+    from bastproxy.plugins.core.web.libs._table import TableQuery
+
+    return render_table(
+        columns,
+        [["x"] * len(columns)],
+        query=TableQuery(),
+        total=1,
+        base_path="/t",
+        to_html=to_html,
+    )
+
+
+def test_a_column_with_a_long_name_shows_two_styled_spans_in_the_sort_link() -> None:
+    from bastproxy.plugins.core.web.libs._table import Column
+
+    document = _long_table([Column("lvl", "Lvl", "int", "Level"), Column("b", "B")])
+    assert re.search(
+        r"<th data-type='int'><a href='[^']*sort=lvl[^']*'>"
+        r"<span class='long'>Level</span> <span class='short'>\[Lvl\]</span></a></th>",
+        document,
+    )
+    assert re.search(r"<th data-type='text'><a href='[^']*sort=b[^']*'>B</a></th>", document)
+
+
+def test_long_and_label_are_escaped() -> None:
+    from bastproxy.plugins.core.web.libs._table import Column
+
+    document = _long_table([Column("a", "<i>L</i>", "text", "<b>Long</b>")])
+    assert "<span class='long'>&lt;b&gt;Long&lt;/b&gt;</span>" in document
+    assert "[&lt;i&gt;L&lt;/i&gt;]" in document
+    assert "<b>Long" not in document
+
+
+def test_the_stylesheet_has_the_long_name_classes_and_headers_have_no_style_attribute() -> None:
+    from bastproxy.plugins.core.web.libs._render import render_table_page
+    from bastproxy.plugins.core.web.libs._table import Column
+
+    table = _long_table([Column("a", "A", "text", "Alpha")])
+    page = render_table_page("t", [], table, to_html)
+    assert "th .long,th .short{display:block}" in page
+    assert "th .short{font-size:.8em;color:#888;font-family:monospace}" in page
+    assert "style=" not in table

@@ -61,7 +61,7 @@ self.api("plugins.core.web:web.route.add")(self.plugin_id, "area", self._area_pa
 | `subpath` | Lower case letters, digits, `_` and `-`, in segments separated by `/` (`^[a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9_-]*)*$`), or `""` for the prefix itself. |
 | `handler` | A function or coroutine function that takes a `Request` and returns a dict. |
 | `title` | The text shown in the index at `/`. It is escaped. |
-| `columns` | Optional. A list of dicts with `name`, `label` and `type` that makes this a table route (see [Tables](#tables)). |
+| `columns` | Optional. A list of dicts with `name`, `label`, `type` and an optional `long` that makes this a table route (see [Tables](#tables)). |
 | `listed` | Optional, keyword only. `False` serves the route as usual (session, GET only) but leaves it out of the index at `/`. |
 
 - **Listing.** List entry pages, not pages that need a parameter such as `?uid=`: register those with `listed=False` and reach them by links from other pages. An owner whose routes are all unlisted gets no heading in the index. Unlisted routes are still removed on unload and still counted by `#bp.core.web.status`.
@@ -118,12 +118,12 @@ A route registered with `columns` serves a table that the browser can sort, filt
 ```python
 COLUMNS = [
     {"name": "name", "label": "Name", "type": "text"},
-    {"name": "level", "label": "Level", "type": "int"},
+    {"name": "level", "label": "Lvl", "long": "Level", "type": "int"},
 ]
 self.api("plugins.core.web:web.route.add")(self.plugin_id, "mobs", self._mobs, "Mobs", COLUMNS)
 ```
 
-- **Columns.** `name` matches `[a-z0-9_]+` and is unique in the table, `label` is the header text and `type` is `text`, `int` or `float`. They are checked when the route is added; an invalid declaration is refused like a bad subpath (error logged, `None` returned).
+- **Columns.** `name` matches `[a-z0-9_]+` and is unique in the table, `label` is the header text and `type` is `text`, `int` or `float`. `long` is optional text, the full name: the header shows it on a first line and the short `label` in brackets on a second, in smaller muted monospace (classes in the page stylesheet, one sort link); a column without `long` shows the label alone. They are checked when the route is added; an invalid declaration is refused like a bad subpath (error logged, `None` returned).
 - **The query.** Before the handler runs, the web plugin parses the query into `request.table`, a frozen `TableQuery`: `sort` (a column name or `None`), `descending`, `filters` (column name to a `str`, `int` or `float` according to the column type), `page` (1 or more), `count` (rows per page) and `offset` (`(page - 1) * count`). The parameters are `sort`, `dir` (`asc` or `desc`), `f_<column>`, `page` and `count`; an empty value counts as not given, because a GET form sends every box. Other keys stay in `request.query`.
 - **400.** An unknown `sort` or `f_` column, a `dir` other than `asc` or `desc`, a `page` that is not an integer from 1 to 10,000,000, a `count` outside 1 to 500 (default 50), an `int` or `float` filter that does not parse (a float must be finite, an int must fit in 64 bits) or a text filter over 200 characters returns 400, and the handler is not called.
 - **The handler** returns `{"kind": "table", "title", "rows", "total"}` for the one page described by `request.table`, with `total` the count of all rows that match the filters. Each row has one cell per column; a row of another width returns 500.
@@ -172,7 +172,7 @@ self.api("plugins.core.web:web.provider.add")(
 | `owner` | Your plugin id. It must be the plugin that makes the call. |
 | `name` | A non-empty subpath, with the same rules as a route subpath. |
 | `snapshot` | A sync or async function with no arguments that returns all the data as plain data. |
-| `columns` | For `table` only, a list of dicts with `name`, `label` and `type`, and optionally `colour: True` on a text column. A `json` provider refuses columns. |
+| `columns` | For `table` only, a list of dicts with `name`, `label` and `type`, optional `long` (the full name shown in the header), and optionally `colour: True` on a text column. A `json` provider refuses columns. |
 | `kind` | `json` (the default) or `table`. |
 | `event` | Optional. An event name that means the data changed. |
 | `title` | Optional text. The page heading, the HTML `<title>` and the entry in the `/data/` index. It defaults to the topic. A value that is not text is refused. |

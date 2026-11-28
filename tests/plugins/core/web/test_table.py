@@ -185,3 +185,23 @@ def test_escape_cells_raw_keeps_the_text_of_the_listed_columns() -> None:
         ["a@@b", "c@d", {"text": "x@y", "href": "/p"}]
     ]
     assert escape_cells(rows, escape, raw=()) == escape_cells(rows, escape)
+
+
+# ---- long names (#884) ----
+
+
+def test_make_columns_stores_long_and_defaults_to_none() -> None:
+    columns = make_columns(
+        [{"name": "a", "label": "A", "long": "Alpha"}, {"name": "b", "label": "B"}]
+    )
+    assert [c.long for c in columns] == ["Alpha", None]
+
+
+@pytest.mark.parametrize("long", [1, ["x"], b"x"])
+def test_a_non_text_long_is_refused_also_when_the_route_is_added(long: Any) -> None:
+    with pytest.raises(ValueError, match="long"):
+        make_columns([{"name": "a", "label": "A", "long": long}])
+    table = RouteTable()
+    with pytest.raises(ValueError, match="long"):
+        table.add("plugins.test.web", "t", noop, "T", [{"name": "a", "label": "A", "long": long}])
+    assert table.count() == 0

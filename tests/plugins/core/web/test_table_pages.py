@@ -249,3 +249,19 @@ async def test_a_kept_value_is_escaped_in_the_hidden_input_and_links(env: Env) -
     for link in re.findall(r"<a href='([^']*)'", page):
         assert parse_qs(urlsplit(link.replace("&amp;", "&")).query)["area"] == ['"<>&']
     assert "\"<>&'" not in page
+
+
+async def test_long_names_render_in_the_header_and_sorting_works_for_both_kinds(env: Env) -> None:
+    columns = [
+        {"name": "name", "label": "Name", "type": "text"},
+        {"name": "level", "label": "Lvl", "type": "int", "long": "Level"},
+    ]
+    env.app.routes.add("plugins.test.web", "mobs", db_handler(make_db()), "Mobs", columns)
+    sid = await env.login()
+    _, _, page = await get(env, "/test/web/mobs?sort=level&dir=asc", sid)
+    assert "<span class='long'>Level</span> <span class='short'>[Lvl]</span></a></th>" in page
+    assert re.search(r"<a href='[^']*sort=name[^']*'>Name</a>", page)
+    for sort in ("name", "level"):
+        status, _, body = await get(env, f"/test/web/mobs?sort={sort}&dir=desc", sid)
+        assert status == 200
+        assert "<tbody><tr>" in body
