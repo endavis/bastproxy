@@ -134,12 +134,17 @@ def _html_lang(document: str) -> str | None:
 
 def test_every_rendered_page_declares_english() -> None:
     from bastproxy.plugins.core.web.libs._http import message_response
-    from bastproxy.plugins.core.web.libs._render import render_index, render_table_page
+    from bastproxy.plugins.core.web.libs._render import (
+        render_data_index,
+        render_index,
+        render_table_page,
+    )
 
     documents = [
         render_page("t", ["x"], to_html),
         render_index({}),
+        render_data_index({}),
         render_table_page("t", ["x"], _table([["a", "b"]]), to_html),
         message_response(404, "gone").body.decode("utf-8"),
     ]
-    assert [_html_lang(d) for d in documents] == ["en"] * 4
+    assert [_html_lang(d) for d in documents] == ["en"] * 5

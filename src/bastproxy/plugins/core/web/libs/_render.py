@@ -81,7 +81,7 @@ def render_data_index(providers_by_owner: Mapping[str, Sequence[Any]]) -> str:
             parts.append(f"<h2>{html.escape(owner)}</h2><ul>{items}</ul>")
     body = "".join(parts) or "<p>No data providers are registered.</p>"
     return (
-        "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+        "<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width, initial-scale=1'>"
         f"<title>bastproxy data</title><style>{_STYLE}a{{color:#6cf}}</style></head>"
         f"<body><h1>Data providers</h1>{body}<p><a href='/'>Pages</a></p></body></html>"
