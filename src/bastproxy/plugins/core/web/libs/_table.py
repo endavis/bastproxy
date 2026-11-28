@@ -31,11 +31,15 @@ TABLE_KEYS = frozenset({"sort", "dir", "page", "count"})
 
 @dataclass(frozen=True)
 class Column:
-    """One declared column: ``name`` selects it, ``label`` is the header text."""
+    """One declared column: ``name`` selects it, ``label`` is the header text.
+
+    ``long`` is an optional full name shown above the label in the page header.
+    """
 
     name: str
     label: str
     type: str = "text"
+    long: str | None = None
 
 
 @dataclass(frozen=True)
@@ -68,6 +72,7 @@ def make_columns(columns: Sequence[Mapping[str, Any]]) -> tuple[Column, ...]:
         name = item.get("name")
         label = item.get("label")
         kind = item.get("type", "text")
+        long = item.get("long")
         if not isinstance(name, str) or not COLUMN_NAME_RE.fullmatch(name):
             msg = f"invalid column name {name!r}: use lower case letters, digits and _"
             raise ValueError(msg)
@@ -77,11 +82,14 @@ def make_columns(columns: Sequence[Mapping[str, Any]]) -> tuple[Column, ...]:
         if not isinstance(label, str):
             msg = f"column {name!r} needs a text label"
             raise ValueError(msg)
+        if long is not None and not isinstance(long, str):
+            msg = f"column {name!r} needs a text long name"
+            raise ValueError(msg)
         if kind not in COLUMN_TYPES:
             msg = f"column {name!r} has unknown type {kind!r}: use one of {COLUMN_TYPES}"
             raise ValueError(msg)
         seen.add(name)
-        result.append(Column(name, label, kind))
+        result.append(Column(name, label, kind, long))
     if not result:
         msg = "a table needs at least one column"
         raise ValueError(msg)

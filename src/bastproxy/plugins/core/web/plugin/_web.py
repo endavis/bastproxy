@@ -378,7 +378,8 @@ class WebPlugin(BasePlugin):
         @Yhandler@w   = a sync or async function taking a Request, returning a dict
         @Ytitle@w     = the title shown in the index
         @Ycolumns@w   = for a table route, a list of dicts with name, label and type
-                        (text, int or float); the handler then gets ``request.table`` and
+                        (text, int or float) and an optional long (the full
+                        name); the handler then gets ``request.table`` and
                         returns a ``table`` dict
         @Ylisted@w    = False keeps the route out of the index at /; it is still served
 
@@ -440,8 +441,8 @@ class WebPlugin(BasePlugin):
                          for ``json``; for ``table`` a list of rows (one cell per column) or a
                          mapping of ``rows``, ``lines`` (shown above the table) and
                          ``unavailable`` (a message shown in place of the table)
-        @Ycolumns@w    = for ``table``, a list of dicts with name, label and type, and
-                         optionally ``colour: True`` to keep colour codes in a text column
+        @Ycolumns@w    = for ``table``, a list of dicts with name, label, type and optional
+                         long, and optionally ``colour: True`` to keep colour codes in a text column
         @Ykind@w       = ``json`` or ``table``
         @Yevent@w      = an event name; when it is raised, listeners are told the data changed
         @Ytitle@w      = the page heading, ``<title>`` and index entry; defaults to the topic

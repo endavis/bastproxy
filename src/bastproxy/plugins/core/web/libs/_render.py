@@ -25,6 +25,8 @@ _TABLE_STYLE = (
     "table{border-collapse:collapse}th,td{border:1px solid #444;padding:2px 8px;text-align:left}"
     "th a{color:#6cf;text-decoration:none}form{margin:1em 0}input{background:#111;color:#ccc;"
     "border:1px solid #444;font-family:monospace}a{color:#6cf}"
+    "th .long,th .short{display:block}"
+    "th .short{font-size:.8em;color:#888;font-family:monospace}"
 )
 TABLE_SCRIPT_TAG = '<script src="/static/table.js" defer></script>'
 
@@ -182,9 +184,13 @@ def render_table(
     for column in columns:
         toggled = "desc" if query.sort == column.name and not query.descending else "asc"
         href = _link(base_path, query, keep, sort=column.name, dir=toggled, page=1)
-        heads.append(
-            f"<th data-type='{column.type}'><a href='{href}'>{html.escape(column.label)}</a></th>"
-        )
+        text = html.escape(column.label)
+        if column.long:
+            text = (
+                f"<span class='long'>{html.escape(column.long)}</span> "
+                f"<span class='short'>[{text}]</span>"
+            )
+        heads.append(f"<th data-type='{column.type}'><a href='{href}'>{text}</a></th>")
     body = []
     for row in rows:
         if len(row) != len(columns):

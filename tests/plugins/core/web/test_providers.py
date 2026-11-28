@@ -584,3 +584,15 @@ def test_socket_fields_only_changes_an_unavailable_table() -> None:
     }
     with pytest.raises(ValueError, match="unknown"):
         socket_fields(table, {"bogus": 1})
+
+
+async def test_a_table_provider_with_long_renders_the_two_line_header(env: Env) -> None:
+    columns = [
+        {"name": "name", "label": "Name"},
+        {"name": "level", "label": "Lvl", "long": "Level"},
+    ]
+    add_env(env, "longs", kind="table", columns=columns)
+    sid = await env.login()
+    status, _, body = await env.get("/data/test/web/longs", sid)
+    assert status == 200
+    assert b"<span class='long'>Level</span> <span class='short'>[Lvl]</span>" in body
