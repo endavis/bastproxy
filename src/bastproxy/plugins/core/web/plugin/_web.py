@@ -427,19 +427,24 @@ class WebPlugin(BasePlugin):
         owner: str,
         name: str,
         snapshot: Callable[[], Any],
-        columns: list[dict[str, str]] | None = None,
+        columns: list[dict[str, Any]] | None = None,
         kind: str = "json",
         event: str | None = None,
+        title: str | None = None,
     ) -> str | None:
         """Register a data provider; its data is served at ``/data/<plugin path>/<name>``.
 
         @Yowner@w      = the plugin id; it must be the calling plugin
         @Yname@w       = lower case letters, digits, _ and -, separated by /; not empty
         @Ysnapshot@w   = a sync or async function returning the whole data: any json value
-                         for ``json``, a list of rows (one cell per column) for ``table``
-        @Ycolumns@w    = for ``table``, a list of dicts with name, label and type
+                         for ``json``; for ``table`` a list of rows (one cell per column) or a
+                         mapping of ``rows``, ``lines`` (shown above the table) and
+                         ``unavailable`` (a message shown in place of the table)
+        @Ycolumns@w    = for ``table``, a list of dicts with name, label and type, and
+                         optionally ``colour: True`` to keep colour codes in a text column
         @Ykind@w       = ``json`` or ``table``
         @Yevent@w      = an event name; when it is raised, listeners are told the data changed
+        @Ytitle@w      = the page heading, ``<title>`` and index entry; defaults to the topic
 
         The topic is the path without the leading /data/ and with . for /. Returns the
         topic, or None (and logs an error) when the provider is refused.
@@ -450,7 +455,7 @@ class WebPlugin(BasePlugin):
             name,
             owner,
             lambda: self.routes.add_provider(
-                owner, name, snapshot, columns, kind, event, self._escape
+                owner, name, snapshot, columns, kind, event, self._escape, title=title
             ),
         )
         self._sync_provider_events(before)

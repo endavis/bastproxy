@@ -173,3 +173,15 @@ def test_escape_cells_escapes_text_and_link_text_only() -> None:
     assert escape_cells(rows, lambda t: t.replace("@", "@@")) == [
         ["a@@b", 3, None, {"text": "x@@y", "href": "/p"}]
     ]
+
+
+def test_escape_cells_raw_keeps_the_text_of_the_listed_columns() -> None:
+    rows: list[list[Any]] = [["a@b", "c@d", {"text": "x@y", "href": "/p"}]]
+
+    def escape(text: str) -> str:
+        return text.replace("@", "@@")
+
+    assert escape_cells(rows, escape, raw={1, 2}) == [
+        ["a@@b", "c@d", {"text": "x@y", "href": "/p"}]
+    ]
+    assert escape_cells(rows, escape, raw=()) == escape_cells(rows, escape)
