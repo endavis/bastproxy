@@ -285,11 +285,78 @@ async def test_table_cells_are_escaped_before_the_colour_converter(env: Env) -> 
     assert b"@Rred" in body
 
 
-async def test_the_index_lists_providers(env: Env) -> None:
+async def test_the_index_links_to_data_and_omits_providers(env: Env) -> None:
     add_env(env)
+    env.app.routes.add(OWNER, "page", noop, "Page")
     sid = await env.login()
     _, _, body = await env.get("/", sid)
-    assert b"/data/test/web/mobs" in body
+    assert b"/data/test/web/mobs" not in body
+    assert b"/test/web/page" in body
+    assert b"href='/data/'" in body
+
+
+def test_pages_and_providers_by_owner_filter_and_sort() -> None:
+    table = RouteTable()
+    add(table, "zeta")
+    add(table, "alpha", kind="table", columns=COLUMNS)
+    table.add(OWNER, "b", noop, "B")
+    table.add(OWNER, "a", noop, "A")
+    add(table, "only", owner="other.owner")
+    assert [r.path for r in table.pages_by_owner()[OWNER]] == ["/test/web/a", "/test/web/b"]
+    assert "other.owner" not in table.pages_by_owner()
+    assert [r.provider.topic for r in table.providers_by_owner()[OWNER] if r.provider] == [
+        "test.web.alpha",
+        "test.web.zeta",
+    ]
+    assert set(table.providers_by_owner()) == {OWNER, "other.owner"}
+
+
+async def test_the_data_index_lists_owners_topics_kinds_and_links(env: Env) -> None:
+    add_env(env, "mobs")
+    add_env(env, "rows", kind="table", columns=COLUMNS)
+    env.app.routes.add(OWNER, "page", noop, "Page")
+    sid = await env.login()
+    status, headers, body = await env.get("/data/", sid)
+    text = body.decode()
+    assert status == 200
+    assert headers["content-type"].startswith("text/html")
+    assert OWNER in text
+    assert "<a href='/data/test/web/mobs'>test.web.mobs</a> (json)" in text
+    assert "<a href='/data/test/web/rows'>test.web.rows</a> (table)" in text
+    assert "/test/web/page" not in text
+    assert "<script" not in text.lower()
+
+
+def test_the_data_index_escapes_owner_and_topic() -> None:
+    from bastproxy.plugins.core.web.libs._render import render_data_index
+    from bastproxy.plugins.core.web.libs._store import Provider, Route
+
+    route = Route(
+        "<b>o</b>", "/data/x'y", "n", noop, "t", None, True, Provider("n", "<i>t</i>", "<k>")
+    )
+    text = render_data_index({"<b>o</b>": [route]})
+    assert "<b>o" not in text
+    assert "<i>t" not in text
+    assert "<k>" not in text
+    assert "&lt;b&gt;o&lt;/b&gt;" in text
+    assert "&#x27;" in text
+
+
+async def test_the_data_index_needs_a_session(env: Env) -> None:
+    add_env(env)
+    assert (await env.get("/data/"))[0] == 401
+
+
+async def test_the_data_index_with_no_providers_says_so(env: Env) -> None:
+    sid = await env.login()
+    status, _, body = await env.get("/data/", sid)
+    assert status == 200
+    assert b"No data providers are registered" in body
+
+
+async def test_data_without_the_slash_is_404(env: Env) -> None:
+    add_env(env)
+    assert (await env.get("/data", await env.login()))[0] == 404
 
 
 def test_topics_are_sorted_and_leave_out_plain_routes() -> None:

@@ -422,6 +422,21 @@ class RouteTable:
             grouped.setdefault(route.owner, []).append(route)
         return grouped
 
+    def pages_by_owner(self) -> dict[str, list[Route]]:
+        """The plain routes (not providers) by owner, by path; owners with none are left out."""
+        grouped: dict[str, list[Route]] = {}
+        for route in sorted(self._routes.values(), key=lambda r: r.path):
+            if route.provider is None:
+                grouped.setdefault(route.owner, []).append(route)
+        return grouped
+
+    def providers_by_owner(self) -> dict[str, list[Route]]:
+        """The providers grouped by owner, by topic; owners with none are left out."""
+        grouped: dict[str, list[Route]] = {}
+        for route in sorted(self.providers(), key=lambda r: r.provider.topic if r.provider else ""):
+            grouped.setdefault(route.owner, []).append(route)
+        return grouped
+
     def count(self) -> int:
         """Return the number of plain routes, not counting data providers."""
         return sum(1 for r in self._routes.values() if r.provider is None)

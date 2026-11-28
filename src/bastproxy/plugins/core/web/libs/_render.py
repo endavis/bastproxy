@@ -41,6 +41,9 @@ def render_page(title: str, lines: list[str] | str, to_html: Callable[[str], str
     )
 
 
+DATA_INDEX_PATH = "/data/"
+
+
 def render_index(routes_by_owner: Mapping[str, Sequence[Any]]) -> str:
     """Build the index of listed routes by owner; each has ``path``, ``title`` and ``listed``."""
     parts = []
@@ -55,11 +58,33 @@ def render_index(routes_by_owner: Mapping[str, Sequence[Any]]) -> str:
         )
         parts.append(f"<h2>{html.escape(owner)}</h2><ul>{items}</ul>")
     body = "".join(parts) or "<p>No pages are registered.</p>"
+    body += f"<p><a href='{DATA_INDEX_PATH}'>Data providers</a></p>"
     return (
         "<!DOCTYPE html><html><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width, initial-scale=1'>"
         f"<title>bastproxy</title><style>{_STYLE}a{{color:#6cf}}</style></head>"
         f"<body><h1>bastproxy</h1>{body}</body></html>"
+    )
+
+
+def render_data_index(providers_by_owner: Mapping[str, Sequence[Any]]) -> str:
+    """Build the index of data providers by owner; each has ``path`` and ``provider``."""
+    parts = []
+    for owner in sorted(providers_by_owner):
+        items = "".join(
+            f"<li><a href='{html.escape(route.path, quote=True)}'>"
+            f"{html.escape(route.provider.topic)}</a> ({html.escape(route.provider.kind)})</li>"
+            for route in providers_by_owner[owner]
+            if route.provider is not None
+        )
+        if items:
+            parts.append(f"<h2>{html.escape(owner)}</h2><ul>{items}</ul>")
+    body = "".join(parts) or "<p>No data providers are registered.</p>"
+    return (
+        "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+        "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+        f"<title>bastproxy data</title><style>{_STYLE}a{{color:#6cf}}</style></head>"
+        f"<body><h1>Data providers</h1>{body}<p><a href='/'>Pages</a></p></body></html>"
     )
 
 

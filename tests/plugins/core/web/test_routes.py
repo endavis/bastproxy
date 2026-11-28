@@ -464,7 +464,9 @@ async def test_the_index_with_only_unlisted_routes_says_so(env: Env) -> None:
 
 async def test_the_index_with_no_routes_says_so(env: Env) -> None:
     sid = await env.login()
-    assert b"No pages are registered" in (await env.get("/", sid))[2]
+    body = (await env.get("/", sid))[2]
+    assert b"No pages are registered" in body
+    assert b"href='/data/'" in body
 
 
 async def test_ending_all_sessions_gives_401_again(env: Env) -> None:

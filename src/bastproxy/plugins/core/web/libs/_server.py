@@ -36,7 +36,14 @@ from ._http import (
     serialize,
     text_response,
 )
-from ._render import render_index, render_page, render_table, render_table_page
+from ._render import (
+    DATA_INDEX_PATH,
+    render_data_index,
+    render_index,
+    render_page,
+    render_table,
+    render_table_page,
+)
 from ._store import CLIENT_SEGMENT, LoginTokens, PageStore, Route, RouteTable, SessionStore
 from ._table import FILTER_PREFIX, TABLE_KEYS, parse_table_query
 from ._tls import LOGGER_NAME, CertManager
@@ -137,7 +144,8 @@ class WebApp:
         """Answer one request.
 
         The order is: a method other than GET (405), a page token link, a login link, the
-        index, a plugin route (the last two need a session, else 401), anything else (404).
+        index, the data index, a plugin route (these need a session, else 401), anything else
+        (404).
         """
         if request.method != "GET":
             return message_response(HTTPStatus.METHOD_NOT_ALLOWED, extra=[("Allow", "GET")])
@@ -155,7 +163,11 @@ class WebApp:
         elif path == "/":
             if not self._has_session(request):
                 return self._unauthorized()
-            return text_response(HTTPStatus.OK, render_index(self.routes.by_owner()))
+            return text_response(HTTPStatus.OK, render_index(self.routes.pages_by_owner()))
+        elif path == DATA_INDEX_PATH:
+            if not self._has_session(request):
+                return self._unauthorized()
+            return text_response(HTTPStatus.OK, render_data_index(self.routes.providers_by_owner()))
         elif (route := self.routes.match(path)) is not None:
             if not self._has_session(request):
                 return self._unauthorized()
