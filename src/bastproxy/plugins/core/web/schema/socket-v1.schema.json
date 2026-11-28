@@ -282,7 +282,12 @@
         "topic": {
           "type": "string"
         },
-        "data": {}
+        "data": {},
+        "unavailable": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Set by a table provider whose data is unavailable; data is then null."
+        }
       },
       "additionalProperties": false
     },
@@ -305,7 +310,12 @@
         "topic": {
           "type": "string"
         },
-        "data": {}
+        "data": {},
+        "unavailable": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Set by a table provider whose data is unavailable; data is then null."
+        }
       },
       "additionalProperties": false
     },

@@ -9,7 +9,7 @@
 # Standard Library
 import math
 import re
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass, field
 from http import HTTPStatus
 from typing import Any
@@ -200,20 +200,28 @@ def page_rows(
     return kept[query.offset : query.offset + query.count], len(kept)
 
 
-def escape_cells(rows: Sequence[Sequence[Any]], escape: Callable[[str], str]) -> list[list[Any]]:
+def escape_cells(
+    rows: Sequence[Sequence[Any]],
+    escape: Callable[[str], str],
+    *,
+    raw: Collection[int] = (),
+) -> list[list[Any]]:
     """Return the rows with the text of every cell colour-code escaped.
 
     The web plugin converts cell text with the colour converter, so provider text must be
-    escaped first. Numbers and ``None`` pass through; a link cell keeps its href.
+    escaped first. Numbers and ``None`` pass through; a link cell keeps its href. The cells at
+    the column indexes in ``raw`` keep their text unescaped, so colour codes in it are converted.
     """
     result: list[list[Any]] = []
     for row in rows:
         cells: list[Any] = []
-        for cell in row:
+        for position, cell in enumerate(row):
+            keep = position in raw
             if isinstance(cell, Mapping):
-                cells.append({"text": escape(str(cell["text"])), "href": cell["href"]})
+                text = str(cell["text"])
+                cells.append({"text": text if keep else escape(text), "href": cell["href"]})
             elif isinstance(cell, str):
-                cells.append(escape(cell))
+                cells.append(cell if keep else escape(cell))
             else:
                 cells.append(cell)
         result.append(cells)

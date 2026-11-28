@@ -246,25 +246,123 @@ class ProviderListeners:
                 )
 
 
+TABLE_SNAPSHOT_KEYS = frozenset({"rows", "lines", "unavailable"})
+
+
+@dataclass(frozen=True)
+class TableSnapshot:
+    """What a table provider's snapshot returned, checked."""
+
+    rows: Sequence[Sequence[Any]]
+    lines: str | list[str]
+    unavailable: str | None
+
+
+def read_table_snapshot(data: Any) -> TableSnapshot:
+    """Read a table snapshot: a list of rows, or a mapping of ``rows``, ``lines``, ``unavailable``.
+
+    Raises:
+        ValueError: The mapping has an unknown key, a bad ``lines`` or ``unavailable``, or
+            neither ``rows`` nor ``unavailable``; or the rows are not a list.
+
+    """
+    if not isinstance(data, Mapping):
+        return TableSnapshot(data, "", None)
+    unknown = sorted(str(key) for key in data if key not in TABLE_SNAPSHOT_KEYS)
+    if unknown:
+        msg = f"unknown table snapshot keys {unknown}: use {sorted(TABLE_SNAPSHOT_KEYS)}"
+        raise ValueError(msg)
+    unavailable = data.get("unavailable")
+    if unavailable is not None and (not isinstance(unavailable, str) or not unavailable):
+        msg = "unavailable must be a non-empty string"
+        raise ValueError(msg)
+    lines = data.get("lines", "")
+    if not isinstance(lines, str) and not (
+        isinstance(lines, list) and all(isinstance(line, str) for line in lines)
+    ):
+        msg = "lines must be a string or a list of strings"
+        raise ValueError(msg)
+    rows = data.get("rows")
+    if rows is None and unavailable is None:
+        msg = "a table snapshot mapping needs rows or unavailable"
+        raise ValueError(msg)
+    if rows is None:
+        rows = []
+    if isinstance(rows, str | bytes) or not isinstance(rows, Sequence):
+        msg = "rows must be a list of rows"
+        raise ValueError(msg)
+    return TableSnapshot(rows, lines, unavailable)
+
+
+def socket_fields(provider: Provider, data: Any) -> dict[str, Any]:
+    """The payload fields of a socket ``snapshot`` or ``update`` for a provider's data.
+
+    A table snapshot that is unavailable gives ``data`` null and the ``unavailable`` message.
+
+    Raises:
+        ValueError: A table snapshot mapping is malformed.
+
+    """
+    if provider.kind == "table" and isinstance(data, Mapping):
+        snapshot = read_table_snapshot(data)
+        if snapshot.unavailable is not None:
+            return {"data": None, "unavailable": snapshot.unavailable}
+    return {"data": data}
+
+
+def _colour_indexes(
+    columns: tuple[Column, ...], declared: Sequence[Mapping[str, Any]]
+) -> frozenset[int]:
+    """The indexes of the columns declared with ``colour: True``.
+
+    Raises:
+        ValueError: ``colour`` is not a bool, or is set on a column that is not text.
+
+    """
+    found: set[int] = set()
+    for position, (column, item) in enumerate(zip(columns, declared, strict=True)):
+        colour = item.get("colour", False)
+        if not isinstance(colour, bool):
+            msg = f"column {column.name!r}: colour must be true or false"
+            raise ValueError(msg)
+        if colour:
+            if column.type != "text":
+                msg = f"column {column.name!r}: colour needs a text column"
+                raise ValueError(msg)
+            found.add(position)
+    return frozenset(found)
+
+
 def _provider_handler(
     snapshot: Callable[[], Any],
     kind: str,
-    topic: str,
+    title: str,
     columns: tuple[Column, ...] | None,
     escape: Callable[[str], str],
+    *,
+    raw: frozenset[int] = frozenset(),
 ) -> Callable[[Request], Any]:
     """Build the route handler that serves a provider's snapshot."""
 
     async def handler(request: Request) -> dict[str, Any]:
         data = await run_snapshot(snapshot)
         if kind == "table" and columns is not None and request.table is not None:
-            page, total = page_rows(data, columns, request.table)
-            return {
+            read = read_table_snapshot(data)
+            if read.unavailable is not None:
+                intro = (
+                    read.lines if isinstance(read.lines, list) else [read.lines] * bool(read.lines)
+                )
+                return {"kind": "html", "title": title, "lines": [*intro, read.unavailable]}
+            page, total = page_rows(read.rows, columns, request.table)
+            result: dict[str, Any] = {
                 "kind": "table",
-                "title": topic,
-                "rows": escape_cells(page, escape),
+                "title": title,
+                "rows": escape_cells(page, escape, raw=raw),
                 "total": total,
             }
+            if isinstance(data, Mapping):
+                result["lines"] = read.lines
+            return result
         return {"kind": "json", "data": data}
 
     return handler
@@ -339,18 +437,27 @@ class RouteTable:
         kind: str,
         event: str | None,
         escape: Callable[[str], str],
+        *,
+        title: object = None,
     ) -> str:
         """Add a data provider served at ``/data/<prefix>/<name>`` and return its topic.
 
         The topic is the path without the leading ``/data/``, with ``.`` for ``/``. A ``json``
         provider serves what ``snapshot`` returns; a ``table`` provider serves the rows
-        ``snapshot`` returns (lists of cells, one per column), filtered, sorted and paged.
+        ``snapshot`` returns (lists of cells, one per column), filtered, sorted and paged, or a
+        mapping of ``rows``, ``lines`` (shown above the table) and ``unavailable`` (a message
+        shown in place of the table). ``title`` is the heading and the index entry; it defaults
+        to the topic. A column dict with ``colour: True`` keeps the colour codes of its text.
 
         Raises:
             ValueError: The name is empty or invalid, the kind is unknown, columns are
-                missing for a table or given for json, or the path is taken.
+                missing for a table or given for json, the title is not text, a column
+                colour is invalid, or the path is taken.
 
         """
+        if title is not None and not isinstance(title, str):
+            msg = "a provider title must be text"
+            raise ValueError(msg)
         if not name:
             msg = "a provider needs a name"
             raise ValueError(msg)
@@ -366,9 +473,13 @@ class RouteTable:
         declared = make_columns(columns) if columns is not None else None
         path = self._claim(owner, name, provider=True)
         topic = path.removeprefix(f"/{DATA_SEGMENT}/").replace("/", ".")
-        handler = _provider_handler(snapshot, kind, topic, declared, escape)
+        shown = title or topic
+        raw = (
+            _colour_indexes(declared, columns) if declared is not None and columns else frozenset()
+        )
+        handler = _provider_handler(snapshot, kind, shown, declared, escape, raw=raw)
         provider = Provider(name, topic, kind, event, snapshot)
-        self._routes[path] = Route(owner, path, name, handler, topic, declared, True, provider)
+        self._routes[path] = Route(owner, path, name, handler, shown, declared, True, provider)
         return topic
 
     def providers(self) -> list[Route]:

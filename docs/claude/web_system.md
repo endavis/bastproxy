@@ -161,24 +161,28 @@ A data provider is a route that also has a topic, so a plugin registers its data
 self.api("plugins.core.web:web.provider.add")(
     self.plugin_id, "mobsleft", self._mobs_snapshot,
     columns=[{"name": "mob", "label": "Mob"}, {"name": "left", "label": "Left", "type": "int"}],
-    kind="table", event="ev_aardwolf_cp_mobs_changed",
+    kind="table", event="ev_aardwolf_cp_mobs_changed", title="Campaign mobs left",
 )
 ```
 
-`web.provider.add(owner, name, snapshot, columns=None, kind="json", event=None) -> str | None`
+`web.provider.add(owner, name, snapshot, columns=None, kind="json", event=None, title=None) -> str | None`
 
 | Argument | Meaning |
 | :--- | :--- |
 | `owner` | Your plugin id. It must be the plugin that makes the call. |
 | `name` | A non-empty subpath, with the same rules as a route subpath. |
 | `snapshot` | A sync or async function with no arguments that returns all the data as plain data. |
-| `columns` | For `table` only, a list of dicts with `name`, `label` and `type`. A `json` provider refuses columns. |
+| `columns` | For `table` only, a list of dicts with `name`, `label` and `type`, and optionally `colour: True` on a text column. A `json` provider refuses columns. |
 | `kind` | `json` (the default) or `table`. |
 | `event` | Optional. An event name that means the data changed. |
+| `title` | Optional text. The page heading, the HTML `<title>` and the entry in the `/data/` index. It defaults to the topic. A value that is not text is refused. |
 
-- **Topic and page.** The topic is the path without the leading `/`, with `.` for `/`. `plugins.aardwolf.cp` with `mobsleft` is the topic `aardwolf.cp.mobsleft`, served at `/aardwolf/cp/mobsleft`. `add` returns the topic.
+- **Topic and page.** The topic is the path without the leading `/`, with `.` for `/`. `plugins.aardwolf.cp` with `mobsleft` is the topic `aardwolf.cp.mobsleft`, served at `/data/aardwolf/cp/mobsleft`. `add` returns the topic.
 - **json.** The page is the snapshot as JSON. **table.** The snapshot is every row (one cell per column, a cell may be a `{"text", "href"}` link); the web plugin filters, sorts and pages it for the request and escapes the cell text, so the snapshot returns plain MUD text. A bad table query is a 400, as for a table route.
+- **Table snapshot mapping.** A `table` snapshot may return a mapping with keys from `rows`, `lines` and `unavailable` instead of a list. `lines` (a string or a list of strings) is shown above the table and is converted like a route page's lines. `unavailable` (a non-empty string) is shown in place of the table, after the lines; the page is still a 200 and `rows` may be left out. Without `unavailable`, `rows` is required. An unknown key or a wrong type is a `ValueError`: a 500 for the page and `snapshot_failed` over the socket. A plain list keeps today's behaviour. A `json` provider is never read this way.
+- **Colour columns.** A column dict with `colour: True` (text columns only) leaves its cell text, or a link cell's text, unescaped, so colour codes in it are converted like a route page's. Other columns stay escaped, and no raw HTML is possible. A `colour` that is not a bool, or set on an int or float column, is refused.
 - **Refusals.** The call logs an error and returns `None` for an owner that is not the caller, a bad name, kind or columns, or a path another plugin serves. A provider is served at `/data/<plugin path>/<name>` (the topic leaves out `/data`), so it can share a name with a route of the same plugin; both are served, and `web.route.remove` drops both. Added in #877; before it a provider sat at the route path and a clash was refused. The same owner adding the same name again replaces the provider.
+- **Socket and unavailable.** A table provider whose snapshot has `unavailable` sends `data: null` and a top-level `unavailable` string in its `snapshot` and `update` (the optional field is in `socket-v1.schema.json`, so `v` stays 1). Any other snapshot, and every `json` provider, sends `data` only, as before. Added in #876.
 - **Changed.** `web.provider.changed.raise(owner, name) -> bool` tells the listeners the data changed. It returns `False` and logs an error for a provider that is not the caller's or is unknown. The `event` argument does the same whenever that event is raised; the web plugin registers one handler per followed event and unregisters it when no provider follows it.
 - **List.** `web.provider.list() -> list[str]` returns the sorted topics. The index at `/data/` lists the providers by owner (topic, kind, link; an empty list says so), behind the same session guard as `/`, and `/data` without the slash is a 404. The index at `/` lists only plain pages and links to `/data/`. `RouteTable.pages_by_owner()` and `providers_by_owner()` build the two lists. Also, `#bp.core.web.status` shows a `Providers` line next to `Routes` (which counts plain routes only), each provider as `topic (path)`.
 - **Removal.** `web.route.remove(owner)` and the unload of the plugin remove its providers and their event registrations. A reload of the web plugin keeps the providers, and re-registers their events.

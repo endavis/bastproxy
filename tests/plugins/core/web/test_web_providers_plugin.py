@@ -180,3 +180,18 @@ async def test_unload_and_route_remove_send_topic_removed(stub: Any) -> None:
         "test.caller.again",
     )
     await conn.close()
+
+
+def test_a_title_reaches_the_provider(stub: Any) -> None:
+    assert add(stub, "grid", kind="table", columns=[{"name": "a", "label": "A"}], title="Grid") == (
+        "test.caller.grid"
+    )
+    route = stub.routes.provider_for_topic("test.caller.grid")
+    assert route is not None
+    assert route.title == "Grid"
+
+
+def test_a_title_that_is_not_text_is_refused(stub: Any, caplog: pytest.LogCaptureFixture) -> None:
+    with caplog.at_level(logging.ERROR):
+        assert add(stub, "grid", title=5) is None
+    assert WebPlugin._api_web_provider_list(stub) == []

@@ -248,3 +248,64 @@ async def test_close_cancels_timers_and_detaches(env: Env) -> None:
     env.listeners.notify(TOPIC)
     await env.settle()
     assert connection.sent == []
+
+
+class TableEnv(Env):
+    """An Env with a table provider alongside the json one (#876)."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.routes.add_provider(
+            OWNER, "grid", self.snapshot, [{"name": "a", "label": "A"}], "table", None, str
+        )
+
+
+TABLE_TOPIC = "test.caller.grid"
+
+
+async def test_an_unavailable_table_sends_null_data_and_the_message() -> None:
+    env = TableEnv()
+    env.data = {"unavailable": "No database."}
+    connection = env.connect()
+    await env.send(connection, "subscribe", topic=TABLE_TOPIC)
+    assert connection.sent == [
+        {
+            "v": 1,
+            "type": "snapshot",
+            "topic": TABLE_TOPIC,
+            "data": None,
+            "unavailable": "No database.",
+        }
+    ]
+    connection.sent.clear()
+    env.data = {"unavailable": "Still gone."}
+    env.listeners.notify(TABLE_TOPIC)
+    await env.settle()
+    assert connection.sent == [
+        {"v": 1, "type": "update", "topic": TABLE_TOPIC, "data": None, "unavailable": "Still gone."}
+    ]
+    connection.sent.clear()
+    env.data = {"rows": [["x"]]}
+    env.listeners.notify(TABLE_TOPIC)
+    await env.settle()
+    assert connection.sent == [
+        {"v": 1, "type": "update", "topic": TABLE_TOPIC, "data": {"rows": [["x"]]}}
+    ]
+
+
+async def test_a_malformed_table_mapping_is_snapshot_failed() -> None:
+    env = TableEnv()
+    env.data = {"bogus": 1}
+    connection = env.connect()
+    await env.send(connection, "subscribe", topic=TABLE_TOPIC)
+    assert connection.sent[0]["code"] == "snapshot_failed"
+    assert connection.subscriptions == set()
+
+
+async def test_a_json_provider_with_an_unavailable_key_is_unchanged(env: Env) -> None:
+    env.data = {"unavailable": "m"}
+    connection = env.connect()
+    await env.send(connection, "subscribe", topic=TOPIC)
+    assert connection.sent == [
+        {"v": 1, "type": "snapshot", "topic": TOPIC, "data": {"unavailable": "m"}}
+    ]

@@ -74,6 +74,10 @@ def render_data_index(providers_by_owner: Mapping[str, Sequence[Any]]) -> str:
         items = "".join(
             f"<li><a href='{html.escape(route.path, quote=True)}'>"
             f"{html.escape(route.provider.topic)}</a> ({html.escape(route.provider.kind)})</li>"
+            if route.title == route.provider.topic
+            else f"<li><a href='{html.escape(route.path, quote=True)}'>"
+            f"{html.escape(route.title)}</a> {html.escape(route.provider.topic)} "
+            f"({html.escape(route.provider.kind)})</li>"
             for route in providers_by_owner[owner]
             if route.provider is not None
         )

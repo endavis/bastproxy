@@ -388,3 +388,199 @@ async def test_run_snapshot_awaits_async_snapshots() -> None:
 
     assert await run_snapshot(later) == 3
     assert await run_snapshot(lambda: 4) == 4
+
+
+# ---- title, lines, unavailable and colour columns (#876) ----
+
+TEXT_COLUMNS = [{"name": "name", "label": "Name"}, {"name": "note", "label": "Note"}]
+
+
+def add_table(env: Env, name: str, snapshot: Any, **kwargs: Any) -> str:
+    columns = kwargs.pop("columns", COLUMNS)
+    return env.app.routes.add_provider(
+        OWNER, name, snapshot, columns, "table", None, escape, **kwargs
+    )
+
+
+async def test_a_title_is_the_heading_the_title_tag_and_the_index_entry(env: Env) -> None:
+    add_table(env, "t", snap, title="Mobs <left>")
+    sid = await env.login()
+    _, _, body = await env.get("/data/test/web/t", sid)
+    text = body.decode()
+    assert "<title>Mobs &lt;left&gt;</title>" in text
+    assert "<h1>Mobs &lt;left&gt;</h1>" in text
+    _, _, index = await env.get("/data/", sid)
+    assert "<a href='/data/test/web/t'>Mobs &lt;left&gt;</a> test.web.t (table)" in index.decode()
+
+
+async def test_without_a_title_the_topic_is_shown(env: Env) -> None:
+    add_table(env, "t", snap)
+    sid = await env.login()
+    _, _, body = await env.get("/data/test/web/t", sid)
+    assert "<h1>test.web.t</h1>" in body.decode()
+    _, _, index = await env.get("/data/", sid)
+    assert "<a href='/data/test/web/t'>test.web.t</a> (table)" in index.decode()
+
+
+def test_a_title_that_is_not_text_is_refused() -> None:
+    with pytest.raises(ValueError, match="title"):
+        RouteTable().add_provider(OWNER, "t", snap, COLUMNS, "table", None, escape, title=5)
+
+
+async def test_rows_and_lines_show_the_lines_above_the_table(env: Env) -> None:
+    add_table(env, "t", lambda: {"rows": snap(), "lines": ["@Rintro", "second"]})
+    sid = await env.login()
+    status, _, body = await env.get("/data/test/web/t?sort=level&dir=desc&count=2", sid)
+    text = body.decode()
+    assert status == 200
+    assert text.index("intro") < text.index("<table")
+    assert "@Rintro" not in text
+    assert text.index("elf") < text.index("Orc")
+    assert "gnome" not in text
+
+
+async def test_lines_may_be_a_string(env: Env) -> None:
+    add_table(env, "t", lambda: {"rows": snap(), "lines": "just text"})
+    sid = await env.login()
+    _, _, body = await env.get("/data/test/web/t", sid)
+    assert "just text" in body.decode()
+
+
+async def test_a_plain_list_gives_the_handler_no_lines() -> None:
+    table = RouteTable()
+    add_table_to(table, snap)
+    route = table.provider_for_topic("test.web.t")
+    assert route is not None
+    result = await route.handler(_table_request())
+    assert "lines" not in result
+    assert result["kind"] == "table"
+
+
+def add_table_to(table: RouteTable, snapshot: Any, **kwargs: Any) -> str:
+    return table.add_provider(OWNER, "t", snapshot, COLUMNS, "table", None, escape, **kwargs)
+
+
+def _table_request() -> Request:
+    from bastproxy.plugins.core.web.libs._table import TableQuery
+
+    return Request("GET", "/data/test/web/t", table=TableQuery())
+
+
+async def test_an_unavailable_snapshot_shows_the_lines_and_message_not_a_table(env: Env) -> None:
+    add_table(env, "t", lambda: {"lines": ["Levels 1-10"], "unavailable": "No database."})
+    sid = await env.login()
+    status, _, body = await env.get("/data/test/web/t", sid)
+    text = body.decode()
+    assert status == 200
+    assert "Levels 1-10" in text
+    assert "No database." in text
+    assert "<table" not in text
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        {"rows": [], "extra": 1},
+        {"rows": [], "unavailable": ""},
+        {"rows": [], "unavailable": 3},
+        {"lines": ["x"]},
+        {"rows": [], "lines": 5},
+        {"rows": [], "lines": [1]},
+        {"rows": "abc"},
+    ],
+)
+async def test_a_malformed_snapshot_mapping_is_500(env: Env, bad: dict[str, Any]) -> None:
+    add_table(env, "t", lambda: bad)
+    sid = await env.login()
+    assert (await env.get("/data/test/web/t", sid))[0] == 500
+
+
+async def test_a_colour_column_keeps_colour_and_others_stay_escaped(env: Env) -> None:
+    add_table(
+        env,
+        "t",
+        lambda: [["@Rplain", "@Gnote"]],
+        columns=[
+            {"name": "name", "label": "Name"},
+            {"name": "note", "label": "Note", "colour": True},
+        ],
+    )
+    sid = await env.login()
+    _, _, body = await env.get("/data/test/web/t", sid)
+    text = body.decode()
+    assert "@Rplain" in text
+    assert "@Gnote" not in text
+    assert "<span style='color:#00ff00'>note</span>" in text
+
+
+async def test_a_colour_column_escapes_markup_beside_colour_codes(env: Env) -> None:
+    add_table(
+        env,
+        "t",
+        lambda: [["n", "@G<b>x</b>&<script>y</script>"]],
+        columns=[
+            {"name": "name", "label": "Name"},
+            {"name": "note", "label": "Note", "colour": True},
+        ],
+    )
+    sid = await env.login()
+    _, _, body = await env.get("/data/test/web/t", sid)
+    text = body.decode()
+    assert "<b>" not in text
+    assert "<script>y" not in text
+    assert "&lt;b&gt;" in text
+    assert "&amp;" in text
+    assert "<span style='color:#00ff00'>" in text
+
+
+async def test_a_colour_column_link_cell_keeps_its_href(env: Env) -> None:
+    add_table(
+        env,
+        "t",
+        lambda: [[{"text": "@Glink", "href": "/x"}, "n"]],
+        columns=[
+            {"name": "name", "label": "Name", "colour": True},
+            {"name": "note", "label": "Note"},
+        ],
+    )
+    sid = await env.login()
+    _, _, body = await env.get("/data/test/web/t", sid)
+    text = body.decode()
+    assert "href='/x'" in text or 'href="/x"' in text
+    assert "@Glink" not in text
+
+
+@pytest.mark.parametrize(
+    "columns",
+    [
+        [{"name": "a", "label": "A", "colour": "yes"}],
+        [{"name": "a", "label": "A", "type": "int", "colour": True}],
+    ],
+)
+def test_a_bad_colour_column_is_refused(columns: list[dict[str, Any]]) -> None:
+    with pytest.raises(ValueError, match="colour"):
+        RouteTable().add_provider(OWNER, "t", snap, columns, "table", None, escape)
+
+
+def test_read_table_snapshot_reads_a_list_and_a_mapping() -> None:
+    from bastproxy.plugins.core.web.libs._store import read_table_snapshot
+
+    assert read_table_snapshot([[1]]).unavailable is None
+    assert read_table_snapshot([[1]]).lines == ""
+    read = read_table_snapshot({"rows": [[1]], "lines": "x"})
+    assert (read.rows, read.lines) == ([[1]], "x")
+    assert read_table_snapshot({"unavailable": "m"}).rows == []
+
+
+def test_socket_fields_only_changes_an_unavailable_table() -> None:
+    from bastproxy.plugins.core.web.libs._store import Provider, socket_fields
+
+    table = Provider("n", "t", "table")
+    assert socket_fields(table, {"unavailable": "m"}) == {"data": None, "unavailable": "m"}
+    assert socket_fields(table, [[1]]) == {"data": [[1]]}
+    assert socket_fields(table, {"rows": []}) == {"data": {"rows": []}}
+    assert socket_fields(Provider("n", "t", "json"), {"unavailable": "m"}) == {
+        "data": {"unavailable": "m"}
+    }
+    with pytest.raises(ValueError, match="unknown"):
+        socket_fields(table, {"bogus": 1})

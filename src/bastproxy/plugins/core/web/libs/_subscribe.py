@@ -14,7 +14,7 @@ from typing import Any
 from bastproxy.libs.logger import get_logger
 
 from . import _http
-from ._store import ProviderListeners, RouteTable, run_snapshot
+from ._store import ProviderListeners, RouteTable, run_snapshot, socket_fields
 from ._tls import LOGGER_NAME
 from ._ws import SocketConnection, SocketHub, envelope, error_message
 
@@ -105,13 +105,14 @@ class Subscriptions:
         try:
             async with asyncio.timeout(_http.HANDLER_TIMEOUT):
                 data = await run_snapshot(route.provider.snapshot)
+                fields = socket_fields(route.provider, data)
         except Exception:
             get_logger(LOGGER_NAME).error("snapshot of %s failed", topic, exc_info=True)
             message = error_message(
                 "snapshot_failed", f"the snapshot of {topic} failed", topic=topic
             )
         else:
-            message = envelope("update", topic=topic, data=data)
+            message = envelope("update", topic=topic, **fields)
         for connection in self._followers(topic):
             connection.send(message)
 
@@ -132,6 +133,7 @@ class Subscriptions:
             return
         try:
             data = await run_snapshot(route.provider.snapshot)
+            fields = socket_fields(route.provider, data)
         except TimeoutError:
             raise  # the generic handler timeout answers
         except Exception:
@@ -142,7 +144,7 @@ class Subscriptions:
                 )
             )
             return
-        if connection.send(envelope("snapshot", topic=topic, data=data)):
+        if connection.send(envelope("snapshot", topic=topic, **fields)):
             connection.subscriptions.add(topic)
 
     def _unsubscribe(self, connection: SocketConnection, message: dict[str, Any]) -> None:

@@ -655,6 +655,8 @@ def test_a_valid_sample_of_each_server_type_passes() -> None:
         {"v": 1, "type": "output", "spans": [span], "prompt": True, "record": "r"},
         {"v": 1, "type": "snapshot", "topic": "t", "data": None},
         {"v": 1, "type": "update", "topic": "t", "data": [1, {"a": 2}]},
+        {"v": 1, "type": "snapshot", "topic": "t", "data": None, "unavailable": "No database."},
+        {"v": 1, "type": "update", "topic": "t", "data": None, "unavailable": "Gone."},
         {"v": 1, "type": "result", "id": 1, "ok": True, "reply": {"lines": [[span]], "data": 3}},
         {
             "v": 1,
@@ -669,3 +671,27 @@ def test_a_valid_sample_of_each_server_type_passes() -> None:
     ]
     for sample in samples:
         assert_valid(sample)
+
+
+@pytest.mark.parametrize("kind", ["snapshot", "update"])
+@pytest.mark.parametrize("unavailable", ["", 3, None, ["m"]])
+def test_a_bad_unavailable_fails_the_schema(kind: str, unavailable: Any) -> None:
+    assert not valid({"v": 1, "type": kind, "topic": "t", "data": None, "unavailable": unavailable})
+
+
+async def test_unavailable_table_messages_are_valid() -> None:
+    env = SubEnv()
+    env.routes.add_provider(
+        OWNER, "grid", env.snapshot, [{"name": "a", "label": "A"}], "table", None, str
+    )
+    connection = FakeConnection()
+    env.hub.add(connection)  # type: ignore[arg-type]
+    topic = "test.caller.grid"
+    env.data = {"unavailable": "No database."}
+    await run_handler(env.hub, connection, {"v": 1, "type": "subscribe", "topic": topic})
+    env.listeners.notify(topic)
+    await asyncio.sleep(0.1)
+    assert [m["type"] for m in connection.sent] == ["snapshot", "update"]
+    for message in connection.sent:
+        assert message["unavailable"] == "No database."
+        assert_valid(wire(message))

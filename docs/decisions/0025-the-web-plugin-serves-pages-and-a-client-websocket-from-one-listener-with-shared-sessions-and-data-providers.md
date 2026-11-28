@@ -52,6 +52,7 @@ Accepted in issue #869, after all its parts merged. The text above was corrected
 - Issue #841: `ansicode.to.spans` was added for MUD output, beside `colorcode.to.spans`.
 - Issue #843: `hello` also lists the provider topics.
 - Issue #842: a text frame that is not UTF-8 closes with 1007, and a message with another `v` gets an `error`.
+- Issue #876: a table provider may carry a `title`, return a mapping of `rows`, `lines` and `unavailable`, and mark text columns `colour`. An unavailable table sends `data` null and an `unavailable` string in `snapshot` and `update`; the field is optional, so protocol `v` stays 1.
 - Issue #870: spans are exactly `{text, fg, bg, bold}`, `output` carries one `record`, and the output queue closes with 1008. These were corrected with the schema.
 
 ## Rationale
@@ -86,6 +87,7 @@ One listener keeps one port, one TLS setup and one login, and the upgrade check 
 - Issue #843: subscriptions to data providers over the socket
 - Issue #877: provider pages are served under `/data/`, so a provider and a page can share a name
 - Issue #879: `/data/` lists the data providers and `/` lists only pages
+- Issue #876: a table provider carries a title, intro lines, an unavailable message and colour columns
 - Issue #844: a socket is a proxy client (output as spans, input to the MUD, view-only login)
 - Issue #845: command calls with structured replies over the socket
 - Issue #846: the client bundle served from `clientdir`
