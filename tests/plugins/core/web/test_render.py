@@ -4,9 +4,24 @@ from html.parser import HTMLParser
 
 import pytest
 
-from bastproxy.plugins.core.web.libs._render import render_page, render_table
+from bastproxy.plugins.core.web.libs._render import (
+    render_index,
+    render_page,
+    render_table,
+    render_table_page,
+)
 
 from .conftest import to_html
+
+
+def test_every_rendered_page_declares_its_language() -> None:
+    documents = [
+        render_page("t", "a\nb", to_html),
+        render_index({}),
+        render_table_page("t", "", "<table></table>", to_html),
+    ]
+    for document in documents:
+        assert "<html lang='en'>" in document
 
 
 def test_title_and_lines_are_escaped() -> None:

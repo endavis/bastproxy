@@ -9,12 +9,17 @@ from bastproxy.plugins.core.web.libs._http import (
     CSP,
     HttpError,
     Response,
+    message_response,
     parse_head,
     read_request,
     serialize,
 )
 
 from .conftest import Running, get_request, http_get
+
+
+def test_message_response_declares_its_language() -> None:
+    assert b"<html lang='en'>" in message_response(404, "missing").body
 
 
 def test_valid_get_is_parsed() -> None:

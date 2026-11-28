@@ -184,7 +184,7 @@ def message_response(
     """A small html page that carries the status phrase and an optional message."""
     phrase = html.escape(HTTPStatus(status).phrase)
     body = (
-        f"<!DOCTYPE html><html><head><meta charset='utf-8'><title>{status} {phrase}</title></head>"
+        f"<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><title>{status} {phrase}</title></head>"
     )
     body += f"<body><h1>{status} {phrase}</h1><p>{html.escape(text)}</p></body></html>"
     response = text_response(status, body)
