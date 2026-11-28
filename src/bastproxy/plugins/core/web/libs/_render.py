@@ -34,7 +34,7 @@ def render_page(title: str, lines: list[str] | str, to_html: Callable[[str], str
     text = lines if isinstance(lines, str) else "\n".join(lines)
     safe_title = html.escape(title)
     return (
-        "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+        "<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width, initial-scale=1'>"
         f"<title>{safe_title}</title><style>{_STYLE}</style></head>"
         f"<body><h1>{safe_title}</h1><pre>{to_html(text)}</pre></body></html>"
@@ -60,7 +60,7 @@ def render_index(routes_by_owner: Mapping[str, Sequence[Any]]) -> str:
     body = "".join(parts) or "<p>No pages are registered.</p>"
     body += f"<p><a href='{DATA_INDEX_PATH}'>Data providers</a></p>"
     return (
-        "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+        "<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width, initial-scale=1'>"
         f"<title>bastproxy</title><style>{_STYLE}a{{color:#6cf}}</style></head>"
         f"<body><h1>bastproxy</h1>{body}</body></html>"
@@ -213,7 +213,7 @@ def render_table_page(
     safe_title = html.escape(title)
     intro = f"<pre>{to_html(text)}</pre>" if text else ""
     return (
-        "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+        "<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width, initial-scale=1'>"
         f"<title>{safe_title}</title><style>{_STYLE}{_TABLE_STYLE}</style>"
         f"{TABLE_SCRIPT_TAG}</head>"

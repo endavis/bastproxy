@@ -111,3 +111,35 @@ def test_a_malformed_link_cell_raises(cell: dict[str, object]) -> None:
 def test_a_non_string_href_raises() -> None:
     with pytest.raises(ValueError, match="same-origin"):
         _table([[{"text": "t", "href": 5}, "x"]])
+
+
+# ---- document language (#880) ----
+
+
+class _Root(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.lang: str | None = None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "html":
+            self.lang = dict(attrs).get("lang")
+
+
+def _html_lang(document: str) -> str | None:
+    parser = _Root()
+    parser.feed(document)
+    return parser.lang
+
+
+def test_every_rendered_page_declares_english() -> None:
+    from bastproxy.plugins.core.web.libs._http import message_response
+    from bastproxy.plugins.core.web.libs._render import render_index, render_table_page
+
+    documents = [
+        render_page("t", ["x"], to_html),
+        render_index({}),
+        render_table_page("t", ["x"], _table([["a", "b"]]), to_html),
+        message_response(404, "gone").body.decode("utf-8"),
+    ]
+    assert [_html_lang(d) for d in documents] == ["en"] * 4
