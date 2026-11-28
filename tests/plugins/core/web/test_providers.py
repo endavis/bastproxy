@@ -513,6 +513,26 @@ async def test_a_colour_column_keeps_colour_and_others_stay_escaped(env: Env) ->
     assert "<span style='color:#00ff00'>note</span>" in text
 
 
+async def test_a_colour_column_escapes_markup_beside_colour_codes(env: Env) -> None:
+    add_table(
+        env,
+        "t",
+        lambda: [["n", "@G<b>x</b>&<script>y</script>"]],
+        columns=[
+            {"name": "name", "label": "Name"},
+            {"name": "note", "label": "Note", "colour": True},
+        ],
+    )
+    sid = await env.login()
+    _, _, body = await env.get("/data/test/web/t", sid)
+    text = body.decode()
+    assert "<b>" not in text
+    assert "<script>y" not in text
+    assert "&lt;b&gt;" in text
+    assert "&amp;" in text
+    assert "<span style='color:#00ff00'>" in text
+
+
 async def test_a_colour_column_link_cell_keeps_its_href(env: Env) -> None:
     add_table(
         env,
